@@ -1,0 +1,14 @@
+{
+  "superpowers": {
+    "release": "v5.0.7",
+    "commit": "b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
+  },
+  "context7": {
+    "release": "ctx7@0.3.9",
+    "commit": "6cba6fb29b2671e54cd4a9ecebf5e33820622531"
+  },
+  "vercel-agent-skills": {
+    "release": "none",
+    "commit": "73140fc5b3a214ad3222bcf557b397b3c02d11c1"
+  }
+}

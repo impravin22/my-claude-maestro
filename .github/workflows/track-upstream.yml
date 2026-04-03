@@ -1,0 +1,147 @@
+name: Track Upstream Dependencies
+
+on:
+  schedule:
+    # Runs daily at 08:00 UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check upstream repos for updates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          STATE_FILE=".github/upstream-state.json"
+          UPDATES_FOUND=false
+          ISSUE_BODY=""
+
+          # Define upstream repos to track
+          declare -A REPOS
+          REPOS[superpowers]="obra/superpowers"
+          REPOS[context7]="upstash/context7"
+          REPOS[vercel-agent-skills]="vercel-labs/agent-skills"
+
+          # Load previous state (or create empty)
+          if [ -f "$STATE_FILE" ]; then
+            PREV_STATE=$(cat "$STATE_FILE")
+          else
+            PREV_STATE='{}'
+          fi
+
+          NEW_STATE='{'
+          FIRST=true
+
+          for KEY in "${!REPOS[@]}"; do
+            REPO="${REPOS[$KEY]}"
+            echo "Checking $REPO..."
+
+            # Get latest release tag (handle 404 for repos with no releases)
+            RELEASE_RESPONSE=$(gh api "repos/$REPO/releases/latest" 2>/dev/null || echo '{"tag_name":"none"}')
+            LATEST_RELEASE=$(echo "$RELEASE_RESPONSE" | jq -r '.tag_name // "none"')
+
+            # Get latest commit SHA on default branch
+            LATEST_COMMIT=$(gh api "repos/$REPO/commits?per_page=1" --jq '.[0].sha' 2>/dev/null || echo "unknown")
+            LATEST_COMMIT_MSG=$(gh api "repos/$REPO/commits?per_page=1" --jq '.[0].commit.message' 2>/dev/null | head -1 || echo "")
+            LATEST_COMMIT_DATE=$(gh api "repos/$REPO/commits?per_page=1" --jq '.[0].commit.committer.date' 2>/dev/null || echo "")
+
+            # Get previous state for this repo
+            PREV_RELEASE=$(echo "$PREV_STATE" | jq -r ".\"$KEY\".release // \"\"")
+            PREV_COMMIT=$(echo "$PREV_STATE" | jq -r ".\"$KEY\".commit // \"\"")
+
+            # Check for changes
+            CHANGED=false
+            CHANGE_DETAILS=""
+
+            if [ "$LATEST_RELEASE" != "none" ] && [ "$LATEST_RELEASE" != "$PREV_RELEASE" ] && [ -n "$PREV_RELEASE" ]; then
+              CHANGED=true
+              CHANGE_DETAILS="$CHANGE_DETAILS\n  - **New release:** \`$LATEST_RELEASE\` (was \`$PREV_RELEASE\`)"
+
+              # Get release notes
+              RELEASE_BODY=$(gh api "repos/$REPO/releases/latest" --jq '.body' 2>/dev/null | head -20 || echo "")
+              if [ -n "$RELEASE_BODY" ]; then
+                CHANGE_DETAILS="$CHANGE_DETAILS\n  - Release notes:\n\`\`\`\n$(echo "$RELEASE_BODY" | head -20)\n\`\`\`"
+              fi
+            fi
+
+            if [ "$LATEST_COMMIT" != "$PREV_COMMIT" ] && [ -n "$PREV_COMMIT" ]; then
+              CHANGED=true
+
+              # Count commits since last check
+              COMMIT_COUNT=$(gh api "repos/$REPO/compare/$PREV_COMMIT...$LATEST_COMMIT" --jq '.total_commits' 2>/dev/null || echo "?")
+              CHANGE_DETAILS="$CHANGE_DETAILS\n  - **$COMMIT_COUNT new commit(s)** since last check"
+              CHANGE_DETAILS="$CHANGE_DETAILS\n  - Latest: \`${LATEST_COMMIT:0:7}\` — $LATEST_COMMIT_MSG"
+
+              # Get recent commit summaries (up to 5)
+              RECENT_COMMITS=$(gh api "repos/$REPO/commits?per_page=5" --jq '.[] | "  - `\(.sha[0:7])` \(.commit.message | split("\n")[0])"' 2>/dev/null || echo "")
+              if [ -n "$RECENT_COMMITS" ]; then
+                CHANGE_DETAILS="$CHANGE_DETAILS\n  - Recent commits:\n$RECENT_COMMITS"
+              fi
+            fi
+
+            if [ "$CHANGED" = true ]; then
+              UPDATES_FOUND=true
+              ISSUE_BODY="$ISSUE_BODY\n### [$KEY](https://github.com/$REPO)\n$CHANGE_DETAILS\n"
+            fi
+
+            # Build new state JSON
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              NEW_STATE="$NEW_STATE,"
+            fi
+            NEW_STATE="$NEW_STATE\"$KEY\":{\"release\":\"$LATEST_RELEASE\",\"commit\":\"$LATEST_COMMIT\"}"
+          done
+
+          NEW_STATE="$NEW_STATE}"
+
+          # Save new state
+          echo "$NEW_STATE" | jq '.' > "$STATE_FILE"
+
+          # Create issue if updates found
+          if [ "$UPDATES_FOUND" = true ]; then
+            TITLE="Upstream updates detected — $(date +%Y-%m-%d)"
+            BODY=$(printf "## Upstream Dependency Updates\n\nThe following upstream repos have new changes that may affect Maestro:\n$ISSUE_BODY\n---\n\n### Action Required\n\nReview these changes and determine if Maestro needs updating:\n\n- [ ] Check if new superpowers skills should be orchestrated\n- [ ] Check if Context7 API has changed\n- [ ] Check if new Vercel agent skills are available\n- [ ] Update SKILL.md if needed\n- [ ] Update checklists if needed\n- [ ] Bump version in plugin.json if changes made\n\n*This issue was automatically created by the upstream tracker workflow.*")
+
+            # Check for existing open issue to avoid duplicates
+            EXISTING=$(gh issue list --repo "${{ github.repository }}" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+            if [ -n "$EXISTING" ]; then
+              # Comment on existing issue
+              gh issue comment "$EXISTING" --repo "${{ github.repository }}" --body "$BODY"
+              echo "Updated existing issue #$EXISTING"
+            else
+              # Create new issue
+              gh issue create \
+                --repo "${{ github.repository }}" \
+                --title "$TITLE" \
+                --body "$BODY" \
+                --label "upstream-update"
+              echo "Created new upstream update issue"
+            fi
+          else
+            echo "No upstream changes detected"
+          fi
+
+          # Commit updated state file
+          echo "$NEW_STATE" | jq '.' > "$STATE_FILE"
+          echo "state_changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit state file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/upstream-state.json
+          git diff --cached --quiet || git commit -m "chore: update upstream tracking state [skip ci]"
+          git push || echo "Nothing to push"
