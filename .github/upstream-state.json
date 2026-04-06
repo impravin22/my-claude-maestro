@@ -1,7 +1,7 @@
 {
   "context7": {
     "release": "ctx7@0.3.9",
-    "commit": "6cba6fb29b2671e54cd4a9ecebf5e33820622531"
+    "commit": "42dedb3ab7d657e3500f566b517935b1e8c5d674"
   },
   "vercel-agent-skills": {
     "release": "none",
