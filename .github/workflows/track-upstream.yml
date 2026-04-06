@@ -53,7 +53,7 @@ jobs:
 
             # Get latest commit SHA on default branch
             LATEST_COMMIT=$(gh api "repos/$REPO/commits?per_page=1" --jq '.[0].sha' 2>/dev/null || echo "unknown")
-            LATEST_COMMIT_MSG=$(gh api "repos/$REPO/commits?per_page=1" --jq '.[0].commit.message' 2>/dev/null | head -1 || echo "")
+            LATEST_COMMIT_MSG=$(gh api "repos/$REPO/commits?per_page=1" 2>/dev/null | jq -r '.[0].commit.message // ""' 2>/dev/null | tr -d '\000-\011\013-\037' | head -1 || echo "")
             LATEST_COMMIT_DATE=$(gh api "repos/$REPO/commits?per_page=1" --jq '.[0].commit.committer.date' 2>/dev/null || echo "")
 
             # Get previous state for this repo
@@ -84,7 +84,7 @@ jobs:
               CHANGE_DETAILS="$CHANGE_DETAILS\n  - Latest: \`${LATEST_COMMIT:0:7}\` — $LATEST_COMMIT_MSG"
 
               # Get recent commit summaries (up to 5)
-              RECENT_COMMITS=$(gh api "repos/$REPO/commits?per_page=5" --jq '.[] | "  - `\(.sha[0:7])` \(.commit.message | split("\n")[0])"' 2>/dev/null || echo "")
+              RECENT_COMMITS=$(gh api "repos/$REPO/commits?per_page=5" 2>/dev/null | jq -r '[.[] | "  - `\(.sha[0:7])` \(.commit.message | split("\n")[0])"] | join("\n")' 2>/dev/null | tr -d '\000-\011\013-\037' || echo "")
               if [ -n "$RECENT_COMMITS" ]; then
                 CHANGE_DETAILS="$CHANGE_DETAILS\n  - Recent commits:\n$RECENT_COMMITS"
               fi
