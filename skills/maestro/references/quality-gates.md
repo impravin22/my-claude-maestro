@@ -43,6 +43,24 @@ Every task must pass these gates before claiming completion. Run through this ch
 - [ ] **Google style guides** — code follows Google Python Style Guide or Google TypeScript Style Guide
 - [ ] **Commit messages** — conventional format: `fix:`, `feat:`, `refactor:`, `docs:`, `style:`, `test:`
 
+## Visual Verification (Frontend Changes Only — Requires Playwright MCP)
+
+- [ ] **Dev server running** — local dev server confirmed running before visual checks
+- [ ] **Affected routes render** — every changed/added route loads without console errors
+- [ ] **Interactive elements work** — buttons, forms, toggles, and navigation behave as expected
+- [ ] **Responsive behaviour** — verified at 375px (mobile), 768px (tablet), 1280px (desktop) if layout changed
+- [ ] **Accessibility tree** — no missing labels, broken focus order, or absent ARIA attributes detected via Playwright
+- [ ] **Screenshots captured** — before/after screenshots taken for visually significant changes
+
+## PR Specialist Review (Requires PR Review Toolkit)
+
+- [ ] **Code review clean** — `pr-review-toolkit:code-reviewer` reports no guideline violations
+- [ ] **No silent failures** — `pr-review-toolkit:silent-failure-hunter` reports no swallowed errors or inappropriate fallbacks
+- [ ] **Test coverage adequate** — `pr-review-toolkit:pr-test-analyzer` reports no critical gaps
+- [ ] **Code simplified** — `pr-review-toolkit:code-simplifier` applied where complexity was flagged (if applicable)
+- [ ] **Type design sound** — `pr-review-toolkit:type-design-analyzer` approves new types (if applicable)
+- [ ] **Comments accurate** — `pr-review-toolkit:comment-analyzer` confirms comment accuracy (if applicable)
+
 ## Git Workflow
 
 - [ ] **On a branch** — changes are on a feature branch, not `main`

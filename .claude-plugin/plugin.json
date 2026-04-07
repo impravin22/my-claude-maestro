@@ -1,7 +1,7 @@
 {
   "name": "maestro",
-  "version": "1.0.0",
-  "description": "Master orchestrator for Claude Code — classifies tasks, fetches live docs via Context7, enforces engineering standards (OWASP, testing, UI/UX design system), and orchestrates superpowers skills in the correct order.",
+  "version": "1.1.0",
+  "description": "Master orchestrator for Claude Code — classifies tasks, fetches live docs via Context7, enforces layered security (OWASP checklists + real-time edit scanning), visual verification via Playwright, deep PR review with specialist agents, and orchestrates superpowers skills in the correct order.",
   "author": {
     "name": "Praveen Kumar Chittem",
     "url": "https://github.com/impravin22"
@@ -17,6 +17,11 @@
     "owasp",
     "context7",
     "tdd",
-    "design-system"
+    "design-system",
+    "playwright",
+    "visual-testing",
+    "pr-review",
+    "code-review",
+    "layered-security"
   ]
 }
