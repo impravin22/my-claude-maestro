@@ -32,6 +32,7 @@ jobs:
           REPOS[superpowers]="obra/superpowers"
           REPOS[context7]="upstash/context7"
           REPOS[vercel-agent-skills]="vercel-labs/agent-skills"
+          REPOS[playwright-mcp]="microsoft/playwright-mcp"
 
           # Load previous state (or create empty)
           if [ -f "$STATE_FILE" ]; then

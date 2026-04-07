@@ -1,4 +1,8 @@
 {
+  "superpowers": {
+    "release": "v5.0.7",
+    "commit": "b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
+  },
   "context7": {
     "release": "ctx7@0.3.9",
     "commit": "42dedb3ab7d657e3500f566b517935b1e8c5d674"
@@ -7,8 +11,8 @@
     "release": "none",
     "commit": "73140fc5b3a214ad3222bcf557b397b3c02d11c1"
   },
-  "superpowers": {
-    "release": "v5.0.7",
-    "commit": "b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
+  "playwright-mcp": {
+    "release": "none",
+    "commit": "unknown"
   }
 }

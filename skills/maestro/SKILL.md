@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: Use at the start of every task — master orchestrator that classifies work, fetches live library docs via Context7, enforces engineering standards (OWASP, testing, UI/UX design system, British English, solution justification), and orchestrates superpowers skills in the correct order
+description: Use at the start of every task — master orchestrator that classifies work, fetches live library docs via Context7, enforces layered security (OWASP checklists + real-time edit scanning via Security Guidance), visual verification via Playwright MCP, deep PR review with specialist agents (PR Review Toolkit), and orchestrates superpowers skills in the correct order
 ---
 
 # Maestro — Master Orchestrator
@@ -17,6 +17,9 @@ Before using this skill, ensure:
 - **superpowers plugin** is installed (provides brainstorming, writing-plans, TDD, debugging, verification, finishing-a-development-branch)
 - **Context7 MCP** is configured (`npx ctx7 setup --claude`) for live documentation fetching
 - **Vercel plugin** is recommended (provides shadcn and react-best-practices skills for frontend work)
+- **Security Guidance plugin** is recommended (`/plugin install security-guidance@anthropic`) — adds real-time pre-edit security scanning as a hook
+- **PR Review Toolkit plugin** is recommended (ships with Claude Code) — provides 6 specialist review agents for deep PR analysis
+- **Playwright MCP** is recommended (`npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright`) — enables visual verification of frontend changes
 
 ## Unified Flow
 
@@ -55,10 +58,13 @@ Determine the task type and scope before doing anything else.
 | Classification | Steps to Skip |
 |---------------|---------------|
 | Trivial config/docs change | Skip 3–6, go straight to 7 (implement without TDD ceremony) |
-| No frontend touched | Skip 5 (UI/UX gate) |
+| No frontend touched | Skip 5 (UI/UX gate), skip visual verification in 8 |
 | Bug fix | Step 3 becomes `superpowers:systematic-debugging` instead of brainstorming |
 | No libraries detected | Skip 2 (no Context7 calls) |
 | Independent subtasks identified | Step 7 can use `superpowers:dispatching-parallel-agents` |
+| No dev server running | Skip visual verification (Playwright) in step 8 |
+| No new types introduced | Skip `type-design-analyzer` in step 10 |
+| No comments added/modified | Skip `comment-analyzer` in step 10 |
 
 ---
 
@@ -153,6 +159,24 @@ Read and run through `references/security-checklist.md` against the planned chan
 
 Flag any checklist violations in the plan and resolve them before proceeding to implementation.
 
+### Layered Defence with Security Guidance
+
+Maestro provides **two layers** of security enforcement:
+
+1. **Planning-time** (this step) — the security checklist catches architectural and design-level security issues *before* code is written
+2. **Edit-time** (Security Guidance plugin) — a pre-edit hook that automatically scans every code change for common vulnerability patterns in real-time
+
+**If the Security Guidance plugin is installed**, it runs automatically on every file edit. It detects:
+- Command injection (`os.system()`, `subprocess` with shell=True, `child_process.exec()`)
+- Code injection (`eval()`, `Function()` constructor, `vm.runInNewContext()`)
+- XSS vectors (`dangerouslySetInnerHTML`, unsanitised template literals)
+- Insecure deserialisation (`pickle.loads()`, `yaml.load()` without SafeLoader)
+- Hardcoded secrets (API keys, tokens, passwords in source code)
+
+When a vulnerability is detected, the hook shows a warning with remediation advice *before* the edit is applied. This catches issues that pass checklist review but appear during implementation.
+
+**If the Security Guidance plugin is not installed:** This step still functions via the checklist alone. Note the missing plugin in your response so the user can install it for real-time protection.
+
 ---
 
 ## Step 7: IMPLEMENT
@@ -187,6 +211,22 @@ Invoke `superpowers:verification-before-completion`.
 - [ ] Imports verified — all exist, signatures match
 - [ ] No regressions — read changed code once more before committing
 
+### Visual Verification with Playwright
+
+**Skip if:** No frontend files are touched, or no dev server is running.
+
+When frontend changes are involved and Playwright MCP is available, perform visual verification:
+
+1. **Ensure a dev server is running** — if not, suggest the user starts one (`npm run dev` or equivalent). Do not start one silently.
+2. **Navigate to affected routes** — use Playwright to open each route that was changed or added
+3. **Verify visual rendering** — check that the page renders without errors, layout is correct, and no elements are broken
+4. **Test interactive elements** — click buttons, fill forms, toggle states that were changed
+5. **Check responsive behaviour** — verify at key breakpoints (375px mobile, 768px tablet, 1280px desktop) if layout changes were made
+6. **Verify accessibility** — use Playwright's accessibility tree to check for missing labels, broken focus order, or missing ARIA attributes
+7. **Take screenshots** — capture before/after screenshots for the PR description if the change is visually significant
+
+**If Playwright MCP is not available:** Skip visual verification. Note the missing tool in your response so the user can install it. The remaining quality gates (tests, lint, types) still apply.
+
 **Do NOT claim work is done until every applicable gate passes.**
 
 ---
@@ -204,7 +244,31 @@ Invoke `superpowers:finishing-a-development-branch`.
 
 ## Step 10: REVIEW
 
-After creating the PR, enter the **PR review loop**:
+After creating the PR, run a **two-phase review process**: specialist agent analysis followed by the PR review polling loop.
+
+### Phase 1: Specialist Agent Analysis (PR Review Toolkit)
+
+Dispatch the relevant specialist agents from the PR Review Toolkit in parallel. Select agents based on what the PR contains:
+
+| Agent | When to Dispatch | What It Checks |
+|-------|-----------------|----------------|
+| `pr-review-toolkit:code-reviewer` | **Always** | Adherence to project guidelines, style, patterns |
+| `pr-review-toolkit:silent-failure-hunter` | **Always** — any PR can introduce silent failures | Swallowed errors, empty catch blocks, inappropriate fallbacks, missing error propagation |
+| `pr-review-toolkit:pr-test-analyzer` | **Always** | Test coverage gaps, missing edge cases, critical untested paths |
+| `pr-review-toolkit:code-simplifier` | When implementation is complex or touches multiple files | Unnecessary complexity, redundant code, simplification opportunities |
+| `pr-review-toolkit:type-design-analyzer` | When new types/interfaces are introduced | Type encapsulation, invariant expression, design quality |
+| `pr-review-toolkit:comment-analyzer` | When docstrings or documentation comments are added/modified | Comment accuracy, staleness risk, maintainability |
+
+**Process:**
+1. Determine which agents are relevant based on the PR diff
+2. Dispatch all relevant agents **in parallel** using the Agent tool
+3. Collect findings from all agents
+4. Fix any issues flagged by the agents — commit and push
+5. Re-run any agents whose scope was affected by the fixes (if needed)
+
+### Phase 2: PR Review Polling Loop
+
+After specialist analysis is clean, enter the external review loop:
 
 1. Poll GitHub every 4 minutes using `gh pr checks` and `gh api` to read review comments
 2. If the review has **any** issues (suggestions, warnings, nits, dead code findings, errors):
@@ -213,6 +277,10 @@ After creating the PR, enter the **PR review loop**:
    - Continue polling
 3. Only stop when the review is **fully clean** — approved with zero outstanding comments
 4. Report the final clean status to the user
+
+### When PR Review Toolkit Is Unavailable
+
+If the PR Review Toolkit agents are not available, skip Phase 1 and proceed directly to Phase 2 (the polling loop). Note the missing toolkit in your response.
 
 ---
 
@@ -241,7 +309,7 @@ After designing any solution, before presenting it:
 - If Context7 returns nothing useful, note it and proceed with training knowledge
 - Always flag when you're using training knowledge vs. verified current docs
 
-### When Skills Are Unavailable
+### When Skills or Plugins Are Unavailable
 
 If a superpowers skill cannot be invoked (plugin not installed, skill not found):
 - **Do not skip the step.** Perform the equivalent manually.
@@ -250,3 +318,8 @@ If a superpowers skill cannot be invoked (plugin not installed, skill not found)
 - TDD → write tests before implementation code
 - Verification → run all quality gate commands manually
 - Note the missing skill in your response so the user can install it
+
+If a recommended plugin is unavailable, the workflow degrades gracefully:
+- **Security Guidance missing** → Step 6 still enforces security via the checklist; no real-time edit scanning
+- **Playwright MCP missing** → Step 8 skips visual verification; tests, lint, and type checks still apply
+- **PR Review Toolkit missing** → Step 10 skips Phase 1 (specialist agents); Phase 2 (polling loop) still runs
