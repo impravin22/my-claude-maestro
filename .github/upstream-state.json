@@ -1,18 +1,18 @@
 {
-  "superpowers": {
-    "release": "v5.0.7",
-    "commit": "b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
-  },
   "context7": {
-    "release": "ctx7@0.3.9",
-    "commit": "42dedb3ab7d657e3500f566b517935b1e8c5d674"
+    "release": "@upstash/context7-tools-ai-sdk@0.2.3",
+    "commit": "36463ad6e36f68c21ae8e609e80c309d609c22ed"
   },
   "vercel-agent-skills": {
     "release": "none",
     "commit": "73140fc5b3a214ad3222bcf557b397b3c02d11c1"
   },
+  "superpowers": {
+    "release": "v5.0.7",
+    "commit": "917e5f53b16b115b70a3a355ed5f4993b9f8b73d"
+  },
   "playwright-mcp": {
-    "release": "none",
-    "commit": "unknown"
+    "release": "v0.0.70",
+    "commit": "63b18de5b69d7eb30df5d1ecd15878eb6b75c7ac"
   }
 }
