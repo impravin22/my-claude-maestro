@@ -1,7 +1,7 @@
 {
   "context7": {
-    "release": "@upstash/context7-tools-ai-sdk@0.2.3",
-    "commit": "36463ad6e36f68c21ae8e609e80c309d609c22ed"
+    "release": "ctx7@0.3.11",
+    "commit": "5f108ecf88eddfc3ec02287a337294b9ea56a2e1"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -13,6 +13,6 @@
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "233e4ebb689fb65fda4e127f919cb01520f92eee"
+    "commit": "8f8f8cd808da88d7cb3802998935befb969be8be"
   }
 }
