@@ -1,7 +1,7 @@
 {
   "context7": {
     "release": "ctx7@0.3.11",
-    "commit": "09d05bca29d8b7debca5988d3b5a204bb8ec7b4a"
+    "commit": "00833f92623032dd643974048f9817dd0f1694cc"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -13,6 +13,6 @@
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "8f8f8cd808da88d7cb3802998935befb969be8be"
+    "commit": "d3782155c40aabc3945673998bdbae83cb0dc94c"
   }
 }
