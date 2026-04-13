@@ -67,6 +67,14 @@ Every task must pass these gates before claiming completion. Run through this ch
 - [ ] **Hooks healthy** — claude-mem worker responds on `127.0.0.1:37777`; MCP server `claude-mem` appears under `/mcp` in Claude Code
 - [ ] **No regressions in memory hooks** — if any edit modified `~/.claude/settings.json` or `~/.claude-mem/`, the five lifecycle hooks still fire correctly
 
+## Extended Plugin Ecosystem (Optional — if the respective plugins are installed)
+
+- [ ] **n8n-MCP healthy** — `claude mcp list | grep n8n-mcp` shows a running server (skip if n8n workflows are not in scope for this task)
+- [ ] **VoiceMode healthy** — `claude mcp list | grep voicemode` shows a running server (skip unless voice conversations are being used)
+- [ ] **UI UX Pro Max precedence honoured** — for UI/UX tasks, the `references/uiux-checklist.md` gate was applied before UI UX Pro Max style suggestions; style/palette choices are additive, not a replacement for accessibility/responsive/state-coverage gates
+- [ ] **Skill collision review** — if Everything Claude Code is installed, confirm no user-scope skill fired ahead of a maestro/superpowers skill; prefer plugin-scope skills for the canonical workflow
+- [ ] **LightRAG supplement** — if queried, the retrieved context was cross-checked against Context7's current-version docs (Context7 wins on API freshness when they disagree)
+
 ## Git Workflow
 
 - [ ] **On a branch** — changes are on a feature branch, not `main`

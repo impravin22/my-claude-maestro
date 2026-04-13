@@ -12,7 +12,8 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 6. **Visual verification** — [Playwright MCP](https://github.com/microsoft/playwright-mcp) verifies frontend changes render correctly, pass accessibility checks, and behave across breakpoints
 7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the polling loop
 8. **Cross-session memory** — [claude-mem](https://github.com/thedotmack/claude-mem) surfaces prior observations (decisions, rejected approaches, failed experiments) during CLASSIFY, BRAINSTORM, and PLAN via the `search`, `timeline`, and `get_observations` MCP tools — no more re-deriving context that already exists
-9. **Enforces quality gates** — tests mandatory, lint clean, format clean, TypeScript clean, solution justification, British English
+9. **Composes with an extended plugin ecosystem** — [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) for design styles + palettes, [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) for 400+ n8n integrations, [VoiceMode MCP](https://github.com/mbailey/voicemode) for voice conversations, [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) for 150+ skills across 12 language ecosystems, and [LightRAG](https://github.com/HKUDS/LightRAG) as an optional graph+vector RAG supplement
+10. **Enforces quality gates** — tests mandatory, lint clean, format clean, TypeScript clean, solution justification, British English
 
 ## Prerequisites
 
@@ -25,6 +26,12 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 | [PR Review Toolkit](https://github.com/anthropics/claude-code) | Recommended | Ships with Claude Code — 6 specialist review agents |
 | [Playwright MCP](https://github.com/microsoft/playwright-mcp) | Recommended | `npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright` |
 | [claude-mem](https://github.com/thedotmack/claude-mem) | Recommended | `npx claude-mem install` — persistent memory across sessions via 5 lifecycle hooks + 3 MCP tools (`search`, `timeline`, `get_observations`) |
+| [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | Recommended | `npm i -g uipro-cli && uipro init --ai claude` — 50+ styles, 161 colour palettes, 99 UX guidelines (auto-activates on UI/UX prompts; Step 5 checklist remains canonical) |
+| [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) | Recommended | `claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp` — 400+ n8n workflow integrations |
+| [VoiceMode MCP](https://github.com/mbailey/voicemode) | Recommended | `claude mcp add --scope user voicemode -- uvx --refresh voice-mode` — local Whisper + Kokoro voice conversations (requires mic/speakers) |
+| [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) | Recommended | `git clone https://github.com/affaan-m/everything-claude-code.git && cd everything-claude-code && ./install.sh --target claude --profile full` — 150+ skills, 47 agents, 79 commands, 16 rules across 12 language ecosystems |
+| [LightRAG](https://github.com/HKUDS/LightRAG) | Recommended | `uv tool install "lightrag-hku[api]"` — graph+vector RAG Python library; optional supplement to Context7 for large codebases (external service; custom MCP bridge required to surface inside Claude Code) |
+| [Andrej Karpathy Skills](https://github.com/forrestchang/andrej-karpathy-skills) | Recommended | `claude plugin marketplace add forrestchang/andrej-karpathy-skills && claude plugin install andrej-karpathy-skills@karpathy-skills` — Karpathy's 4 LLM-coding principles (think before coding, simplicity first, surgical changes, goal-driven execution) as an enforced voice that composes with maestro's own engineering-mindset discipline |
 
 ## Installation
 
@@ -106,6 +113,15 @@ The checklists in `skills/maestro/references/` are plain Markdown. Fork the repo
 - Adjust accessibility level (WCAG 2.1 AA → AAA)
 - Add project-specific security rules
 
+## External Resources
+
+Curated references — not integrations, but useful while working with Claude Code. Link-only due to licence restrictions (cannot be vendored into an MIT-licensed repo):
+
+- **[Awesome Claude Code](https://github.com/hesreallyhim/awesome-claude-code)** — community bible of skills, hooks, slash commands, orchestrators (CC BY-NC-ND 4.0)
+- **[Claude Code Ultimate Guide](https://github.com/FlorianBruniaux/claude-code-ultimate-guide)** — 24K+ lines of docs, 228 templates, 271-question quiz (CC BY-SA 4.0)
+- **[Claude Agent Blueprints](https://github.com/danielrosehill/Claude-Code-Projects-Index)** — index of 75+ agent workspace templates (no licence — link-only)
+- **[Awesome Claude Plugins](https://github.com/ComposioHQ/awesome-claude-plugins)** — curated plugin index across categories (no licence — link-only)
+
 ## Plugin Structure
 
 ```
@@ -123,7 +139,8 @@ my-claude-maestro/
 ├── docs/
 │   ├── 2026-04-03-maestro-design.md
 │   ├── 2026-04-07-plugin-integration-design.md
-│   └── 2026-04-13-claude-mem-integration-design.md
+│   ├── 2026-04-13-claude-mem-integration-design.md
+│   └── 2026-04-13-multi-plugin-integration-design.md
 ├── README.md
 └── LICENSE
 ```
