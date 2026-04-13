@@ -23,11 +23,10 @@ print_help() {
 Maestro companion installer.
 
 Components installed by default:
-  [required]      superpowers plugin, Context7 MCP
-  [recommended]   Vercel plugin, Security Guidance, Playwright MCP,
-                  claude-mem, UI UX Pro Max, Everything Claude Code,
-                  Andrej Karpathy Skills
-  [bundled w/ CC] PR Review Toolkit (ships with Claude Code — no install)
+  [required]     superpowers plugin, Context7 MCP
+  [recommended]  Vercel plugin, Security Guidance, PR Review Toolkit,
+                 Playwright MCP, claude-mem, UI UX Pro Max,
+                 Andrej Karpathy Skills, Everything Claude Code
 
 Flags:
   --minimal              install required components only
@@ -115,6 +114,8 @@ printf "${GREEN}✔ claude, node, npx, curl available${RESET}\n"
 
 # --- Install helpers --------------------------------------------------------
 
+ADDED_MARKETPLACES=" "
+
 install_plugin() {
   local name="$1" marketplace="$2" plugin_spec="$3"
   if is_skipped "$name"; then
@@ -122,8 +123,11 @@ install_plugin() {
     return
   fi
   log_step "Installing $name"
-  run "claude plugin marketplace add $marketplace" \
-    || log_fail "$name: marketplace add failed (continuing)"
+  if [[ "$ADDED_MARKETPLACES" != *" $marketplace "* ]]; then
+    run "claude plugin marketplace add $marketplace" \
+      || log_fail "$name: marketplace add failed (continuing)"
+    ADDED_MARKETPLACES="$ADDED_MARKETPLACES$marketplace "
+  fi
   if run "claude plugin install $plugin_spec"; then
     log_ok "$name"
   else
@@ -148,8 +152,8 @@ install_mcp() {
 # --- Required --------------------------------------------------------------
 
 install_plugin "superpowers" \
-  "obra/superpowers" \
-  "superpowers@superpowers"
+  "anthropics/claude-plugins-official" \
+  "superpowers@claude-plugins-official"
 
 install_mcp "Context7" \
   "npx -y ctx7 setup --claude"
@@ -159,33 +163,23 @@ install_mcp "Context7" \
 if [ "$MINIMAL" -eq 0 ]; then
 
   install_plugin "vercel" \
-    "vercel-labs/agent-skills" \
-    "vercel@vercel-labs"
+    "anthropics/claude-plugins-official" \
+    "vercel@claude-plugins-official"
 
-  if is_skipped "security-guidance"; then
-    log_skip "security-guidance (explicit --skip)"
-  else
-    log_step "Installing Security Guidance (Anthropic marketplace)"
-    if run "claude plugin install security-guidance@anthropic"; then
-      log_ok "security-guidance"
-    else
-      log_fail "security-guidance (requires Anthropic marketplace access)"
-    fi
-  fi
+  install_plugin "security-guidance" \
+    "anthropics/claude-plugins-official" \
+    "security-guidance@claude-plugins-official"
+
+  install_plugin "pr-review-toolkit" \
+    "anthropics/claude-plugins-official" \
+    "pr-review-toolkit@claude-plugins-official"
 
   install_mcp "Playwright" \
     "npx -y @anthropic-ai/claude-code mcp add playwright -- npx -y @anthropic-ai/mcp-playwright"
 
-  if is_skipped "claude-mem"; then
-    log_skip "claude-mem (explicit --skip)"
-  else
-    log_step "Installing claude-mem"
-    if run "npx -y claude-mem install"; then
-      log_ok "claude-mem"
-    else
-      log_fail "claude-mem"
-    fi
-  fi
+  install_plugin "claude-mem" \
+    "thedotmack/claude-mem" \
+    "claude-mem@thedotmack"
 
   if is_skipped "ui-ux-pro-max"; then
     log_skip "ui-ux-pro-max (explicit --skip)"
@@ -244,9 +238,8 @@ cat <<'EOF'
 
 Next steps:
   1. Restart Claude Code so newly-installed plugins and MCPs load.
-  2. Verify Context7 is reachable:   /plugin list
-  3. PR Review Toolkit ships with Claude Code — no install needed.
-  4. Heavy components (VoiceMode, n8n-MCP, LightRAG) were intentionally
+  2. Verify installs:                claude plugin list
+  3. Heavy components (VoiceMode, n8n-MCP, LightRAG) were intentionally
      excluded — install manually if needed (see README.md).
 
 EOF
