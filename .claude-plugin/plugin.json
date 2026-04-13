@@ -1,7 +1,7 @@
 {
   "name": "maestro",
-  "version": "1.1.0",
-  "description": "Master orchestrator for Claude Code — classifies tasks, fetches live docs via Context7, enforces layered security (OWASP checklists + real-time edit scanning), visual verification via Playwright, deep PR review with specialist agents, and orchestrates superpowers skills in the correct order.",
+  "version": "1.2.0",
+  "description": "Master orchestrator for Claude Code — classifies tasks, fetches live docs via Context7, enforces layered security (OWASP checklists + real-time edit scanning), visual verification via Playwright, deep PR review with specialist agents, surfaces cross-session context via claude-mem observations, and orchestrates superpowers skills in the correct order.",
   "author": {
     "name": "Praveen Kumar Chittem",
     "url": "https://github.com/impravin22"
@@ -22,6 +22,10 @@
     "visual-testing",
     "pr-review",
     "code-review",
-    "layered-security"
+    "layered-security",
+    "memory",
+    "claude-mem",
+    "context-persistence",
+    "observations"
   ]
 }

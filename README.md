@@ -11,7 +11,8 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 5. **Enforces layered security** — OWASP checklists at planning time + real-time pre-edit scanning via [Security Guidance](https://github.com/anthropics/claude-code)
 6. **Visual verification** — [Playwright MCP](https://github.com/microsoft/playwright-mcp) verifies frontend changes render correctly, pass accessibility checks, and behave across breakpoints
 7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the polling loop
-8. **Enforces quality gates** — tests mandatory, lint clean, format clean, TypeScript clean, solution justification, British English
+8. **Cross-session memory** — [claude-mem](https://github.com/thedotmack/claude-mem) surfaces prior observations (decisions, rejected approaches, failed experiments) during CLASSIFY, BRAINSTORM, and PLAN via the `search`, `timeline`, and `get_observations` MCP tools — no more re-deriving context that already exists
+9. **Enforces quality gates** — tests mandatory, lint clean, format clean, TypeScript clean, solution justification, British English
 
 ## Prerequisites
 
@@ -23,6 +24,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 | [Security Guidance](https://github.com/anthropics/claude-code) | Recommended | `/plugin install security-guidance@anthropic` — real-time pre-edit security scanning |
 | [PR Review Toolkit](https://github.com/anthropics/claude-code) | Recommended | Ships with Claude Code — 6 specialist review agents |
 | [Playwright MCP](https://github.com/microsoft/playwright-mcp) | Recommended | `npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright` |
+| [claude-mem](https://github.com/thedotmack/claude-mem) | Recommended | `npx claude-mem install` — persistent memory across sessions via 5 lifecycle hooks + 3 MCP tools (`search`, `timeline`, `get_observations`) |
 
 ## Installation
 
@@ -120,7 +122,8 @@ my-claude-maestro/
 │           └── quality-gates.md
 ├── docs/
 │   ├── 2026-04-03-maestro-design.md
-│   └── 2026-04-07-plugin-integration-design.md
+│   ├── 2026-04-07-plugin-integration-design.md
+│   └── 2026-04-13-claude-mem-integration-design.md
 ├── README.md
 └── LICENSE
 ```
