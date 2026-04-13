@@ -21,6 +21,12 @@ Before using this skill, ensure:
 - **PR Review Toolkit plugin** is recommended (ships with Claude Code) — provides 6 specialist review agents for deep PR analysis
 - **Playwright MCP** is recommended (`npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright`) — enables visual verification of frontend changes
 - **claude-mem plugin** is recommended (`npx claude-mem install`) — persistent cross-session memory via 5 lifecycle hooks (SessionStart/UserPromptSubmit/PostToolUse/Stop/SessionEnd) and 3 MCP tools (`search`, `timeline`, `get_observations`); enables maestro to surface prior observations during CLASSIFY, BRAINSTORM, and PLAN
+- **UI UX Pro Max** is recommended (`npm i -g uipro-cli && uipro init --ai claude`) — 50+ design styles, 161 colour palettes, 99 UX guidelines; auto-activates on UI/UX-flavoured prompts and composes with Step 5's design-system checklist (the checklist remains the canonical gate; UI UX Pro Max suggestions are additive)
+- **n8n-MCP** is recommended (`claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp`) — 400+ n8n workflow integrations accessible as MCP tools; surface only when the task involves building or debugging n8n workflows
+- **VoiceMode MCP** is recommended (`claude mcp add --scope user voicemode -- uvx --refresh voice-mode`) — local Whisper STT + Kokoro TTS for voice conversations with Claude Code; requires mic/speakers and ~GB of local model downloads on first use
+- **Everything Claude Code** is recommended (`git clone https://github.com/affaan-m/everything-claude-code.git && cd everything-claude-code && ./install.sh --target claude --profile full`) — 150+ skills, 47 agents, 79 commands, 16 rules across 12 language ecosystems; user-scope skills (lower trigger precedence than plugin-scope skills, so superpowers and maestro still win in competition)
+- **LightRAG** is recommended (`uv tool install "lightrag-hku[api]"`) — graph+vector RAG Python library and REST server; optional supplement to Step 2 CONTEXT7 for codebases too large for Context7 alone. External service — a custom MCP bridge is required to surface it inside Claude Code (not yet shipped; out of scope here).
+- **Andrej Karpathy Skills** is recommended (`claude plugin marketplace add forrestchang/andrej-karpathy-skills && claude plugin install andrej-karpathy-skills@karpathy-skills`) — Karpathy's 4 LLM-coding principles (think before coding, simplicity first, surgical changes, goal-driven execution); composes with maestro's engineering-mindset discipline as a second voice. No conflict with Step 3 BRAINSTORM or Step 7 IMPLEMENT — the Karpathy principles enforce discipline at the edit level; maestro enforces at the workflow level.
 
 ## Unified Flow
 
@@ -104,6 +110,8 @@ Libraries detected: FastAPI, SQLAlchemy, TanStack Query
 
 **If Context7 is unavailable:** Note it and proceed — do not block the workflow. Use your training knowledge but flag that docs were not verified against the latest version.
 
+**Optional supplement for very large codebases — LightRAG (if installed and wired via an MCP bridge):** For repos where Context7's scope is too narrow (e.g., proprietary frameworks, niche internal APIs), a running `lightrag-server` instance can provide a graph+vector RAG layer. As of v1.3.0 no off-the-shelf MCP bridge ships with maestro — the user must run `lightrag-server` and either query its REST API directly (via a scratch MCP shim) or use it outside the Claude Code loop. Treat LightRAG as an optional *external* service, not as a drop-in Context7 replacement.
+
 ---
 
 ## Step 3: BRAINSTORM
@@ -153,6 +161,8 @@ Read and run through `references/uiux-checklist.md` against the planned changes.
 - **Performance** — CLS, image optimisation, client component boundaries, bundle impact
 
 **Also invoke** `vercel:shadcn` and `vercel:react-best-practices` skills if the Vercel plugin is available.
+
+**UI UX Pro Max precedence (if installed):** UI UX Pro Max's skill auto-activates on UI/UX-flavoured prompts. Treat its suggestions as *additive* refinements — maestro's checklist in `references/uiux-checklist.md` remains the canonical gate (accessibility, responsive, loading/error states, etc.). Consult UI UX Pro Max for *style and palette choices* (the 50+ styles and 161 palettes); do not let it override the checklist-level accessibility or state-coverage requirements.
 
 Flag any checklist violations in the plan and resolve them before proceeding to implementation.
 
@@ -337,3 +347,18 @@ If a recommended plugin is unavailable, the workflow degrades gracefully:
 - **Playwright MCP missing** → Step 8 skips visual verification; tests, lint, and type checks still apply
 - **PR Review Toolkit missing** → Step 10 skips Phase 1 (specialist agents); Phase 2 (polling loop) still runs
 - **claude-mem missing** → Steps 1/3/4 skip the memory-lookup substeps; the workflow proceeds using only the current request. Note the missing plugin in your response so the user can install it for cross-session continuity.
+- **UI UX Pro Max missing** → Step 5 falls back to the checklist in `references/uiux-checklist.md` alone; style/palette suggestions are omitted but accessibility and responsive gates remain enforced.
+- **n8n-MCP missing** → surface this only when a task actually involves n8n workflows; for any other task, it is irrelevant and its absence is silent.
+- **VoiceMode MCP missing** → voice conversations unavailable; text workflow unchanged. Non-blocking for any coding task.
+- **Everything Claude Code missing** → 150+ user-scope skills unavailable; maestro and superpowers skills still cover the workflow. No degradation of the 10-step flow itself.
+- **LightRAG missing (or wired but no MCP bridge)** → Step 2 falls back to Context7 alone; skip the optional LightRAG supplement. No blocker for normal-sized codebases.
+- **Andrej Karpathy Skills missing** → maestro's engineering-mindset discipline (from CLAUDE.md) remains in force; Karpathy-specific phrasing ("think before coding", "surgical changes") won't be explicitly cited but the underlying principles still apply. No gap in behaviour.
+
+### When extended skill ecosystems are installed
+
+If Everything Claude Code (or any future large skill-collection plugin) is installed alongside superpowers and maestro, be explicit about trigger precedence:
+
+- **Plugin-scope skills** (e.g. `superpowers:*`, `maestro:*`, `vercel-plugin:*`) take precedence over user-scope skills in Claude Code's matcher.
+- **User-scope skills** (anything in `~/.claude/skills/` without a plugin namespace, such as Everything Claude Code's 150+ skills) are advisory — they are available but do not override the maestro/superpowers workflow.
+- When a user-scope skill appears more specialised than a maestro/superpowers one (e.g. `springboot-tdd` vs `superpowers:test-driven-development` for a Spring Boot task), use the more specialised one for domain-specific guidance but keep the maestro workflow skeleton.
+- If a user-scope skill's name collides with a maestro/superpowers skill (e.g. ECC's `tdd-workflow` vs `superpowers:test-driven-development`), prefer the plugin-scope version — the user-scope one is an alternative voice, not a replacement.
