@@ -61,6 +61,12 @@ Every task must pass these gates before claiming completion. Run through this ch
 - [ ] **Type design sound** — `pr-review-toolkit:type-design-analyzer` approves new types (if applicable)
 - [ ] **Comments accurate** — `pr-review-toolkit:comment-analyzer` confirms comment accuracy (if applicable)
 
+## Memory (Optional — Requires claude-mem)
+
+- [ ] **Observations captured** — claude-mem's `PostToolUse` and `Stop` hooks have written the session's key decisions, rejected approaches, and verification outcomes to the SQLite store so future sessions can retrieve them via `search` / `timeline` / `get_observations`
+- [ ] **Hooks healthy** — claude-mem worker responds on `127.0.0.1:37777`; MCP server `claude-mem` appears under `/mcp` in Claude Code
+- [ ] **No regressions in memory hooks** — if any edit modified `~/.claude/settings.json` or `~/.claude-mem/`, the five lifecycle hooks still fire correctly
+
 ## Git Workflow
 
 - [ ] **On a branch** — changes are on a feature branch, not `main`
