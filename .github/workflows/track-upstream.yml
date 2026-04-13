@@ -34,6 +34,12 @@ jobs:
           REPOS[vercel-agent-skills]="vercel-labs/agent-skills"
           REPOS[playwright-mcp]="microsoft/playwright-mcp"
           REPOS[claude-mem]="thedotmack/claude-mem"
+          REPOS[ui-ux-pro-max]="nextlevelbuilder/ui-ux-pro-max-skill"
+          REPOS[n8n-mcp]="czlonkowski/n8n-mcp"
+          REPOS[voicemode]="mbailey/voicemode"
+          REPOS[everything-claude-code]="affaan-m/everything-claude-code"
+          REPOS[lightrag]="HKUDS/LightRAG"
+          REPOS[karpathy-skills]="forrestchang/andrej-karpathy-skills"
 
           # Load previous state (or create empty)
           if [ -f "$STATE_FILE" ]; then
@@ -123,7 +129,7 @@ jobs:
           # Create issue if updates found
           if [ "$UPDATES_FOUND" = true ]; then
             TITLE="Upstream updates detected — $(date +%Y-%m-%d)"
-            BODY=$(printf "## Upstream Dependency Updates\n\nThe following upstream repos have new changes that may affect Maestro:\n$ISSUE_BODY\n---\n\n### Action Required\n\nReview these changes and determine if Maestro needs updating:\n\n- [ ] Check if new superpowers skills should be orchestrated\n- [ ] Check if Context7 API has changed\n- [ ] Check if new Vercel agent skills are available\n- [ ] Check if Playwright MCP API or capabilities have changed\n- [ ] Check if claude-mem MCP tool names or hook schema have changed\n- [ ] Update SKILL.md if needed\n- [ ] Update checklists if needed\n- [ ] Bump version in plugin.json if changes made\n\n*This issue was automatically created by the upstream tracker workflow.*")
+            BODY=$(printf "## Upstream Dependency Updates\n\nThe following upstream repos have new changes that may affect Maestro:\n$ISSUE_BODY\n---\n\n### Action Required\n\nReview these changes and determine if Maestro needs updating:\n\n- [ ] Check if new superpowers skills should be orchestrated\n- [ ] Check if Context7 API has changed\n- [ ] Check if new Vercel agent skills are available\n- [ ] Check if Playwright MCP API or capabilities have changed\n- [ ] Check if claude-mem MCP tool names or hook schema have changed\n- [ ] Check if UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG, or Karpathy Skills have breaking changes\n- [ ] Update SKILL.md if needed\n- [ ] Update checklists if needed\n- [ ] Bump version in plugin.json if changes made\n\n*This issue was automatically created by the upstream tracker workflow.*")
 
             # Check for existing open issue to avoid duplicates
             EXISTING=$(gh issue list --repo "${{ github.repository }}" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
