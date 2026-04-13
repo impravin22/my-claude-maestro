@@ -37,12 +37,36 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 
 ### For Individual Use
 
+**1. Install Maestro itself:**
+
 ```bash
 /plugin marketplace add impravin22/my-claude-maestro
 /plugin install maestro@impravin22
 ```
 
-Then restart Claude Code.
+**2. Install the companion ecosystem (recommended):**
+
+```bash
+# Clone the repo for the bundled installer
+git clone https://github.com/impravin22/my-claude-maestro.git
+cd my-claude-maestro
+./install.sh
+```
+
+The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, and Everything Claude Code.
+
+Heavy/specialised dependencies (VoiceMode, n8n-MCP, LightRAG) are **excluded by default** — install manually from the Prerequisites table below if you need them.
+
+**Installer flags:**
+
+```bash
+./install.sh --minimal          # required components only (superpowers + Context7)
+./install.sh --dry-run          # preview commands without executing
+./install.sh --skip-vercel      # opt out of individual components
+./install.sh --help
+```
+
+Restart Claude Code after installation.
 
 ### For Team-Wide Enforcement
 
@@ -136,11 +160,15 @@ my-claude-maestro/
 │           ├── uiux-checklist.md
 │           ├── security-checklist.md
 │           └── quality-gates.md
+├── hooks/
+│   ├── hooks.json
+│   └── check-update.sh
 ├── docs/
 │   ├── 2026-04-03-maestro-design.md
 │   ├── 2026-04-07-plugin-integration-design.md
 │   ├── 2026-04-13-claude-mem-integration-design.md
 │   └── 2026-04-13-multi-plugin-integration-design.md
+├── install.sh          # companion ecosystem installer
 ├── README.md
 └── LICENSE
 ```
