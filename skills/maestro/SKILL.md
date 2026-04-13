@@ -20,6 +20,7 @@ Before using this skill, ensure:
 - **Security Guidance plugin** is recommended (`/plugin install security-guidance@anthropic`) — adds real-time pre-edit security scanning as a hook
 - **PR Review Toolkit plugin** is recommended (ships with Claude Code) — provides 6 specialist review agents for deep PR analysis
 - **Playwright MCP** is recommended (`npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright`) — enables visual verification of frontend changes
+- **claude-mem plugin** is recommended (`npx claude-mem install`) — persistent cross-session memory via 5 lifecycle hooks (SessionStart/UserPromptSubmit/PostToolUse/Stop/SessionEnd) and 3 MCP tools (`search`, `timeline`, `get_observations`); enables maestro to surface prior observations during CLASSIFY, BRAINSTORM, and PLAN
 
 ## Unified Flow
 
@@ -52,6 +53,16 @@ Determine the task type and scope before doing anything else.
 
 **Output:** A one-line classification statement, e.g.:
 > "Feature: full-stack — adding OKR alignment suggestions. Involves: Next.js (frontend), FastAPI + DSPy (backend). Non-trivial."
+
+**Memory-assisted classification (if claude-mem is available):**
+
+Before locking in the classification, query prior observations to avoid re-deriving context that already exists:
+
+1. Call the `search` MCP tool with keywords from the user's request (feature name, affected file paths, library names)
+2. Call `timeline` for the affected project path if recent activity may be relevant
+3. Weave any high-signal prior observations into the classification statement — surfacing the **raw observation text** (no paraphrasing) so the user can eyeball relevance. Example: "Feature: full-stack OKR alignment suggestions. Prior observation (2026-03-20): user rejected a DSPy-based retriever due to 4× latency — favour cached retrieval."
+
+If claude-mem is unavailable, skip this substep and proceed with the classification from the user's current request alone.
 
 **Skip logic determined here:**
 
@@ -108,6 +119,7 @@ Invoke `superpowers:brainstorming` to explore the idea before committing to an a
   4. Trade-offs of the chosen approach acknowledged upfront
 - Apply **self-critique**: after designing a solution, find at least 2 weaknesses before presenting
 - Perform **impact analysis**: what WILL this change? What WON'T? What could break?
+- **Memory lookup (if claude-mem available)** — before proposing approaches, call `get_observations` scoped to similar prior work (same library, same feature area). Surface any rejected approaches and their concrete failure reasons. Do not re-propose a previously rejected approach unless the rejection reason no longer applies (state why explicitly).
 
 **For bug fixes:** Replace this step with `superpowers:systematic-debugging` — diagnose the root cause before proposing any fix.
 
@@ -122,6 +134,7 @@ Invoke `superpowers:writing-plans` to create a detailed implementation plan.
 - If frontend work is included, the plan must note which UI/UX checklist items apply
 - If security-sensitive (auth, input handling, LLM calls), the plan must note which security checklist items apply
 - Every plan must include a testing strategy section
+- **Plan reuse (if claude-mem available)** — call `search` for prior plans with similar scope (e.g., "pagination endpoint", "OKR checkin migration"). If a close structural match exists, reuse the proven plan skeleton and cite the prior plan in the justification — do not duplicate planning work the user has already approved.
 
 ---
 
@@ -323,3 +336,4 @@ If a recommended plugin is unavailable, the workflow degrades gracefully:
 - **Security Guidance missing** → Step 6 still enforces security via the checklist; no real-time edit scanning
 - **Playwright MCP missing** → Step 8 skips visual verification; tests, lint, and type checks still apply
 - **PR Review Toolkit missing** → Step 10 skips Phase 1 (specialist agents); Phase 2 (polling loop) still runs
+- **claude-mem missing** → Steps 1/3/4 skip the memory-lookup substeps; the workflow proceeds using only the current request. Note the missing plugin in your response so the user can install it for cross-session continuity.

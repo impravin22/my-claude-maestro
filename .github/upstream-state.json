@@ -14,5 +14,9 @@
   "playwright-mcp": {
     "release": "v0.0.70",
     "commit": "d3782155c40aabc3945673998bdbae83cb0dc94c"
+  },
+  "claude-mem": {
+    "release": "none",
+    "commit": "unknown"
   }
 }
