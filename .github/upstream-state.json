@@ -18,5 +18,29 @@
   "claude-mem": {
     "release": "none",
     "commit": "unknown"
+  },
+  "ui-ux-pro-max": {
+    "release": "none",
+    "commit": "unknown"
+  },
+  "n8n-mcp": {
+    "release": "none",
+    "commit": "unknown"
+  },
+  "voicemode": {
+    "release": "none",
+    "commit": "unknown"
+  },
+  "everything-claude-code": {
+    "release": "none",
+    "commit": "unknown"
+  },
+  "lightrag": {
+    "release": "none",
+    "commit": "unknown"
+  },
+  "karpathy-skills": {
+    "release": "none",
+    "commit": "unknown"
   }
 }
