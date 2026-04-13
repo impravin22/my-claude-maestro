@@ -53,11 +53,17 @@ done
 
 # --- Reporting -------------------------------------------------------------
 
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-RESET='\033[0m'
+# Only emit ANSI colours when stdout is an interactive terminal. Avoids
+# escape-code garbage when the installer's output is piped to a file or CI log.
+if [ -t 1 ]; then
+  GREEN='\033[0;32m'
+  YELLOW='\033[0;33m'
+  RED='\033[0;31m'
+  BLUE='\033[0;34m'
+  RESET='\033[0m'
+else
+  GREEN='' YELLOW='' RED='' BLUE='' RESET=''
+fi
 
 INSTALLED=()
 SKIPPED=()
@@ -77,6 +83,11 @@ is_skipped() {
 }
 
 run() {
+  # INVARIANT: every string passed to `run` is a compile-time literal
+  # defined inside this script. No user input (argv, env vars, --skip-* values,
+  # plugin names) is ever interpolated into these strings. If that invariant is
+  # ever broken, switch this to an array-based form (`"$@"` without eval) to
+  # prevent shell injection.
   if [ "$DRY_RUN" -eq 1 ]; then
     printf "    ${YELLOW}[dry-run]${RESET} %s\n" "$*"
     return 0
@@ -196,12 +207,15 @@ if [ "$MINIMAL" -eq 0 ]; then
   else
     log_step "Installing Everything Claude Code"
     TMPDIR_ECC="$(mktemp -d)"
+    # cd wrapped in a subshell so the parent script's CWD is unaffected,
+    # and tmpdir is cleaned up on both success and failure paths.
     if run "git clone --depth 1 https://github.com/affaan-m/everything-claude-code.git \"$TMPDIR_ECC/ecc\"" \
-       && run "cd \"$TMPDIR_ECC/ecc\" && ./install.sh --target claude --profile full"; then
+       && run "(cd \"$TMPDIR_ECC/ecc\" && ./install.sh --target claude --profile full)"; then
       log_ok "everything-claude-code"
     else
       log_fail "everything-claude-code"
     fi
+    rm -rf "$TMPDIR_ECC"
   fi
 
 fi
