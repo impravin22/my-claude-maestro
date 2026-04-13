@@ -67,12 +67,12 @@ The three steps where prior context most directly improves output. Matches the v
 - `npx claude-mem install` is the upstream-primary path and does everything end-to-end.
 
 **E. Vendor claude-mem's code into maestro:**
-- AGPL-3.0 copyleft would force maestro to relicense to AGPL-3.0 or dual-license — both change the distribution story for every downstream team.
-- MCP-over-stdio is arms-length IPC that does not create a derivative work, so the RECOMMENDED + integration-via-MCP approach is license-clean.
+- AGPL-3.0 copyleft would force maestro to relicence to AGPL-3.0 or dual-licence — both change the distribution story for every downstream team.
+- MCP-over-stdio is arms-length IPC that does not create a derivative work, so the RECOMMENDED + integration-via-MCP approach is licence-clean.
 
 ## Trade-offs
 
-1. **Longer SKILL.md** — grows ~24 lines across five insertions. Acceptable for the value added.
+1. **Longer SKILL.md** — grows ~14 lines across five insertions. Acceptable for the value added.
 2. **Extra prerequisite entry** — one additional "Recommended" row. Mitigated by graceful degradation (plugin optional; memory substeps explicitly skipped when unavailable).
 3. **Latency on Steps 1/3/4** — local MCP tool calls add ~50–200ms per step. Mitigated by the worker being local (no network) and by treating memory lookup as advisory (non-blocking).
 4. **Stale-memory risk** — observations captured months ago may describe APIs/libraries that have since changed. Mitigated by Step 2 (CONTEXT7) fetching current docs regardless — when claude-mem says "we did X" and Context7 says "X is deprecated", Context7 wins.
