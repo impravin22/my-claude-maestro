@@ -1,11 +1,11 @@
 {
   "context7": {
-    "release": "@upstash/context7-mcp@2.1.8",
-    "commit": "c31528d0cde3d00cbb542ae44fde59f3fd7144dc"
+    "release": "ctx7@0.3.13",
+    "commit": "c8506690ce30502978147ed030b2a910e0d89c71"
   },
   "lightrag": {
     "release": "v1.4.14",
-    "commit": "5a2694e6038b8f41243790f90946af04620cba63"
+    "commit": "a7800004e2c4eb279057d37daaa1134f32db922e"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -25,11 +25,11 @@
   },
   "karpathy-skills": {
     "release": "none",
-    "commit": "aa4467f0b33e1e80d11c7c043d4b27e7c79a73a3"
+    "commit": "fb8fdb0aa74ccf587d2b666da7160e0d0eb94e6a"
   },
   "n8n-mcp": {
     "release": "v2.47.7",
-    "commit": "217d737aa56cab94ee432026d71a9fa6044a1367"
+    "commit": "3cd2e48dad51b168bfe015cce72ba202cfa1cae4"
   },
   "claude-mem": {
     "release": "v12.1.0",
@@ -41,6 +41,6 @@
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "d3782155c40aabc3945673998bdbae83cb0dc94c"
+    "commit": "60a1465dda0ffc850e259672bbb8ae4491851c03"
   }
 }
