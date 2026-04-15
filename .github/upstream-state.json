@@ -1,19 +1,19 @@
 {
   "context7": {
     "release": "ctx7@0.3.13",
-    "commit": "c8506690ce30502978147ed030b2a910e0d89c71"
+    "commit": "0627b71073ddabcd608bbf66dd3ae1b77ec3d298"
   },
   "lightrag": {
     "release": "v1.4.14",
-    "commit": "a7800004e2c4eb279057d37daaa1134f32db922e"
+    "commit": "157c3315f0ee17a9707c94c0762c14afeade219b"
   },
   "vercel-agent-skills": {
     "release": "none",
-    "commit": "73140fc5b3a214ad3222bcf557b397b3c02d11c1"
+    "commit": "47863b24f8e22966bfcf8470debc7ba8c2c3b99c"
   },
   "everything-claude-code": {
     "release": "v1.10.0",
-    "commit": "e0ddb331f67bb5ddabeaf4874a28d54f4b3b836e"
+    "commit": "7eb7c598fba384a5e5829928945d59868c6eb075"
   },
   "ui-ux-pro-max": {
     "release": "v2.5.0",
@@ -21,19 +21,19 @@
   },
   "superpowers": {
     "release": "v5.0.7",
-    "commit": "917e5f53b16b115b70a3a355ed5f4993b9f8b73d"
+    "commit": "f9b088f7b3a6fe9d9a9a98e392ad13c9d47053a4"
   },
   "karpathy-skills": {
     "release": "none",
     "commit": "fb8fdb0aa74ccf587d2b666da7160e0d0eb94e6a"
   },
   "n8n-mcp": {
-    "release": "v2.47.7",
-    "commit": "3cd2e48dad51b168bfe015cce72ba202cfa1cae4"
+    "release": "v2.47.8",
+    "commit": "2148d80003f51af3da651a2879e4d9fd140b9e15"
   },
   "claude-mem": {
-    "release": "v12.1.0",
-    "commit": "cde4faae2f33f92d2092ca87537b17b837fdcfb7"
+    "release": "v12.1.2",
+    "commit": "1d7500604fe55cbde57875cb40e2cd431b1de2b3"
   },
   "voicemode": {
     "release": "v8.5.1",
@@ -41,6 +41,6 @@
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "60a1465dda0ffc850e259672bbb8ae4491851c03"
+    "commit": "f37034619fdc0184d4991dd9af2c02e4e29bf1a5"
   }
 }
