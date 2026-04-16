@@ -1,19 +1,19 @@
 {
   "superpowers": {
     "release": "v5.0.7",
-    "commit": "917e5f53b16b115b70a3a355ed5f4993b9f8b73d"
+    "commit": "f9b088f7b3a6fe9d9a9a98e392ad13c9d47053a4"
   },
   "context7": {
-    "release": "ctx7@0.3.11",
-    "commit": "00833f92623032dd643974048f9817dd0f1694cc"
+    "release": "ctx7@0.3.13",
+    "commit": "0627b71073ddabcd608bbf66dd3ae1b77ec3d298"
   },
   "vercel-agent-skills": {
     "release": "none",
-    "commit": "73140fc5b3a214ad3222bcf557b397b3c02d11c1"
+    "commit": "47863b24f8e22966bfcf8470debc7ba8c2c3b99c"
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "d3782155c40aabc3945673998bdbae83cb0dc94c"
+    "commit": "f37034619fdc0184d4991dd9af2c02e4e29bf1a5"
   },
   "claude-mem": {
     "release": "v12.1.5",
@@ -41,7 +41,7 @@
   },
   "karpathy-skills": {
     "release": "none",
-    "commit": "c9a44ae835fa2f5765a697216692705761a53f40"
+    "commit": "fb8fdb0aa74ccf587d2b666da7160e0d0eb94e6a"
   },
   "caveman": {
     "release": "v1.6.0",
