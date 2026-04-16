@@ -17,31 +17,31 @@
   },
   "claude-mem": {
     "release": "v12.1.5",
-    "commit": "70a150db74ca"
+    "commit": "70a150db74ca82110a62d194b20aa0422491dd6a"
   },
   "ui-ux-pro-max": {
     "release": "v2.5.0",
-    "commit": "b7e3af80f6e3"
+    "commit": "b7e3af80f6e331f6fb456667b82b12cade7c9d35"
   },
   "n8n-mcp": {
     "release": "v2.47.8",
-    "commit": "2148d80003f5"
+    "commit": "2148d80003f51af3da651a2879e4d9fd140b9e15"
   },
   "voicemode": {
     "release": "v8.5.1",
-    "commit": "c8100b261b0f"
+    "commit": "c8100b261b0f887c38fdc94c007d1b11b01c0f07"
   },
   "everything-claude-code": {
     "release": "v1.10.0",
-    "commit": "9fb88c67006d"
+    "commit": "9fb88c67006d379f892a3b360c2b63e8c6d73838"
   },
   "lightrag": {
     "release": "v1.4.14",
-    "commit": "157c3315f0ee"
+    "commit": "157c3315f0ee17a9707c94c0762c14afeade219b"
   },
   "karpathy-skills": {
     "release": "none",
-    "commit": "c9a44ae835fa"
+    "commit": "c9a44ae835fa2f5765a697216692705761a53f40"
   },
   "caveman": {
     "release": "v1.6.0",

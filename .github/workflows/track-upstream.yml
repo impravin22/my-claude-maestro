@@ -157,18 +157,16 @@ jobs:
             echo "No upstream changes detected"
           fi
 
-          # Commit updated state file
-          echo "$NEW_STATE" | jq '.' > "$STATE_FILE"
-
           # Set outputs for downstream jobs
           echo "updates_found=$UPDATES_FOUND" >> "$GITHUB_OUTPUT"
           if [ "$UPDATES_FOUND" = true ]; then
-            # Escape multiline body for GH output
+            # Use a random delimiter to prevent content collision
+            DELIM="EOF_$(date +%s%N | sha256sum | head -c 16)"
             {
-              echo "change_summary<<SUMMARY_EOF"
+              echo "change_summary<<$DELIM"
               printf '%b' "$ISSUE_BODY"
               echo ""
-              echo "SUMMARY_EOF"
+              echo "$DELIM"
             } >> "$GITHUB_OUTPUT"
           fi
 
@@ -199,13 +197,21 @@ jobs:
           EXISTING_PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
           echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
 
-      - name: Create or update sync branch
+      - name: Create sync branch with marker commit
         if: steps.existing-pr.outputs.pr_number == ''
         run: |
           BRANCH="chore/upstream-sync-$(date +%Y-%m-%d)"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
+
+          # Add a sync marker so the branch diverges from main
+          jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '. + {last_sync: $ts}' \
+            .github/upstream-state.json > .github/upstream-state.tmp \
+            && mv .github/upstream-state.tmp .github/upstream-state.json
+          git add .github/upstream-state.json
+          git commit -m "chore: upstream sync marker $(date +%Y-%m-%d)"
+
           git push -u origin "$BRANCH"
           echo "SYNC_BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
@@ -236,6 +242,7 @@ jobs:
           *This PR was automatically created by the upstream tracker workflow.*"
 
           gh pr create \
+            --head "$SYNC_BRANCH" \
             --title "chore: upstream dependency sync $(date +%Y-%m-%d)" \
             --body "$PR_BODY" \
             --label "upstream-update"
