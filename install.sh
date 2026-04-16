@@ -26,7 +26,7 @@ Components installed by default:
   [required]     superpowers plugin, Context7 MCP
   [recommended]  Vercel plugin, Security Guidance, PR Review Toolkit,
                  Playwright MCP, claude-mem, UI UX Pro Max,
-                 Andrej Karpathy Skills, Everything Claude Code
+                 Andrej Karpathy Skills, Caveman, Everything Claude Code
 
 Flags:
   --minimal              install required components only
@@ -195,6 +195,10 @@ if [ "$MINIMAL" -eq 0 ]; then
   install_plugin "andrej-karpathy-skills" \
     "forrestchang/andrej-karpathy-skills" \
     "andrej-karpathy-skills@karpathy-skills"
+
+  install_plugin "caveman" \
+    "JuliusBrussee/caveman" \
+    "caveman@caveman"
 
   if is_skipped "everything-claude-code"; then
     log_skip "everything-claude-code (explicit --skip)"

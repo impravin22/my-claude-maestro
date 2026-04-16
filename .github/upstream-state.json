@@ -1,46 +1,50 @@
 {
+  "superpowers": {
+    "release": "v5.0.7",
+    "commit": "f9b088f7b3a6fe9d9a9a98e392ad13c9d47053a4"
+  },
   "context7": {
     "release": "ctx7@0.3.13",
     "commit": "0627b71073ddabcd608bbf66dd3ae1b77ec3d298"
-  },
-  "lightrag": {
-    "release": "v1.4.14",
-    "commit": "157c3315f0ee17a9707c94c0762c14afeade219b"
   },
   "vercel-agent-skills": {
     "release": "none",
     "commit": "47863b24f8e22966bfcf8470debc7ba8c2c3b99c"
   },
-  "everything-claude-code": {
-    "release": "v1.10.0",
-    "commit": "7eb7c598fba384a5e5829928945d59868c6eb075"
+  "playwright-mcp": {
+    "release": "v0.0.70",
+    "commit": "f37034619fdc0184d4991dd9af2c02e4e29bf1a5"
+  },
+  "claude-mem": {
+    "release": "v12.1.5",
+    "commit": "70a150db74ca82110a62d194b20aa0422491dd6a"
   },
   "ui-ux-pro-max": {
     "release": "v2.5.0",
     "commit": "b7e3af80f6e331f6fb456667b82b12cade7c9d35"
   },
-  "superpowers": {
-    "release": "v5.0.7",
-    "commit": "f9b088f7b3a6fe9d9a9a98e392ad13c9d47053a4"
-  },
-  "karpathy-skills": {
-    "release": "none",
-    "commit": "fb8fdb0aa74ccf587d2b666da7160e0d0eb94e6a"
-  },
   "n8n-mcp": {
     "release": "v2.47.8",
     "commit": "2148d80003f51af3da651a2879e4d9fd140b9e15"
-  },
-  "claude-mem": {
-    "release": "v12.1.2",
-    "commit": "1d7500604fe55cbde57875cb40e2cd431b1de2b3"
   },
   "voicemode": {
     "release": "v8.5.1",
     "commit": "c8100b261b0f887c38fdc94c007d1b11b01c0f07"
   },
-  "playwright-mcp": {
-    "release": "v0.0.70",
-    "commit": "f37034619fdc0184d4991dd9af2c02e4e29bf1a5"
+  "everything-claude-code": {
+    "release": "v1.10.0",
+    "commit": "9fb88c67006d379f892a3b360c2b63e8c6d73838"
+  },
+  "lightrag": {
+    "release": "v1.4.14",
+    "commit": "157c3315f0ee17a9707c94c0762c14afeade219b"
+  },
+  "karpathy-skills": {
+    "release": "none",
+    "commit": "fb8fdb0aa74ccf587d2b666da7160e0d0eb94e6a"
+  },
+  "caveman": {
+    "release": "v1.6.0",
+    "commit": "c2ed24b3e5d412cd0c25197b2bc9af587621fd99"
   }
 }

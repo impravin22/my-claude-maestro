@@ -9,15 +9,20 @@ on:
 permissions:
   contents: write
   issues: write
+  pull-requests: write
 
 jobs:
   check-upstream:
     runs-on: ubuntu-latest
+    outputs:
+      updates_found: ${{ steps.check.outputs.updates_found }}
+      change_summary: ${{ steps.check.outputs.change_summary }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Check upstream repos for updates
+        id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -40,6 +45,7 @@ jobs:
           REPOS[everything-claude-code]="affaan-m/everything-claude-code"
           REPOS[lightrag]="HKUDS/LightRAG"
           REPOS[karpathy-skills]="forrestchang/andrej-karpathy-skills"
+          REPOS[caveman]="JuliusBrussee/caveman"
 
           # Load previous state (or create empty)
           if [ -f "$STATE_FILE" ]; then
@@ -129,7 +135,7 @@ jobs:
           # Create issue if updates found
           if [ "$UPDATES_FOUND" = true ]; then
             TITLE="Upstream updates detected — $(date +%Y-%m-%d)"
-            BODY=$(printf "## Upstream Dependency Updates\n\nThe following upstream repos have new changes that may affect Maestro:\n$ISSUE_BODY\n---\n\n### Action Required\n\nReview these changes and determine if Maestro needs updating:\n\n- [ ] Check if new superpowers skills should be orchestrated\n- [ ] Check if Context7 API has changed\n- [ ] Check if new Vercel agent skills are available\n- [ ] Check if Playwright MCP API or capabilities have changed\n- [ ] Check if claude-mem MCP tool names or hook schema have changed\n- [ ] Check if UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG, or Karpathy Skills have breaking changes\n- [ ] Update SKILL.md if needed\n- [ ] Update checklists if needed\n- [ ] Bump version in plugin.json if changes made\n\n*This issue was automatically created by the upstream tracker workflow.*")
+            BODY=$(printf "## Upstream Dependency Updates\n\nThe following upstream repos have new changes that may affect Maestro:\n$ISSUE_BODY\n---\n\n### Action Required\n\nReview these changes and determine if Maestro needs updating:\n\n- [ ] Check if new superpowers skills should be orchestrated\n- [ ] Check if Context7 API has changed\n- [ ] Check if new Vercel agent skills are available\n- [ ] Check if Playwright MCP API or capabilities have changed\n- [ ] Check if claude-mem MCP tool names or hook schema have changed\n- [ ] Check if UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG, Karpathy Skills, or Caveman have breaking changes\n- [ ] Update SKILL.md if needed\n- [ ] Update checklists if needed\n- [ ] Bump version in plugin.json if changes made\n\n*This issue was automatically created by the upstream tracker workflow.*")
 
             # Check for existing open issue to avoid duplicates
             EXISTING=$(gh issue list --repo "${{ github.repository }}" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
@@ -151,9 +157,18 @@ jobs:
             echo "No upstream changes detected"
           fi
 
-          # Commit updated state file
-          echo "$NEW_STATE" | jq '.' > "$STATE_FILE"
-          echo "state_changed=true" >> "$GITHUB_OUTPUT"
+          # Set outputs for downstream jobs
+          echo "updates_found=$UPDATES_FOUND" >> "$GITHUB_OUTPUT"
+          if [ "$UPDATES_FOUND" = true ]; then
+            # Use a random delimiter to prevent content collision
+            DELIM="EOF_$(date +%s%N | sha256sum | head -c 16)"
+            {
+              echo "change_summary<<$DELIM"
+              printf '%b' "$ISSUE_BODY"
+              echo ""
+              echo "$DELIM"
+            } >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Commit state file
         run: |
@@ -162,3 +177,86 @@ jobs:
           git add .github/upstream-state.json
           git diff --cached --quiet || git commit -m "chore: update upstream tracking state [skip ci]"
           git push || echo "Nothing to push"
+
+  create-pr:
+    needs: check-upstream
+    if: needs.check-upstream.outputs.updates_found == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull latest state
+        run: git pull --rebase origin main
+
+      - name: Check for existing upstream sync PR
+        id: existing-pr
+        run: |
+          EXISTING_PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
+          echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
+
+      - name: Create sync branch with marker commit
+        if: steps.existing-pr.outputs.pr_number == ''
+        run: |
+          BRANCH="chore/upstream-sync-$(date +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
+          # Add a sync marker so the branch diverges from main
+          jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '. + {last_sync: $ts}' \
+            .github/upstream-state.json > .github/upstream-state.tmp \
+            && mv .github/upstream-state.tmp .github/upstream-state.json
+          git add .github/upstream-state.json
+          git commit -m "chore: upstream sync marker $(date +%Y-%m-%d)"
+
+          git push -u origin "$BRANCH"
+          echo "SYNC_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Create PR
+        if: steps.existing-pr.outputs.pr_number == ''
+        env:
+          CHANGE_SUMMARY: ${{ needs.check-upstream.outputs.change_summary }}
+        run: |
+          PR_BODY="## Upstream Dependency Sync
+
+          Upstream changes detected by the daily tracker workflow.
+
+          ### Changes Detected
+
+          ${CHANGE_SUMMARY}
+
+          ---
+
+          ### Review Checklist
+
+          - [ ] Check for breaking API changes in updated dependencies
+          - [ ] Update SKILL.md if upstream capabilities changed
+          - [ ] Update install.sh if install methods changed
+          - [ ] Update checklists if needed
+          - [ ] Bump version in plugin.json if changes made
+          - [ ] Run \`install.sh --dry-run\` to verify
+
+          *This PR was automatically created by the upstream tracker workflow.*"
+
+          gh pr create \
+            --head "$SYNC_BRANCH" \
+            --title "chore: upstream dependency sync $(date +%Y-%m-%d)" \
+            --body "$PR_BODY" \
+            --label "upstream-update"
+
+      - name: Comment on existing PR
+        if: steps.existing-pr.outputs.pr_number != ''
+        env:
+          CHANGE_SUMMARY: ${{ needs.check-upstream.outputs.change_summary }}
+          PR_NUMBER: ${{ steps.existing-pr.outputs.pr_number }}
+        run: |
+          COMMENT_BODY="## New upstream changes detected ($(date +%Y-%m-%d))
+
+          ${CHANGE_SUMMARY}
+
+          *Updated by the upstream tracker workflow.*"
+
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$COMMENT_BODY"
