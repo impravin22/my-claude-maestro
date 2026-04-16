@@ -1,6 +1,6 @@
 {
   "name": "maestro",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Master orchestrator for Claude Code — classifies tasks, fetches live docs via Context7, enforces layered security (OWASP checklists + real-time edit scanning), visual verification via Playwright, deep PR review with specialist agents, surfaces cross-session context via claude-mem observations, composes with an extended plugin ecosystem (UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG), and orchestrates superpowers skills in the correct order.",
   "author": {
     "name": "Praveen Kumar Chittem",
@@ -32,6 +32,9 @@
     "lightrag",
     "ui-ux-pro-max",
     "everything-claude-code",
+    "caveman",
+    "upstream-sync",
+    "auto-pr",
     "skill-marketplace",
     "multi-plugin"
   ]

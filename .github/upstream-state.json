@@ -1,4 +1,8 @@
 {
+  "superpowers": {
+    "release": "v5.0.7",
+    "commit": "917e5f53b16b115b70a3a355ed5f4993b9f8b73d"
+  },
   "context7": {
     "release": "ctx7@0.3.11",
     "commit": "00833f92623032dd643974048f9817dd0f1694cc"
@@ -7,40 +11,40 @@
     "release": "none",
     "commit": "73140fc5b3a214ad3222bcf557b397b3c02d11c1"
   },
-  "superpowers": {
-    "release": "v5.0.7",
-    "commit": "917e5f53b16b115b70a3a355ed5f4993b9f8b73d"
-  },
   "playwright-mcp": {
     "release": "v0.0.70",
     "commit": "d3782155c40aabc3945673998bdbae83cb0dc94c"
   },
   "claude-mem": {
-    "release": "none",
-    "commit": "unknown"
+    "release": "v12.1.5",
+    "commit": "70a150db74ca"
   },
   "ui-ux-pro-max": {
-    "release": "none",
-    "commit": "unknown"
+    "release": "v2.5.0",
+    "commit": "b7e3af80f6e3"
   },
   "n8n-mcp": {
-    "release": "none",
-    "commit": "unknown"
+    "release": "v2.47.8",
+    "commit": "2148d80003f5"
   },
   "voicemode": {
-    "release": "none",
-    "commit": "unknown"
+    "release": "v8.5.1",
+    "commit": "c8100b261b0f"
   },
   "everything-claude-code": {
-    "release": "none",
-    "commit": "unknown"
+    "release": "v1.10.0",
+    "commit": "9fb88c67006d"
   },
   "lightrag": {
-    "release": "none",
-    "commit": "unknown"
+    "release": "v1.4.14",
+    "commit": "157c3315f0ee"
   },
   "karpathy-skills": {
     "release": "none",
-    "commit": "unknown"
+    "commit": "c9a44ae835fa"
+  },
+  "caveman": {
+    "release": "v1.6.0",
+    "commit": "c2ed24b3e5d412cd0c25197b2bc9af587621fd99"
   }
 }
