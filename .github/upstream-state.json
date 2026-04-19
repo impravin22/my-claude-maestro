@@ -4,8 +4,8 @@
     "commit": "a1a935cbe7be7ec0acdb3b58c7d65ddf1c8cecec"
   },
   "lightrag": {
-    "release": "v1.4.14",
-    "commit": "a5a3c5a2654c7469eea02ae836cdb90049f43423"
+    "release": "v1.4.15",
+    "commit": "64d3326f858db300ec7699b2cb84e4edd5e5869e"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -25,7 +25,7 @@
   },
   "karpathy-skills": {
     "release": "none",
-    "commit": "c9a44ae835fa2f5765a697216692705761a53f40"
+    "commit": "fb7a22c8fda2c445197fe300bbc979045e1bca1c"
   },
   "n8n-mcp": {
     "release": "v2.47.12",
@@ -41,7 +41,7 @@
   },
   "caveman": {
     "release": "v1.6.0",
-    "commit": "c2ed24b3e5d412cd0c25197b2bc9af587621fd99"
+    "commit": "84cc3c14fa1e10182adaced856e003406ccd250d"
   },
   "playwright-mcp": {
     "release": "v0.0.70",
