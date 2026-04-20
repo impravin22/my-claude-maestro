@@ -5,7 +5,7 @@
   },
   "lightrag": {
     "release": "v1.4.15",
-    "commit": "64d3326f858db300ec7699b2cb84e4edd5e5869e"
+    "commit": "4e52ec5b26cf8df3eab7c70b047624cec44f759d"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -13,7 +13,7 @@
   },
   "everything-claude-code": {
     "release": "v1.10.0",
-    "commit": "1a50145d39c0fa415311da62e7a018edd4e6d976"
+    "commit": "8bdf88e5ad8877bcd00a4aba7ccbfb50f235f10f"
   },
   "ui-ux-pro-max": {
     "release": "v2.5.0",
@@ -32,8 +32,8 @@
     "commit": "7b3ccb10ca70a7d8b8ecdf772199abdf28ef814d"
   },
   "claude-mem": {
-    "release": "v12.2.0",
-    "commit": "beea7899b93c9fe00116e8e42c3129b59fac565f"
+    "release": "v12.3.2",
+    "commit": "0dda60ad66f54999eff0bea8c64ec587c396da85"
   },
   "voicemode": {
     "release": "v8.6.0",
@@ -45,6 +45,6 @@
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "3323673b5949a9c8ff351940ecbaec61b8e97915"
+    "commit": "3f76bfafacbd5c21498127f0a2c801a0d8b0015f"
   }
 }
