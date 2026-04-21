@@ -1,7 +1,7 @@
 {
   "context7": {
     "release": "ctx7@0.3.13",
-    "commit": "a1a935cbe7be7ec0acdb3b58c7d65ddf1c8cecec"
+    "commit": "051d4602f2c0c51d129369f783000cc6dff45a78"
   },
   "lightrag": {
     "release": "v1.4.15",
@@ -25,15 +25,15 @@
   },
   "karpathy-skills": {
     "release": "none",
-    "commit": "fb7a22c8fda2c445197fe300bbc979045e1bca1c"
+    "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2"
   },
   "n8n-mcp": {
-    "release": "v2.47.12",
-    "commit": "7b3ccb10ca70a7d8b8ecdf772199abdf28ef814d"
+    "release": "v2.47.13",
+    "commit": "59b665bda36797823df238aeaf20adb862c9f451"
   },
   "claude-mem": {
-    "release": "v12.3.2",
-    "commit": "0dda60ad66f54999eff0bea8c64ec587c396da85"
+    "release": "v12.3.8",
+    "commit": "49ab404c083b3a5c51a2e810912c63f512364ff3"
   },
   "voicemode": {
     "release": "v8.6.0",
