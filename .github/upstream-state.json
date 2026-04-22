@@ -1,7 +1,7 @@
 {
   "context7": {
     "release": "ctx7@0.3.13",
-    "commit": "051d4602f2c0c51d129369f783000cc6dff45a78"
+    "commit": "0b190c1b8db81c9d16f2d390e228422a679a8bc4"
   },
   "lightrag": {
     "release": "v1.4.15",
@@ -13,7 +13,7 @@
   },
   "everything-claude-code": {
     "release": "v1.10.0",
-    "commit": "8bdf88e5ad8877bcd00a4aba7ccbfb50f235f10f"
+    "commit": "4e66b2882da9afb9747468b08a253ca2f09c85f3"
   },
   "ui-ux-pro-max": {
     "release": "v2.5.0",
@@ -28,16 +28,16 @@
     "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2"
   },
   "n8n-mcp": {
-    "release": "v2.47.13",
-    "commit": "59b665bda36797823df238aeaf20adb862c9f451"
+    "release": "v2.47.14",
+    "commit": "9639f757853149f0cb16663cc8b6b6468f27a25f"
   },
   "claude-mem": {
     "release": "v12.3.8",
     "commit": "49ab404c083b3a5c51a2e810912c63f512364ff3"
   },
   "voicemode": {
-    "release": "v8.6.0",
-    "commit": "27e7313cd0aef2b03e4ae0c584810860c363a335"
+    "release": "v8.6.1",
+    "commit": "d04d09c769b983448272450e01895d2f59c75088"
   },
   "caveman": {
     "release": "v1.6.0",
@@ -45,6 +45,6 @@
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "3f76bfafacbd5c21498127f0a2c801a0d8b0015f"
+    "commit": "72d3a4d6af7d6a0e0bb3b362d59b05d514e76dfc"
   }
 }
