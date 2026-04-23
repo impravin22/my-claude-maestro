@@ -1,7 +1,7 @@
 {
   "context7": {
     "release": "ctx7@0.3.13",
-    "commit": "0b190c1b8db81c9d16f2d390e228422a679a8bc4"
+    "commit": "4ed5db533e92ff7429f128fd2b82ce7d20e3172e"
   },
   "lightrag": {
     "release": "v1.4.15",
@@ -32,8 +32,8 @@
     "commit": "9639f757853149f0cb16663cc8b6b6468f27a25f"
   },
   "claude-mem": {
-    "release": "v12.3.8",
-    "commit": "49ab404c083b3a5c51a2e810912c63f512364ff3"
+    "release": "v12.3.9",
+    "commit": "8ace1d9c84e5ce455356cf852c370ea625e3b1d1"
   },
   "voicemode": {
     "release": "v8.6.1",
@@ -45,6 +45,6 @@
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "72d3a4d6af7d6a0e0bb3b362d59b05d514e76dfc"
+    "commit": "9a1eaa6088d84d2ea0ddcc622dfe90924ec12e5f"
   }
 }
