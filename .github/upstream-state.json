@@ -5,7 +5,7 @@
   },
   "lightrag": {
     "release": "v1.4.15",
-    "commit": "4e52ec5b26cf8df3eab7c70b047624cec44f759d"
+    "commit": "ec7b86ad80a9b3c31462e99755da7bcb190ef7f7"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -21,7 +21,7 @@
   },
   "superpowers": {
     "release": "v5.0.7",
-    "commit": "b55764852ac78870e65c6565fb585b6cd8b3c5c9"
+    "commit": "6efe32c9e2dd002d0c394e861e0529675d1ab32e"
   },
   "karpathy-skills": {
     "release": "none",
