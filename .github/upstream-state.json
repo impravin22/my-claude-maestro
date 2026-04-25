@@ -1,11 +1,11 @@
 {
   "context7": {
-    "release": "ctx7@0.3.13",
-    "commit": "4ed5db533e92ff7429f128fd2b82ce7d20e3172e"
+    "release": "@upstash/context7-mcp@2.2.0",
+    "commit": "5d284f215471c341e0e3d9bb4f9c24bb1345ada1"
   },
   "lightrag": {
     "release": "v1.4.15",
-    "commit": "ec7b86ad80a9b3c31462e99755da7bcb190ef7f7"
+    "commit": "6c85f26d21cef93936f2d97d7010227d3ba56542"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -37,7 +37,7 @@
   },
   "voicemode": {
     "release": "v8.6.1",
-    "commit": "d04d09c769b983448272450e01895d2f59c75088"
+    "commit": "e8d0b74fb6788eec69aea13b34828e902549d51d"
   },
   "caveman": {
     "release": "v1.6.0",
