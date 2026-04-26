@@ -32,12 +32,12 @@
     "commit": "9639f757853149f0cb16663cc8b6b6468f27a25f"
   },
   "claude-mem": {
-    "release": "v12.3.9",
-    "commit": "8ace1d9c84e5ce455356cf852c370ea625e3b1d1"
+    "release": "v12.4.7",
+    "commit": "bb1f86949db425bd80cc00bb52ed2611332f2fb9"
   },
   "voicemode": {
     "release": "v8.6.1",
-    "commit": "e8d0b74fb6788eec69aea13b34828e902549d51d"
+    "commit": "3426f7f1a831e0fa33820a794e6d4bba54577b82"
   },
   "caveman": {
     "release": "v1.6.0",
@@ -47,5 +47,5 @@
     "release": "v0.0.70",
     "commit": "9a1eaa6088d84d2ea0ddcc622dfe90924ec12e5f"
   },
-  "last_sync": "2026-04-22T09:19:21Z"
+  "last_sync": "2026-04-26T09:26:09Z"
 }
