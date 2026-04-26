@@ -88,12 +88,12 @@ jobs:
 
             if [ "$LATEST_RELEASE" != "none" ] && [ "$LATEST_RELEASE" != "$PREV_RELEASE" ] && [ -n "$PREV_RELEASE" ]; then
               CHANGED=true
-              CHANGE_DETAILS="$CHANGE_DETAILS\n  - **New release:** \`$LATEST_RELEASE\` (was \`$PREV_RELEASE\`)"
+              CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - **New release:** \`$LATEST_RELEASE\` (was \`$PREV_RELEASE\`)"
 
               # Get release notes
               RELEASE_BODY=$(safe_api "repos/$REPO/releases/latest" '{}' | jq -r '.body // ""' 2>/dev/null | head -20 || echo "")
               if [ -n "$RELEASE_BODY" ]; then
-                CHANGE_DETAILS="$CHANGE_DETAILS\n  - Release notes:\n\`\`\`\n$(echo "$RELEASE_BODY" | head -20)\n\`\`\`"
+                CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - Release notes:"$'\n'"\`\`\`"$'\n'"${RELEASE_BODY}"$'\n'"\`\`\`"
               fi
             fi
 
@@ -102,20 +102,20 @@ jobs:
 
               # Count commits since last check
               COMMIT_COUNT=$(safe_api "repos/$REPO/compare/$PREV_COMMIT...$LATEST_COMMIT" '{}' | jq -r '.total_commits // "?"' 2>/dev/null || echo "?")
-              CHANGE_DETAILS="$CHANGE_DETAILS\n  - **$COMMIT_COUNT new commit(s)** since last check"
-              CHANGE_DETAILS="$CHANGE_DETAILS\n  - Latest: \`${LATEST_COMMIT:0:7}\` — $LATEST_COMMIT_MSG"
+              CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - **$COMMIT_COUNT new commit(s)** since last check"
+              CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - Latest: \`${LATEST_COMMIT:0:7}\` — $LATEST_COMMIT_MSG"
 
               # Get recent commit summaries (up to 5)
               RAW_COMMITS_5=$(safe_api "repos/$REPO/commits?per_page=5" '[]')
               RECENT_COMMITS=$(echo "$RAW_COMMITS_5" | jq -r '[.[] | "  - `\(.sha[0:7])` \(.commit.message | split("\n")[0])"] | join("\n")' 2>/dev/null || echo "")
               if [ -n "$RECENT_COMMITS" ]; then
-                CHANGE_DETAILS="$CHANGE_DETAILS\n  - Recent commits:\n$RECENT_COMMITS"
+                CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - Recent commits:"$'\n'"${RECENT_COMMITS}"
               fi
             fi
 
             if [ "$CHANGED" = true ]; then
               UPDATES_FOUND=true
-              ISSUE_BODY="$ISSUE_BODY\n### [$KEY](https://github.com/$REPO)\n$CHANGE_DETAILS\n"
+              ISSUE_BODY="${ISSUE_BODY}"$'\n'"### [$KEY](https://github.com/$REPO)"$'\n'"${CHANGE_DETAILS}"$'\n'
             fi
 
             # Build new state JSON
@@ -135,7 +135,28 @@ jobs:
           # Create issue if updates found
           if [ "$UPDATES_FOUND" = true ]; then
             TITLE="Upstream updates detected — $(date +%Y-%m-%d)"
-            BODY=$(printf "## Upstream Dependency Updates\n\nThe following upstream repos have new changes that may affect Maestro:\n$ISSUE_BODY\n---\n\n### Action Required\n\nReview these changes and determine if Maestro needs updating:\n\n- [ ] Check if new superpowers skills should be orchestrated\n- [ ] Check if Context7 API has changed\n- [ ] Check if new Vercel agent skills are available\n- [ ] Check if Playwright MCP API or capabilities have changed\n- [ ] Check if claude-mem MCP tool names or hook schema have changed\n- [ ] Check if UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG, Karpathy Skills, or Caveman have breaking changes\n- [ ] Update SKILL.md if needed\n- [ ] Update checklists if needed\n- [ ] Bump version in plugin.json if changes made\n\n*This issue was automatically created by the upstream tracker workflow.*")
+            BODY=$(printf '%s\n' \
+              '## Upstream Dependency Updates' \
+              '' \
+              'The following upstream repos have new changes that may affect Maestro:' \
+              "$ISSUE_BODY" \
+              '---' \
+              '' \
+              '### Action Required' \
+              '' \
+              'Review these changes and determine if Maestro needs updating:' \
+              '' \
+              '- [ ] Check if new superpowers skills should be orchestrated' \
+              '- [ ] Check if Context7 API has changed' \
+              '- [ ] Check if new Vercel agent skills are available' \
+              '- [ ] Check if Playwright MCP API or capabilities have changed' \
+              '- [ ] Check if claude-mem MCP tool names or hook schema have changed' \
+              '- [ ] Check if UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG, Karpathy Skills, or Caveman have breaking changes' \
+              '- [ ] Update SKILL.md if needed' \
+              '- [ ] Update checklists if needed' \
+              '- [ ] Bump version in plugin.json if changes made' \
+              '' \
+              '*This issue was automatically created by the upstream tracker workflow.*')
 
             # Check for existing open issue to avoid duplicates
             EXISTING=$(gh issue list --repo "${{ github.repository }}" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
@@ -164,8 +185,7 @@ jobs:
             DELIM="EOF_$(date +%s%N | sha256sum | head -c 16)"
             {
               echo "change_summary<<$DELIM"
-              printf '%b' "$ISSUE_BODY"
-              echo ""
+              printf '%s\n' "$ISSUE_BODY"
               echo "$DELIM"
             } >> "$GITHUB_OUTPUT"
           fi
