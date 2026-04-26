@@ -1,11 +1,11 @@
 {
   "context7": {
-    "release": "ctx7@0.3.13",
-    "commit": "0b190c1b8db81c9d16f2d390e228422a679a8bc4"
+    "release": "@upstash/context7-mcp@2.2.0",
+    "commit": "5d284f215471c341e0e3d9bb4f9c24bb1345ada1"
   },
   "lightrag": {
     "release": "v1.4.15",
-    "commit": "4e52ec5b26cf8df3eab7c70b047624cec44f759d"
+    "commit": "6c85f26d21cef93936f2d97d7010227d3ba56542"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -21,7 +21,7 @@
   },
   "superpowers": {
     "release": "v5.0.7",
-    "commit": "b55764852ac78870e65c6565fb585b6cd8b3c5c9"
+    "commit": "6efe32c9e2dd002d0c394e861e0529675d1ab32e"
   },
   "karpathy-skills": {
     "release": "none",
@@ -32,12 +32,12 @@
     "commit": "9639f757853149f0cb16663cc8b6b6468f27a25f"
   },
   "claude-mem": {
-    "release": "v12.3.8",
-    "commit": "49ab404c083b3a5c51a2e810912c63f512364ff3"
+    "release": "v12.3.9",
+    "commit": "8ace1d9c84e5ce455356cf852c370ea625e3b1d1"
   },
   "voicemode": {
     "release": "v8.6.1",
-    "commit": "d04d09c769b983448272450e01895d2f59c75088"
+    "commit": "e8d0b74fb6788eec69aea13b34828e902549d51d"
   },
   "caveman": {
     "release": "v1.6.0",
@@ -45,7 +45,7 @@
   },
   "playwright-mcp": {
     "release": "v0.0.70",
-    "commit": "72d3a4d6af7d6a0e0bb3b362d59b05d514e76dfc"
+    "commit": "9a1eaa6088d84d2ea0ddcc622dfe90924ec12e5f"
   },
   "last_sync": "2026-04-22T09:19:21Z"
 }
