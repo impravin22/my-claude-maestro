@@ -4,8 +4,8 @@
     "commit": "5d284f215471c341e0e3d9bb4f9c24bb1345ada1"
   },
   "lightrag": {
-    "release": "v1.4.15",
-    "commit": "6c85f26d21cef93936f2d97d7010227d3ba56542"
+    "release": "v1.5.0rc1",
+    "commit": "221fcb076b612e12e9553e0ce12f4f785d5d5510"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -37,7 +37,7 @@
   },
   "voicemode": {
     "release": "v8.6.1",
-    "commit": "3426f7f1a831e0fa33820a794e6d4bba54577b82"
+    "commit": "6afff773266229b27a89960ccb4dfe0a03837b5e"
   },
   "caveman": {
     "release": "v1.6.0",
@@ -47,5 +47,5 @@
     "release": "v0.0.70",
     "commit": "9a1eaa6088d84d2ea0ddcc622dfe90924ec12e5f"
   },
-  "last_sync": "2026-04-26T09:26:09Z"
+  "last_sync": "2026-04-27T10:12:58Z"
 }
