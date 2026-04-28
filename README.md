@@ -7,7 +7,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 1. **Classifies** your task (feature, bug fix, refactor, config, UI-only)
 2. **Fetches live docs** via [Context7](https://github.com/upstash/context7) for every library involved — no stale training data
 3. **Orchestrates superpowers skills** in the correct order (brainstorm → plan → TDD → implement → verify → PR)
-4. **Enforces UI/UX design system** — WCAG 2.1 AA accessibility, Tailwind token usage, shadcn/ui patterns, responsive design, loading/error/empty states
+4. **Enforces UI/UX design system** — WCAG 2.1 AA accessibility, Tailwind token usage, shadcn/ui patterns, responsive design, loading/error/empty states. Step 5 also runs a **design mockup gate** that produces an approved visual artefact (HTML prototype, sketch, or Storybook story) **before** any production frontend code is written, eliminating the post-implementation rework loop
 5. **Enforces layered security** — OWASP checklists at planning time + real-time pre-edit scanning via [Security Guidance](https://github.com/anthropics/claude-code)
 6. **Visual verification** — [Playwright MCP](https://github.com/microsoft/playwright-mcp) verifies frontend changes render correctly, pass accessibility checks, and behave across breakpoints
 7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the polling loop
@@ -27,7 +27,8 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 | [PR Review Toolkit](https://github.com/anthropics/claude-code) | Recommended | Ships with Claude Code — 6 specialist review agents |
 | [Playwright MCP](https://github.com/microsoft/playwright-mcp) | Recommended | `npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright` |
 | [claude-mem](https://github.com/thedotmack/claude-mem) | Recommended | `npx claude-mem install` — persistent memory across sessions via 5 lifecycle hooks + 3 MCP tools (`search`, `timeline`, `get_observations`) |
-| [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | Recommended | `npm i -g uipro-cli && uipro init --ai claude` — 50+ styles, 161 colour palettes, 99 UX guidelines (auto-activates on UI/UX prompts; Step 5 checklist remains canonical) |
+| `frontend-design` skill | Recommended | Ships with Everything Claude Code (or any equivalent) — used by Step 5a/5b to generate the design direction and mockup artefact **before** any production frontend code is written |
+| [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | Recommended | `npm i -g uipro-cli && uipro init --ai claude` — 50+ styles, 161 colour palettes, 99 UX guidelines (auto-activates on UI/UX prompts; Step 5e checklist remains canonical) |
 | [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) | Recommended | `claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp` — 400+ n8n workflow integrations |
 | [VoiceMode MCP](https://github.com/mbailey/voicemode) | Recommended | `claude mcp add --scope user voicemode -- uvx --refresh voice-mode` — local Whisper + Kokoro voice conversations (requires mic/speakers) |
 | [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) | Recommended | `git clone https://github.com/affaan-m/everything-claude-code.git && cd everything-claude-code && ./install.sh --target claude --profile full` — 150+ skills, 47 agents, 79 commands, 16 rules across 12 language ecosystems |
@@ -102,7 +103,7 @@ Every task follows one flow. Steps are skipped when not applicable:
  2. CONTEXT7     → Detect libraries → fetch current docs
  3. BRAINSTORM   → superpowers:brainstorming (or systematic-debugging for bugs)
  4. PLAN         → superpowers:writing-plans
- 5. UI/UX GATE   → Full design system checklist (frontend only)
+ 5. UI/UX GATE   → Generate approved design mockup → full design system checklist (frontend only)
  6. SECURITY     → OWASP + LLM security checklist + real-time edit scanning
  7. IMPLEMENT    → superpowers:test-driven-development
  8. VERIFY       → superpowers:verification + quality gates + Playwright visual checks
