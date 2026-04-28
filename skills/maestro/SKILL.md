@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: Use at the start of every task — master orchestrator that classifies work, fetches live library docs via Context7, enforces layered security (OWASP checklists + real-time edit scanning via Security Guidance), visual verification via Playwright MCP, deep PR review with specialist agents (PR Review Toolkit), and orchestrates superpowers skills in the correct order
+description: Use at the start of every task — master orchestrator that classifies work, fetches live library docs via Context7, generates approved design mockups before any frontend code is written (Step 5 design-mockup gate), enforces layered security (OWASP checklists + real-time edit scanning via Security Guidance), visual verification via Playwright MCP, deep PR review with specialist agents (PR Review Toolkit), and orchestrates superpowers skills in the correct order
 ---
 
 # Maestro — Master Orchestrator
@@ -22,7 +22,7 @@ Before using this skill, ensure:
 - **Playwright MCP** is recommended (`npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright`) — enables visual verification of frontend changes
 - **claude-mem plugin** is recommended (`npx claude-mem install`) — persistent cross-session memory via 5 lifecycle hooks (SessionStart/UserPromptSubmit/PostToolUse/Stop/SessionEnd) and 3 MCP tools (`search`, `timeline`, `get_observations`); enables maestro to surface prior observations during CLASSIFY, BRAINSTORM, and PLAN
 - **`frontend-design` skill** (ships with Everything Claude Code, or any equivalent design-direction skill) — used by Step 5a/5b to generate a concrete design direction and mockup artefact **before** any production code is written. If unavailable, Step 5a/5b fall back to a manual design-direction write-up plus a hand-rolled HTML prototype.
-- **UI UX Pro Max** is recommended (`npm i -g uipro-cli && uipro init --ai claude`) — 50+ design styles, 161 colour palettes, 99 UX guidelines; auto-activates on UI/UX-flavoured prompts and composes with Step 5's design-system checklist (the checklist remains the canonical gate; UI UX Pro Max suggestions are additive)
+- **UI UX Pro Max** is recommended (`npm i -g uipro-cli && uipro init --ai claude`) — 50+ design styles, 161 colour palettes, 99 UX guidelines; auto-activates on UI/UX-flavoured prompts. Consumed by **Step 5d** to refine palette and typography against the direction approved in 5c. **Step 5e** (UI/UX checklist) remains the canonical gate; UI UX Pro Max suggestions are additive and cannot override the approved direction.
 - **n8n-MCP** is recommended (`claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp`) — 400+ n8n workflow integrations accessible as MCP tools; surface only when the task involves building or debugging n8n workflows
 - **VoiceMode MCP** is recommended (`claude mcp add --scope user voicemode -- uvx --refresh voice-mode`) — local Whisper STT + Kokoro TTS for voice conversations with Claude Code; requires mic/speakers and ~GB of local model downloads on first use
 - **Everything Claude Code** is recommended (`git clone https://github.com/affaan-m/everything-claude-code.git && cd everything-claude-code && ./install.sh --target claude --profile full`) — 150+ skills, 47 agents, 79 commands, 16 rules across 12 language ecosystems; user-scope skills (lower trigger precedence than plugin-scope skills, so superpowers and maestro still win in competition)
@@ -159,16 +159,21 @@ Invoke `superpowers:writing-plans` to create a detailed implementation plan.
 | New surface (page, route, major component) | **Yes** | Yes |
 | Significant redesign (layout shift, new states, new interaction model) | **Yes** | Yes |
 | Style refresh of existing surface (palette, typography, spacing) | **Yes** | Yes |
+| New variant of existing component (new size/intent of an existing button, card, modal) | **Yes** (light — sketch is enough) | Yes |
 | Component-level tweak (className change, copy edit, prop rename, prop drilling fix) | No | Yes |
 | Bug fix without visual change | No | Yes |
+| A11y-only fix (add aria-label, fix focus order, fix contrast) | No | Yes |
+| Test-only change (Vitest, Playwright, or Storybook coverage with no UI change) | No | No |
 
 If the table says "Yes" in column **5a–5c Mockup**, you MUST run substeps 5a–5c **before** Step 6. Do not proceed to SECURITY or IMPLEMENT until the user has approved the mockup.
+
+If the change type is not in the table or is ambiguous, default to **Yes** (run the mockup gate). The user can override with "skip the mockup, just code it" — but the default must be safe.
 
 ---
 
 ### 5a. Generate design direction
 
-Invoke the `frontend-design` skill (or `vercel:shadcn` + `vercel:react-best-practices` for component-level surfaces) to produce a concrete design direction:
+Invoke the `frontend-design` skill (or `vercel:shadcn` + `vercel:react-best-practices` for **new variants of existing components**) to produce a concrete design direction:
 - Style direction (editorial / brutalist / glass / luxury / Swiss / etc. — pick **one**, justify it)
 - Palette (specific tokens, not vague colour names)
 - Typography pairing (specific families and scale)
@@ -198,7 +203,9 @@ Present the mockup to the user. Wait for explicit approval (`yes` / `go on` / `a
 
 ### 5d. UI UX Pro Max refinement (if installed)
 
-If UI UX Pro Max is installed, invoke it to refine palette, typography, and style direction. Treat its suggestions as **additive** to 5a — the maestro checklist in 5e remains the canonical gate (accessibility, responsive, loading/error states, etc.). Consult UI UX Pro Max for *style and palette choices* (the 50+ styles and 161 palettes); do not let it override the checklist-level accessibility or state-coverage requirements.
+If UI UX Pro Max is installed, invoke it to refine palette and typography against the direction approved in 5c. Treat its suggestions as **additive** — the user has already approved the direction in 5c, so UI UX Pro Max can suggest refinements (different palette token, better font pairing, tweaked spacing scale) but **cannot override the approved direction**. If UI UX Pro Max recommends a fundamental direction change, surface it to the user explicitly ("UI UX Pro Max suggests switching from editorial to brutalist because X. Stick with editorial, or pivot?") and wait for an answer.
+
+The maestro checklist in 5e remains the canonical gate (accessibility, responsive, loading/error states, etc.). Do not let UI UX Pro Max override checklist-level accessibility or state-coverage requirements.
 
 ### 5e. Run UI/UX checklist against the approved mockup
 
