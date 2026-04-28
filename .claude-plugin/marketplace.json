@@ -7,8 +7,8 @@
   "plugins": [
     {
       "name": "maestro",
-      "description": "Master orchestrator — task classification, live docs, design-mockup gate before frontend code, layered security, visual verification via Playwright, deep PR review with specialist agents, cross-session memory via claude-mem, and an extended plugin ecosystem (frontend-design, UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG)",
-      "version": "1.6.0",
+      "description": "Master orchestrator — task classification, live docs, anti-template design-mockup gate before frontend code, layered security, visual verification via Playwright, deep PR review with specialist agents, cross-session memory via claude-mem, and an extended plugin ecosystem (frontend-design, UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG)",
+      "version": "1.7.0",
       "source": "./",
       "author": {
         "name": "Praveen Kumar Chittem"

@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: Use at the start of every task — master orchestrator that classifies work, fetches live library docs via Context7, generates approved design mockups before any frontend code is written (Step 5 design-mockup gate), enforces layered security (OWASP checklists + real-time edit scanning via Security Guidance), visual verification via Playwright MCP, deep PR review with specialist agents (PR Review Toolkit), and orchestrates superpowers skills in the correct order
+description: Use at the start of every task — master orchestrator that classifies work, fetches live library docs via Context7, generates non-template, anti-default design mockups before any frontend code is written (Step 5 design-mockup gate with explicit anti-template ban and required-qualities check), enforces layered security (OWASP checklists + real-time edit scanning via Security Guidance), visual verification via Playwright MCP, deep PR review with specialist agents (PR Review Toolkit), and orchestrates superpowers skills in the correct order
 ---
 
 # Maestro — Master Orchestrator
@@ -21,7 +21,7 @@ Before using this skill, ensure:
 - **PR Review Toolkit plugin** is recommended (ships with Claude Code) — provides 6 specialist review agents for deep PR analysis
 - **Playwright MCP** is recommended (`npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright`) — enables visual verification of frontend changes
 - **claude-mem plugin** is recommended (`npx claude-mem install`) — persistent cross-session memory via 5 lifecycle hooks (SessionStart/UserPromptSubmit/PostToolUse/Stop/SessionEnd) and 3 MCP tools (`search`, `timeline`, `get_observations`); enables maestro to surface prior observations during CLASSIFY, BRAINSTORM, and PLAN
-- **`frontend-design` skill** (ships with Everything Claude Code, or any equivalent design-direction skill) — used by Step 5a/5b to generate a concrete design direction and mockup artefact **before** any production code is written. If unavailable, Step 5a/5b fall back to a manual design-direction write-up plus a hand-rolled HTML prototype.
+- **`frontend-design` skill** — **strongly recommended** (`/plugin install frontend-design@claude-plugins-official`) for any new-surface, redesign, or style-refresh work. Used by Step 5a/5b to generate a non-template design direction and mockup artefact **before** any production code is written. If unavailable, Step 5a/5b fall back to a manual design-direction write-up plus a hand-rolled HTML prototype — but the manual fallback must still pass the anti-template ban and required-qualities check in 5a (see `references/frontend-design-trigger.md`).
 - **UI UX Pro Max** is recommended (`npm i -g uipro-cli && uipro init --ai claude`) — 50+ design styles, 161 colour palettes, 99 UX guidelines; auto-activates on UI/UX-flavoured prompts. Consumed by **Step 5d** to refine palette and typography against the direction approved in 5c. **Step 5e** (UI/UX checklist) remains the canonical gate; UI UX Pro Max suggestions are additive and cannot override the approved direction.
 - **n8n-MCP** is recommended (`claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp`) — 400+ n8n workflow integrations accessible as MCP tools; surface only when the task involves building or debugging n8n workflows
 - **VoiceMode MCP** is recommended (`claude mcp add --scope user voicemode -- uvx --refresh voice-mode`) — local Whisper STT + Kokoro TTS for voice conversations with Claude Code; requires mic/speakers and ~GB of local model downloads on first use
@@ -173,14 +173,41 @@ If the change type is not in the table or is ambiguous, default to **Yes** (run 
 
 ### 5a. Generate design direction
 
-Invoke the `frontend-design` skill (or `vercel:shadcn` + `vercel:react-best-practices` for **new variants of existing components**) to produce a concrete design direction:
-- Style direction (editorial / brutalist / glass / luxury / Swiss / etc. — pick **one**, justify it)
-- Palette (specific tokens, not vague colour names)
-- Typography pairing (specific families and scale)
-- Layout strategy (grid, bento, scrollytelling, sidebar+canvas, etc.)
-- Motion language (when motion clarifies vs. when it distracts)
+Invoke the `frontend-design` skill (or `vercel:shadcn` + `vercel:react-best-practices` for **new variants of existing components**) to produce a concrete design direction. Output **must** include all of:
 
-Reference at least 2 real precedents (existing pages in the same product, or external products) and explain why each is relevant.
+- **Style direction** — pick exactly one from a worthwhile list and justify it. Worthwhile: editorial / magazine, neo-brutalism, glassmorphism with real depth, light or dark luxury, bento, scrollytelling, 3D integration, Swiss / international, retro-futurism. **Banned as a "direction":** "clean minimal", "modern", "professional", "simple". These are non-directions and produce template output.
+- **Palette** — concrete tokens (oklch / hex), not vague colour names. Reference the project's existing tokens before introducing new ones.
+- **Typography pairing** — specific families, weights, and the type scale.
+- **Layout strategy** — grid, bento, sidebar+canvas, scrollytelling, magazine, asymmetric. **Banned default:** centred single-column max-w-md card with icon → headline → body → CTA → secondary link. That is the canonical generic template; if the proposed layout looks like that, reject and re-pick.
+- **Motion language** — what motion clarifies (hierarchy, state change, focus) vs. what it distracts from. Respect `prefers-reduced-motion: reduce`.
+
+**Anti-template ban — these are forbidden in the output:**
+
+- Default card grids with uniform spacing and no hierarchy
+- Stock hero section: centred headline, gradient blob, generic CTA
+- Unmodified Tailwind / shadcn / Material / Bootstrap defaults passed off as finished design
+- Flat layouts with no layering, depth, or motion
+- Uniform radius, spacing, and shadows across every component
+- Safe gray-on-white styling with one decorative accent colour
+- Dashboard-by-numbers: sidebar + uniform cards + generic charts with no point of view
+- Default font stacks used without a deliberate reason
+
+**Required qualities — output must demonstrate at least four:**
+
+1. Clear hierarchy through scale contrast
+2. Intentional rhythm in spacing, not uniform padding everywhere
+3. Depth or layering through overlap, shadows, surfaces, or motion
+4. Typography with character and a real pairing strategy
+5. Colour used semantically, not just decoratively
+6. Hover, focus, and active states that feel designed
+7. Grid-breaking editorial or bento composition where appropriate
+8. Texture, grain, or atmosphere when it fits the visual direction
+9. Motion that clarifies flow instead of distracting from it
+10. Data visualisation treated as part of the design system, not an afterthought
+
+Reference at least 2 real precedents (existing pages in the same product, or external products like Linear, Vercel, Stripe, Apple Newsroom, NYT Cooking, Things 3, etc.) and explain **what specifically** you are borrowing from each — not just "Linear" but "Linear's command-bar density and keyboard hint chips".
+
+Before moving to 5b, **self-audit**: open the design direction and ask "could a 2018 admin template ship this?" If yes, re-pick. If no, proceed.
 
 ### 5b. Generate mockup artefact
 
@@ -194,6 +221,17 @@ Produce a tangible artefact the user can eyeball **before** any production code 
 | Storybook story (if Storybook is configured) | Component-level work | Storybook's tree |
 
 The mockup must show: hero state, loading state, empty state, error state, and at least one responsive breakpoint. **No placeholder lorem ipsum** — use realistic copy from the actual product domain.
+
+**Pre-approval self-check (run before presenting to user):**
+
+- [ ] Does the mockup avoid looking like a default Tailwind / shadcn / Material template?
+- [ ] Are hover, focus, and active states drawn or specified — not implicit defaults?
+- [ ] Is hierarchy expressed through scale contrast rather than uniform emphasis?
+- [ ] Would this look believable in a real product screenshot, side-by-side with Linear, Vercel, Stripe?
+- [ ] If the artefact supports both themes, do both light and dark feel deliberate?
+- [ ] Does at least one element break the predictable grid (asymmetry, overlap, sidecar, marquee, etc.)?
+
+If any of the first four checkboxes is "no", **regenerate the mockup before going to 5c**. Do not present a mockup that fails these checks.
 
 ### 5c. Mockup approval gate
 
@@ -402,7 +440,7 @@ If a recommended plugin is unavailable, the workflow degrades gracefully:
 - **Playwright MCP missing** → Step 8 skips visual verification; tests, lint, and type checks still apply
 - **PR Review Toolkit missing** → Step 10 skips Phase 1 (specialist agents); Phase 2 (polling loop) still runs
 - **claude-mem missing** → Steps 1/3/4 skip the memory-lookup substeps; the workflow proceeds using only the current request. Note the missing plugin in your response so the user can install it for cross-session continuity.
-- **`frontend-design` skill missing** → Step 5a/5b still run, but as a manual design-direction write-up (style direction, palette, typography, layout strategy as prose) plus a hand-rolled single-file HTML prototype. The 5c approval gate is still mandatory — do not skip it just because the artefact is hand-rolled.
+- **`frontend-design` skill missing** → Step 5a/5b still run, but as a manual design-direction write-up plus a hand-rolled single-file HTML prototype. **Surface a loud warning** in the response — manual fallback is significantly more prone to template output (centred card, gray-on-white, generic CTAs). The anti-template ban and required-qualities check in 5a apply to the manual fallback **without exception**. The 5c approval gate is still mandatory regardless of artefact source. Recommend the user install `frontend-design` (`/plugin install frontend-design@claude-plugins-official`) for any non-trivial new-surface work.
 - **UI UX Pro Max missing** → Step 5d is skipped; 5a/5b/5c/5e still run. Style/palette suggestions come from `frontend-design` (or the manual fallback) alone; accessibility and responsive gates remain enforced via 5e.
 - **n8n-MCP missing** → surface this only when a task actually involves n8n workflows; for any other task, it is irrelevant and its absence is silent.
 - **VoiceMode MCP missing** → voice conversations unavailable; text workflow unchanged. Non-blocking for any coding task.
