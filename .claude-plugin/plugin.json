@@ -1,7 +1,7 @@
 {
   "name": "maestro",
-  "version": "1.5.0",
-  "description": "Master orchestrator for Claude Code — classifies tasks, fetches live docs via Context7, enforces layered security (OWASP checklists + real-time edit scanning), visual verification via Playwright, deep PR review with specialist agents, surfaces cross-session context via claude-mem observations, composes with an extended plugin ecosystem (UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG), and orchestrates superpowers skills in the correct order.",
+  "version": "1.6.0",
+  "description": "Master orchestrator for Claude Code — classifies tasks, fetches live docs via Context7, generates approved design mockups before frontend implementation, enforces layered security (OWASP checklists + real-time edit scanning), visual verification via Playwright, deep PR review with specialist agents, surfaces cross-session context via claude-mem observations, composes with an extended plugin ecosystem (UI UX Pro Max, frontend-design, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG), and orchestrates superpowers skills in the correct order.",
   "author": {
     "name": "Praveen Kumar Chittem",
     "url": "https://github.com/impravin22"
@@ -18,6 +18,8 @@
     "context7",
     "tdd",
     "design-system",
+    "design-mockup",
+    "frontend-design",
     "playwright",
     "visual-testing",
     "pr-review",

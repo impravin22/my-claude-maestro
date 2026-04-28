@@ -21,6 +21,7 @@ Before using this skill, ensure:
 - **PR Review Toolkit plugin** is recommended (ships with Claude Code) — provides 6 specialist review agents for deep PR analysis
 - **Playwright MCP** is recommended (`npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright`) — enables visual verification of frontend changes
 - **claude-mem plugin** is recommended (`npx claude-mem install`) — persistent cross-session memory via 5 lifecycle hooks (SessionStart/UserPromptSubmit/PostToolUse/Stop/SessionEnd) and 3 MCP tools (`search`, `timeline`, `get_observations`); enables maestro to surface prior observations during CLASSIFY, BRAINSTORM, and PLAN
+- **`frontend-design` skill** (ships with Everything Claude Code, or any equivalent design-direction skill) — used by Step 5a/5b to generate a concrete design direction and mockup artefact **before** any production code is written. If unavailable, Step 5a/5b fall back to a manual design-direction write-up plus a hand-rolled HTML prototype.
 - **UI UX Pro Max** is recommended (`npm i -g uipro-cli && uipro init --ai claude`) — 50+ design styles, 161 colour palettes, 99 UX guidelines; auto-activates on UI/UX-flavoured prompts and composes with Step 5's design-system checklist (the checklist remains the canonical gate; UI UX Pro Max suggestions are additive)
 - **n8n-MCP** is recommended (`claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp`) — 400+ n8n workflow integrations accessible as MCP tools; surface only when the task involves building or debugging n8n workflows
 - **VoiceMode MCP** is recommended (`claude mcp add --scope user voicemode -- uvx --refresh voice-mode`) — local Whisper STT + Kokoro TTS for voice conversations with Claude Code; requires mic/speakers and ~GB of local model downloads on first use
@@ -37,7 +38,7 @@ Every task follows this flow. Steps are skipped only when explicitly not applica
  2. CONTEXT7     → Detect libraries → fetch current docs
  3. BRAINSTORM   → Invoke superpowers:brainstorming
  4. PLAN         → Invoke superpowers:writing-plans
- 5. UI/UX GATE   → Run design system checklist
+ 5. UI/UX GATE   → Generate design mockup → run design system checklist
  6. SECURITY     → Run OWASP + LLM security checklist
  7. IMPLEMENT    → Invoke superpowers:test-driven-development
  8. VERIFY       → Invoke superpowers:verification-before-completion
@@ -75,7 +76,8 @@ If claude-mem is unavailable, skip this substep and proceed with the classificat
 | Classification | Steps to Skip |
 |---------------|---------------|
 | Trivial config/docs change | Skip 3–6, go straight to 7 (implement without TDD ceremony) |
-| No frontend touched | Skip 5 (UI/UX gate), skip visual verification in 8 |
+| No frontend touched | Skip 5 (UI/UX gate + design mockup), skip visual verification in 8 |
+| Component-level frontend tweak (className change, copy edit, prop rename) | Skip 5a–5c (mockup) and 5d (UI UX Pro Max refinement), still run 5e (checklist) |
 | Bug fix | Step 3 becomes `superpowers:systematic-debugging` instead of brainstorming |
 | No libraries detected | Skip 2 (no Context7 calls) |
 | Independent subtasks identified | Step 7 can use `superpowers:dispatching-parallel-agents` |
@@ -146,11 +148,61 @@ Invoke `superpowers:writing-plans` to create a detailed implementation plan.
 
 ---
 
-## Step 5: UI/UX GATE
+## Step 5: UI/UX GATE & DESIGN MOCKUP
 
 **Skip if:** No frontend files are touched.
 
-Read and run through `references/uiux-checklist.md` against the planned changes.
+**Trigger taxonomy** (see `references/frontend-design-trigger.md` for the full decision matrix):
+
+| Frontend change type | 5a–5c Mockup? | 5e Checklist? |
+|---|---|---|
+| New surface (page, route, major component) | **Yes** | Yes |
+| Significant redesign (layout shift, new states, new interaction model) | **Yes** | Yes |
+| Style refresh of existing surface (palette, typography, spacing) | **Yes** | Yes |
+| Component-level tweak (className change, copy edit, prop rename, prop drilling fix) | No | Yes |
+| Bug fix without visual change | No | Yes |
+
+If the table says "Yes" in column **5a–5c Mockup**, you MUST run substeps 5a–5c **before** Step 6. Do not proceed to SECURITY or IMPLEMENT until the user has approved the mockup.
+
+---
+
+### 5a. Generate design direction
+
+Invoke the `frontend-design` skill (or `vercel:shadcn` + `vercel:react-best-practices` for component-level surfaces) to produce a concrete design direction:
+- Style direction (editorial / brutalist / glass / luxury / Swiss / etc. — pick **one**, justify it)
+- Palette (specific tokens, not vague colour names)
+- Typography pairing (specific families and scale)
+- Layout strategy (grid, bento, scrollytelling, sidebar+canvas, etc.)
+- Motion language (when motion clarifies vs. when it distracts)
+
+Reference at least 2 real precedents (existing pages in the same product, or external products) and explain why each is relevant.
+
+### 5b. Generate mockup artefact
+
+Produce a tangible artefact the user can eyeball **before** any production code is written. Pick the lightest form that conveys the design:
+
+| Artefact | When to use | Where it lives |
+|---|---|---|
+| HTML prototype (single file, Tailwind via CDN) | New surfaces, redesigns, exploration | `proposed-*.html` in repo root or `docs/mockups/` |
+| Annotated component sketch in markdown | Small new components | Inline in the plan |
+| Existing-page screenshot + redline overlay | Refreshes of existing pages | Attached to the plan |
+| Storybook story (if Storybook is configured) | Component-level work | Storybook's tree |
+
+The mockup must show: hero state, loading state, empty state, error state, and at least one responsive breakpoint. **No placeholder lorem ipsum** — use realistic copy from the actual product domain.
+
+### 5c. Mockup approval gate
+
+Present the mockup to the user. Wait for explicit approval (`yes` / `go on` / `approved`). Iterate on feedback **without** writing production code.
+
+**Do not skip this gate** even if the design feels obvious. If the user is in caveman mode and replies "yes", that is sufficient — but the gate must still be hit.
+
+### 5d. UI UX Pro Max refinement (if installed)
+
+If UI UX Pro Max is installed, invoke it to refine palette, typography, and style direction. Treat its suggestions as **additive** to 5a — the maestro checklist in 5e remains the canonical gate (accessibility, responsive, loading/error states, etc.). Consult UI UX Pro Max for *style and palette choices* (the 50+ styles and 161 palettes); do not let it override the checklist-level accessibility or state-coverage requirements.
+
+### 5e. Run UI/UX checklist against the approved mockup
+
+Read and run through `references/uiux-checklist.md` against the approved mockup (not against your imagination of the final UI).
 
 **This is not optional for frontend work.** Every frontend change — even "just a small tweak" — gets checked against the design system.
 
@@ -160,11 +212,7 @@ Read and run through `references/uiux-checklist.md` against the planned changes.
 - **Component Patterns** — shadcn/ui, composition, loading/error/empty states, responsive
 - **Performance** — CLS, image optimisation, client component boundaries, bundle impact
 
-**Also invoke** `vercel:shadcn` and `vercel:react-best-practices` skills if the Vercel plugin is available.
-
-**UI UX Pro Max precedence (if installed):** UI UX Pro Max's skill auto-activates on UI/UX-flavoured prompts. Treat its suggestions as *additive* refinements — maestro's checklist in `references/uiux-checklist.md` remains the canonical gate (accessibility, responsive, loading/error states, etc.). Consult UI UX Pro Max for *style and palette choices* (the 50+ styles and 161 palettes); do not let it override the checklist-level accessibility or state-coverage requirements.
-
-Flag any checklist violations in the plan and resolve them before proceeding to implementation.
+Flag any checklist violations against the mockup, fix the mockup, re-confirm with the user, then proceed to Step 6.
 
 ---
 
@@ -347,7 +395,8 @@ If a recommended plugin is unavailable, the workflow degrades gracefully:
 - **Playwright MCP missing** → Step 8 skips visual verification; tests, lint, and type checks still apply
 - **PR Review Toolkit missing** → Step 10 skips Phase 1 (specialist agents); Phase 2 (polling loop) still runs
 - **claude-mem missing** → Steps 1/3/4 skip the memory-lookup substeps; the workflow proceeds using only the current request. Note the missing plugin in your response so the user can install it for cross-session continuity.
-- **UI UX Pro Max missing** → Step 5 falls back to the checklist in `references/uiux-checklist.md` alone; style/palette suggestions are omitted but accessibility and responsive gates remain enforced.
+- **`frontend-design` skill missing** → Step 5a/5b still run, but as a manual design-direction write-up (style direction, palette, typography, layout strategy as prose) plus a hand-rolled single-file HTML prototype. The 5c approval gate is still mandatory — do not skip it just because the artefact is hand-rolled.
+- **UI UX Pro Max missing** → Step 5d is skipped; 5a/5b/5c/5e still run. Style/palette suggestions come from `frontend-design` (or the manual fallback) alone; accessibility and responsive gates remain enforced via 5e.
 - **n8n-MCP missing** → surface this only when a task actually involves n8n workflows; for any other task, it is irrelevant and its absence is silent.
 - **VoiceMode MCP missing** → voice conversations unavailable; text workflow unchanged. Non-blocking for any coding task.
 - **Everything Claude Code missing** → 150+ user-scope skills unavailable; maestro and superpowers skills still cover the workflow. No degradation of the 10-step flow itself.
