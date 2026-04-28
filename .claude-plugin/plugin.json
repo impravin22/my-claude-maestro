@@ -1,6 +1,6 @@
 {
   "name": "maestro",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Master orchestrator for Claude Code — classifies tasks, fetches live docs via Context7, generates non-template, anti-default design mockups before frontend implementation (Step 5 with explicit anti-template ban and required-qualities check), enforces layered security (OWASP checklists + real-time edit scanning), visual verification via Playwright, deep PR review with specialist agents, surfaces cross-session context via claude-mem observations, composes with an extended plugin ecosystem (UI UX Pro Max, frontend-design, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG), and orchestrates superpowers skills in the correct order.",
   "author": {
     "name": "Praveen Kumar Chittem",
