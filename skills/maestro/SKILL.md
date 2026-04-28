@@ -175,7 +175,7 @@ If the change type is not in the table or is ambiguous, default to **Yes** (run 
 
 Invoke the `frontend-design` skill (or `vercel:shadcn` + `vercel:react-best-practices` for **new variants of existing components**) to produce a concrete design direction. Output **must** include all of:
 
-- **Style direction** — pick exactly one from a worthwhile list and justify it. Worthwhile: editorial / magazine, neo-brutalism, glassmorphism with real depth, light or dark luxury, bento, scrollytelling, 3D integration, Swiss / international, retro-futurism. **Banned as a "direction":** "clean minimal", "modern", "professional", "simple". These are non-directions and produce template output.
+- **Style direction** — pick exactly one from a worthwhile list and justify it. Worthwhile: editorial / magazine, neo-brutalism, glassmorphism with real depth, light or dark luxury, bento, scrollytelling, 3D integration, Swiss / international, retro-futurism. **Banned as a "direction":** "clean minimal", "modern", "professional", "simple", "elegant". These are non-directions and produce template output.
 - **Palette** — concrete tokens (oklch / hex), not vague colour names. Reference the project's existing tokens before introducing new ones.
 - **Typography pairing** — specific families, weights, and the type scale.
 - **Layout strategy** — grid, bento, sidebar+canvas, scrollytelling, magazine, asymmetric. **Banned default:** centred single-column max-w-md card with icon → headline → body → CTA → secondary link. That is the canonical generic template; if the proposed layout looks like that, reject and re-pick.
