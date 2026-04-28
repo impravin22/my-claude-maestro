@@ -35,16 +35,42 @@ If the answer is ambiguous, default to **Yes**. The user can always say "skip th
 
 ### 5a — Design direction
 
-A short prose write-up that locks in:
+A short prose write-up that locks in all of:
 
-- **Style direction** — pick exactly one (editorial, brutalist, glass, luxury, Swiss, scrollytelling, bento, retro-futurism, etc.). Do not write "clean minimal" — that is a non-direction.
-- **Palette** — concrete tokens, not vague colour words. Use `oklch(...)` or hex with a justification per colour. Reference the project's existing palette tokens before introducing new ones.
+- **Style direction** — pick exactly one from the worthwhile list (editorial / magazine, neo-brutalism, glassmorphism with real depth, light or dark luxury, bento, scrollytelling, 3D integration, Swiss / international, retro-futurism). **Banned non-directions:** "clean minimal", "modern", "professional", "simple", "elegant". These produce template output every time. If the natural answer feels like one of those, push harder — what is the *editorial voice* of this product? A reviewer-rating page is not a hotel booking. An OKR dashboard is not a marketing site.
+- **Palette** — concrete tokens (`oklch(...)` or hex), not vague colour words. Justify each colour. Reference the project's existing palette tokens before introducing new ones.
 - **Typography pairing** — specific families, weights, and the type scale (`h1: 48/52`, `p-md: 16/22`, etc.).
-- **Layout strategy** — grid, bento, sidebar+canvas, scrollytelling, magazine.
+- **Layout strategy** — grid, bento, sidebar+canvas, scrollytelling, magazine, asymmetric. **Banned default:** centred single-column max-w-md card with icon → headline → body → CTA → secondary link. That is the canonical generic template; reject and re-pick if the proposed layout looks like that.
 - **Motion language** — what motion is for (clarification, hierarchy, delight) and what motion is **not** for (decoration, distraction).
-- **At least 2 precedents** — existing pages in the same product or external products. Explain why each is relevant.
+- **At least 2 precedents** — name a real product surface and the **specific element** you are borrowing from it. "Linear" is not a precedent. "Linear's command-bar density and keyboard hint chips" is. "Vercel" is not. "Vercel's dashboard split-pane with editorial-style empty states" is.
 
-This lives in the plan from Step 4, not in a separate file — it must be visible to the user when they approve the mockup.
+**Anti-template ban** (port of `web/design-quality.md`'s banned patterns):
+
+- Default card grids with uniform spacing and no hierarchy
+- Stock hero section: centred headline, gradient blob, generic CTA
+- Unmodified Tailwind / shadcn / Material / Bootstrap defaults passed off as finished design
+- Flat layouts with no layering, depth, or motion
+- Uniform radius, spacing, and shadows across every component
+- Safe gray-on-white styling with one decorative accent colour
+- Dashboard-by-numbers: sidebar + uniform cards + generic charts with no point of view
+- Default font stacks used without a deliberate reason
+
+**Required qualities** — output must demonstrate at least four:
+
+1. Clear hierarchy through scale contrast
+2. Intentional rhythm in spacing, not uniform padding everywhere
+3. Depth or layering through overlap, shadows, surfaces, or motion
+4. Typography with character and a real pairing strategy
+5. Colour used semantically, not just decoratively
+6. Hover, focus, and active states that feel designed
+7. Grid-breaking editorial or bento composition where appropriate
+8. Texture, grain, or atmosphere when it fits the visual direction
+9. Motion that clarifies flow instead of distracting from it
+10. Data visualisation treated as part of the design system, not an afterthought
+
+**Self-audit before moving to 5b:** open the design direction and ask "could a 2018 admin template ship this?" If yes, re-pick. If no, proceed.
+
+This lives in the plan from Step 4 (or appended during Step 5a) — it must be visible to the user when they approve the mockup.
 
 ### 5b — Mockup artefact
 
@@ -67,6 +93,17 @@ A tangible thing the user can eyeball **before** any production code is written.
 - Realistic copy from the actual product domain — **no lorem ipsum**
 
 If the artefact is an HTML prototype, it must render in a browser without a build step (Tailwind CDN, no bundler) so the user can open it locally and judge it.
+
+**Pre-approval self-check** (run before presenting to the user):
+
+- [ ] Does the mockup avoid looking like a default Tailwind / shadcn / Material template?
+- [ ] Are hover, focus, and active states drawn or specified — not implicit defaults?
+- [ ] Is hierarchy expressed through scale contrast rather than uniform emphasis?
+- [ ] Would this look believable in a real product screenshot, side-by-side with Linear, Vercel, Stripe?
+- [ ] Does at least one element break the predictable grid (asymmetry, overlap, sidecar, marquee, etc.)?
+- [ ] If the artefact supports both themes, do both light and dark feel deliberate?
+
+If any of the first four checkboxes is "no", **regenerate the mockup before going to 5c**. Do not present a mockup that fails these checks. The point of the gate is to catch template output *before* the user sees it.
 
 ### 5c — Approval gate
 
@@ -114,6 +151,10 @@ These are common ways the design gate gets skipped or weakened. Do not do them.
 | Skipping the empty/error state | Empty and error states are where most real-world UI fails. They are mandatory. |
 | Asking the user "does this work?" without showing them the artefact | The artefact must be visible when you ask for approval. No verbal-only descriptions. |
 | Treating UI UX Pro Max suggestions as gospel | The user approved the direction. UI UX Pro Max is additive, not authoritative. |
+| Calling the style "clean minimal" / "modern" / "professional" / "elegant" | These are not directions. They are excuses to ship template output. Pick a real direction (editorial, brutalist, bento, scrollytelling, etc.). |
+| Defaulting to a centred max-w-md card with icon → headline → body → CTA → secondary link | This is the canonical generic-template empty state. It looks like every shadcn starter. Break the layout. |
+| Skipping `frontend-design` because "manual is faster" | Manual fallback is significantly more prone to template output. Install `frontend-design` (`/plugin install frontend-design@claude-plugins-official`) for any non-trivial new-surface work. |
+| Presenting the mockup before running the pre-approval self-check | The self-check exists because LLM-generated UI defaults to template patterns. Presenting an unaudited mockup wastes a 5c iteration. |
 
 ---
 
