@@ -42,6 +42,7 @@ Every task follows this flow. Steps are skipped only when explicitly not applica
  6. SECURITY     → Run OWASP + LLM security checklist
  7. IMPLEMENT    → Invoke superpowers:test-driven-development
  8. VERIFY       → Invoke superpowers:verification-before-completion
+ 8.5 LOCAL REVIEW → Run code-reviewer (and security-reviewer if sensitive) on local diff
  9. FINISH       → Invoke superpowers:finishing-a-development-branch
 10. REVIEW       → PR review loop until clean approval
 ```
@@ -75,7 +76,7 @@ If claude-mem is unavailable, skip this substep and proceed with the classificat
 
 | Classification | Steps to Skip |
 |---------------|---------------|
-| Trivial config/docs change | Skip 3–6, go straight to 7 (implement without TDD ceremony) |
+| Trivial config/docs change | Skip 3–6 and 8.5, go straight to 7 (implement without TDD ceremony) |
 | No frontend touched | Skip 5 (UI/UX gate + design mockup), skip visual verification in 8 |
 | Component-level frontend tweak (className change, copy edit, prop rename) | Skip 5a–5c (mockup) and 5d (UI UX Pro Max refinement), still run 5e (checklist) |
 | Bug fix | Step 3 becomes `superpowers:systematic-debugging` instead of brainstorming |
@@ -344,6 +345,59 @@ When frontend changes are involved and Playwright MCP is available, perform visu
 **If Playwright MCP is not available:** Skip visual verification. Note the missing tool in your response so the user can install it. The remaining quality gates (tests, lint, types) still apply.
 
 **Do NOT claim work is done until every applicable gate passes.**
+
+---
+
+## Step 8.5: PRE-PR CODE REVIEW (Local Diff)
+
+**Skip if:** Classification = trivial config/docs change (e.g., one-line config tweak, comment fix, README typo).
+
+**Run for every other task — bug fixes included.** This step closes the gap between local correctness gates (Step 8) and the external PR review loop (Step 10). It is the user's "code review BEFORE PR creation" rule, made explicit and enforceable in the workflow. Catching maintainability and security issues here saves a full claude-review bot cycle on every PR.
+
+### Why a separate step
+
+Step 8 VERIFY enforces *correctness* (tests pass, types compile, lint clean). Step 10 REVIEW happens *after* the PR is open and runs against the merged-base diff. Neither covers the local pre-push window where a focused diff review prevents predictable bot rework. Step 8.5 owns that window.
+
+### What to dispatch
+
+Run as **parallel Agent calls** against the local diff (`git diff main...HEAD`, or `git diff` if work is uncommitted):
+
+| Agent | When to Dispatch | What It Checks |
+|-------|------------------|----------------|
+| `code-reviewer` | **Always** (non-trivial changes) | Project-convention adherence, design quality, dead code, naming, structure, error handling, test coverage gaps |
+| `security-reviewer` | When the diff touches authentication, authorisation, user input, database queries, file uploads, LLM calls, secrets, or PII handling | OWASP Top 10, injection, XSS, CSRF, broken access control, sensitive data exposure, insecure deserialisation, audit logging gaps |
+| Language-specific reviewer (`typescript-reviewer`, `python-reviewer`, `go-reviewer`, `rust-reviewer`, etc.) | When the diff is concentrated in one language and the corresponding agent is installed | Language-idiomatic issues, type safety, async correctness, language-specific footguns |
+
+For mixed-language diffs, dispatch the relevant per-language reviewers in parallel alongside `code-reviewer`. Do **not** serialise — run them in a single message with multiple Agent tool uses.
+
+### Severity thresholds
+
+After collecting findings:
+
+| Severity | Action |
+|----------|--------|
+| CRITICAL | **Block** — fix before Step 9. No exceptions. |
+| HIGH | **Block** — fix before Step 9. No exceptions. |
+| MEDIUM | **Fix where practical** in this step. If deferred, document why in the PR description. |
+| LOW / nit | **Fix opportunistically.** Do not block on these — Step 10 will catch any that genuinely matter. |
+
+### Loop until clean
+
+1. Dispatch reviewers in parallel
+2. Collect all findings
+3. Fix CRITICAL + HIGH
+4. Fix MEDIUM where practical
+5. Re-run only the agents whose scope was affected by the fixes
+6. Repeat until CRITICAL + HIGH are clear
+
+**Then proceed to Step 9 FINISH.** Do not commit-and-push without this step passing on non-trivial changes — it is the cheapest place to catch issues before they cost a bot review cycle.
+
+### When the reviewer agents are unavailable
+
+If `code-reviewer` and language-specific reviewers are not available in the current environment:
+- Perform a **manual self-review** — read every changed file end-to-end against the user's CLAUDE.md, the project's coding-style rules, and the security checklist from Step 6
+- Note the missing agents in your response so the user can install the corresponding plugin (`pr-review-toolkit` ships several of these)
+- Do **not** skip the step entirely — manual review is the fallback, not skipping
 
 ---
 
