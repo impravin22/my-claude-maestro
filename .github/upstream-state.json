@@ -1,51 +1,51 @@
 {
   "context7": {
-    "release": "@upstash/context7-mcp@2.2.0",
-    "commit": "5d284f215471c341e0e3d9bb4f9c24bb1345ada1"
+    "release": "@upstash/context7-mcp@2.2.4",
+    "commit": "78b98266954d35da8aa93ad40c67df33a3ff4443"
   },
   "lightrag": {
-    "release": "v1.5.0rc1",
-    "commit": "221fcb076b612e12e9553e0ce12f4f785d5d5510"
+    "release": "v1.4.15",
+    "commit": "568c0077c88c64855537fecfbbe7406f590dcffe"
   },
   "vercel-agent-skills": {
     "release": "none",
-    "commit": "ce3e64e468f8fa09a2d075d102771838061fdac0"
+    "commit": "b9c8ee0643d87d3c5a953d1e22382ff2ead39229"
   },
   "everything-claude-code": {
     "release": "v1.10.0",
-    "commit": "4e66b2882da9afb9747468b08a253ca2f09c85f3"
+    "commit": "841beea45cb25ba51f29fa45b7e272938d19b80a"
   },
   "ui-ux-pro-max": {
     "release": "v2.5.0",
     "commit": "b7e3af80f6e331f6fb456667b82b12cade7c9d35"
   },
   "superpowers": {
-    "release": "v5.0.7",
-    "commit": "6efe32c9e2dd002d0c394e861e0529675d1ab32e"
+    "release": "v5.1.0",
+    "commit": "f2cbfbefebbfef77321e4c9abc9e949826bea9d7"
   },
   "karpathy-skills": {
     "release": "none",
     "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2"
   },
   "n8n-mcp": {
-    "release": "v2.47.14",
-    "commit": "9639f757853149f0cb16663cc8b6b6468f27a25f"
+    "release": "v2.51.1",
+    "commit": "b7ad528466bdef4e7b2c38eff833b0b7d476cc44"
   },
   "claude-mem": {
-    "release": "v12.4.7",
-    "commit": "bb1f86949db425bd80cc00bb52ed2611332f2fb9"
+    "release": "v12.7.5",
+    "commit": "0a43ab7632ebedcd3c94cbb79a73df13ec41e9b0"
   },
   "voicemode": {
     "release": "v8.6.1",
-    "commit": "6afff773266229b27a89960ccb4dfe0a03837b5e"
+    "commit": "039433c6b84df72cbaea18bf2a837bb84f8f12ed"
   },
   "caveman": {
-    "release": "v1.6.0",
-    "commit": "84cc3c14fa1e10182adaced856e003406ccd250d"
+    "release": "v1.7.0",
+    "commit": "ef6050c5e1848b6880ff47c32ade1a608a64f85e"
   },
   "playwright-mcp": {
-    "release": "v0.0.70",
-    "commit": "9a1eaa6088d84d2ea0ddcc622dfe90924ec12e5f"
+    "release": "v0.0.74",
+    "commit": "17e696f072a501c6b5aaf2bd3570ecb2add9f24c"
   },
-  "last_sync": "2026-04-27T10:12:58Z"
+  "last_sync": "2026-05-07T10:23:14Z"
 }
