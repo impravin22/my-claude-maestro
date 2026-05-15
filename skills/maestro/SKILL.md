@@ -307,6 +307,7 @@ Invoke `superpowers:test-driven-development` to write tests first, then implemen
 - Type annotations everywhere (Python type hints, TypeScript types)
 - No `any` types in TypeScript — use specific types
 - `snake_case` for API interface fields (match backend FastAPI)
+- **Surface pattern conflicts, don't blend them** — if two existing patterns in the codebase contradict (e.g. mixed error-handling, mixed state management, mixed naming conventions in adjacent modules), pick the more recent or more tested one, justify the choice in the PR description, and flag the other for cleanup in a follow-up. Blended code that satisfies both patterns is the worst outcome: it doubles the surface area to maintain and obscures the canonical pattern for future readers
 - Every test file must include security-focused tests where applicable
 
 **For independent subtasks:** Use `superpowers:dispatching-parallel-agents` or `superpowers:subagent-driven-development` to parallelise work.
