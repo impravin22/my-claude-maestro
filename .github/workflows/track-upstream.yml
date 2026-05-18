@@ -100,14 +100,75 @@ jobs:
             if [ "$LATEST_COMMIT" != "$PREV_COMMIT" ] && [ -n "$PREV_COMMIT" ]; then
               CHANGED=true
 
-              # Count commits since last check
-              COMMIT_COUNT=$(safe_api "repos/$REPO/compare/$PREV_COMMIT...$LATEST_COMMIT" '{}' | jq -r '.total_commits // "?"' 2>/dev/null || echo "?")
+              # Single compare call drives count, file analysis and per-commit classification.
+              # Upstream commit messages flow through jq via stdin, never via shell interpolation.
+              COMPARE_JSON=$(safe_api "repos/$REPO/compare/$PREV_COMMIT...$LATEST_COMMIT" '{}')
+
+              COMMIT_COUNT=$(echo "$COMPARE_JSON" | jq -r '.total_commits // "?"' 2>/dev/null || echo "?")
+
+              # Triage: classify commits by conventional-commit prefix. Falls back to "other".
+              TYPE_TALLY=$(echo "$COMPARE_JSON" | jq -r '
+                [.commits[]?.commit.message
+                  | split("\n")[0]
+                  | ((capture("^(?<t>feat|fix|docs|chore|refactor|test|ci|build|style|perf|revert)(\\(|!|:)"; "i").t // "other") | ascii_downcase)]
+                | group_by(.)
+                | map("\(length) \(.[0])")
+                | join(" · ")
+              ' 2>/dev/null || echo "")
+
+              # Detect breaking changes via "!" suffix or BREAKING CHANGE footer.
+              BREAKING_COUNT=$(echo "$COMPARE_JSON" | jq -r '
+                [.commits[]?.commit.message
+                  | select(test("^[a-z]+(\\([^)]+\\))?!:|BREAKING CHANGE"; "i"))]
+                | length
+              ' 2>/dev/null || echo "0")
+
+              # Categorise touched file paths to score real code vs noise.
+              PATH_STATS=$(echo "$COMPARE_JSON" | jq -r '
+                ([.files[]?.filename] // []) as $files
+                | {
+                    code:  [$files[] | select(test("^(src/|lib/|app/|api/|packages/|server/|client/|cmd/|internal/|pkg/)"))] | length,
+                    docs:  [$files[] | select(test("(?i)\\.(md|mdx|rst|txt)$|^docs/|^README"))] | length,
+                    ci:    [$files[] | select(test("^\\.github/|^\\.circleci/|^\\.gitlab|Dockerfile|docker-compose|^\\.gitignore"))] | length,
+                    test:  [$files[] | select(test("(?i)(^test/|^tests/|_test\\.|\\.test\\.|\\.spec\\.|/__tests__/)"))] | length,
+                    other: [$files[]
+                              | select(test("^(src/|lib/|app/|api/|packages/|server/|client/|cmd/|internal/|pkg/|docs/|test/|tests/|\\.github/|\\.circleci/|\\.gitlab)|^README|Dockerfile|docker-compose|^\\.gitignore") | not)
+                              | select(test("(?i)\\.(md|mdx|rst|txt)$|_test\\.|\\.test\\.|\\.spec\\.|/__tests__/") | not)
+                            ] | length
+                  }
+                | "code=\(.code) docs=\(.docs) ci=\(.ci) test=\(.test) other=\(.other)"
+              ' 2>/dev/null || echo "")
+
+              CODE_COUNT=$(echo "$PATH_STATS"  | sed -n 's/.*code=\([0-9]*\).*/\1/p')
+              OTHER_COUNT=$(echo "$PATH_STATS" | sed -n 's/.*other=\([0-9]*\).*/\1/p')
+
+              # Verdict heuristic: breaking > code-touch > docs/ci/test-only.
+              if [ "${BREAKING_COUNT:-0}" -gt 0 ]; then
+                VERDICT="🔴 likely matters (breaking change)"
+              elif [ "${CODE_COUNT:-0}" -gt 0 ] || [ "${OTHER_COUNT:-0}" -gt 0 ]; then
+                VERDICT="🟡 review (code touched)"
+              else
+                VERDICT="🟢 skim (docs/ci/test only)"
+              fi
+
+              CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - **Impact:** ${VERDICT}"
+              [ -n "$TYPE_TALLY" ] && CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - **Commit mix:** ${TYPE_TALLY}"
+              [ -n "$PATH_STATS" ] && CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - **Files touched:** ${PATH_STATS}"
+
               CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - **$COMMIT_COUNT new commit(s)** since last check"
               CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - Latest: \`${LATEST_COMMIT:0:7}\` — $LATEST_COMMIT_MSG"
 
-              # Get recent commit summaries (up to 5)
-              RAW_COMMITS_5=$(safe_api "repos/$REPO/commits?per_page=5" '[]')
-              RECENT_COMMITS=$(echo "$RAW_COMMITS_5" | jq -r '[.[] | "  - `\(.sha[0:7])` \(.commit.message | split("\n")[0])"] | join("\n")' 2>/dev/null || echo "")
+              # Per-commit list (max 5) sourced from the diff range, not the default branch tip.
+              RECENT_COMMITS=$(echo "$COMPARE_JSON" | jq -r '
+                [.commits[]? | .commit.message as $m | {
+                  sha: (.sha[0:7]),
+                  msg: ($m | split("\n")[0]),
+                  type: ((($m | capture("^(?<t>feat|fix|docs|chore|refactor|test|ci|build|style|perf|revert)(\\(|!|:)"; "i") | .t) // "other") | ascii_downcase)
+                }]
+                | .[0:5]
+                | map("  - `\(.sha)` [\(.type)] \(.msg)")
+                | join("\n")
+              ' 2>/dev/null || echo "")
               if [ -n "$RECENT_COMMITS" ]; then
                 CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - Recent commits:"$'\n'"${RECENT_COMMITS}"
               fi
