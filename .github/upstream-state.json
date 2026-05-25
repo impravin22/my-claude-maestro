@@ -5,7 +5,7 @@
   },
   "lightrag": {
     "release": "v1.4.16",
-    "commit": "9975f070e59022fd70b8a26b5c362de904ebb056"
+    "commit": "954971392e7dd1796efd939583b1ba8fbead38ec"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -13,7 +13,7 @@
   },
   "everything-claude-code": {
     "release": "v1.10.0",
-    "commit": "4423f10cfb9e3fa088d04ab10c838c7f7fa74a45"
+    "commit": "0e88e6a4ddf9968e55faa07f3ad8a03d3943b58c"
   },
   "ui-ux-pro-max": {
     "release": "v2.5.0",
@@ -28,8 +28,8 @@
     "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2"
   },
   "n8n-mcp": {
-    "release": "v2.53.0",
-    "commit": "d4b28186269468fd8ec48652c9628f3b59e4c425"
+    "release": "v2.53.2",
+    "commit": "ae9900b28bd6783c825b733d7388b143f505e9d5"
   },
   "claude-mem": {
     "release": "v13.2.0",
@@ -37,15 +37,15 @@
   },
   "voicemode": {
     "release": "v8.6.1",
-    "commit": "733a95df636acb52043e2c7d4e3554e9dce462d1"
+    "commit": "5849246dbd5b1ed2031e6f400da21f85907791cf"
   },
   "caveman": {
     "release": "v1.8.2",
-    "commit": "63a91ecadbf4c4719a4602a5abb00883f9966034"
+    "commit": "18e45320a0b1aecc959a807f8568ee44b3aaa055"
   },
   "playwright-mcp": {
     "release": "v0.0.75",
     "commit": "ae27b8638aaf3a6be17d378964ae683864d20440"
   },
-  "last_sync": "2026-05-14T10:13:38Z"
+  "last_sync": "2026-05-18T11:42:48Z"
 }
