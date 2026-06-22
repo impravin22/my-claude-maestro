@@ -1,51 +1,51 @@
 {
   "context7": {
-    "release": "ctx7@0.5.1",
-    "commit": "0807914d91de553d0803b945b673022b6c2a03e4"
+    "release": "@upstash/context7-mcp@3.2.2",
+    "commit": "18e6d4727bbcfb4001a8a17337b0f0f717f1b4fd"
   },
   "lightrag": {
-    "release": "v1.5.1",
-    "commit": "4bbb70901fb107063e4bd72ce7602882f35c7d9b"
+    "release": "v1.5.3",
+    "commit": "4e1f95269b32cd803cb96e0acc24d922aa6b6932"
   },
   "vercel-agent-skills": {
     "release": "none",
-    "commit": "4ec6f84b61cd3c931046c3e6e398f3ae7de372f7"
+    "commit": "f8a72b9603728bb92a217a879b7e62e43ad76c81"
   },
   "everything-claude-code": {
-    "release": "v1.10.0",
-    "commit": "edebcc89efa09dc2705748151d98286ff3bb6023"
+    "release": "v2.0.0",
+    "commit": "71d22d0a77b7e0684f4e51cba03749b788993cdb"
   },
   "ui-ux-pro-max": {
-    "release": "v2.5.0",
-    "commit": "b7e3af80f6e331f6fb456667b82b12cade7c9d35"
+    "release": "v2.6.0",
+    "commit": "9a863a527534eeff97cad45430b8e5678ab45c40"
   },
   "superpowers": {
-    "release": "v5.1.0",
-    "commit": "6fd4507659784c351abbd2bc264c7162cfd386dc"
+    "release": "v6.0.3",
+    "commit": "896224c4b1879920ab573417e68fd51d2ccc9072"
   },
   "karpathy-skills": {
     "release": "none",
     "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2"
   },
   "n8n-mcp": {
-    "release": "v2.57.1",
-    "commit": "9e30942e71c4a746da0769239ba82214776d79e1"
+    "release": "v2.59.3",
+    "commit": "f3d96cb3fcf87cbfa3fc250045a6092d4f9febee"
   },
   "claude-mem": {
-    "release": "v13.4.2",
-    "commit": "f7f82e2f177f02209cd2db326e023d526735d718"
+    "release": "v13.8.0",
+    "commit": "87e4836a86909bbfd056777a37546db443f90868"
   },
   "voicemode": {
     "release": "v8.7.1",
-    "commit": "915ee90f462de0ddf2b65a114dc1b177b347cc99"
+    "commit": "21e63b484cd7fe228806ecc6d7e8b100fa51a746"
   },
   "caveman": {
-    "release": "v1.8.2",
-    "commit": "655b7d9c5431f822264b7732e9901c5578ac84cf"
+    "release": "v1.9.0",
+    "commit": "25d22f864ad68cc447a4cb93aefde918aa4aec9f"
   },
   "playwright-mcp": {
-    "release": "v0.0.75",
-    "commit": "32017187a0f044b2b5cbc97c20a78a3878e00ac2"
+    "release": "v0.0.76",
+    "commit": "b301c372ec741289eff1cf6aab9d3bec553f31e2"
   },
-  "last_sync": "2026-06-09T10:58:42Z"
+  "last_sync": "2026-06-22T13:33:13Z"
 }
