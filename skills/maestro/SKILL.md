@@ -316,6 +316,16 @@ Invoke `superpowers:test-driven-development` to write tests first, then implemen
 
 ## Step 8: VERIFY
 
+### Step 8.0: Evidence Gate (run before ANY completion language)
+
+Before writing "done/fixed/passing/works/verified" or any synonym:
+1. Name the command or artefact that proves it.
+2. Run it FRESH this message — no cached or prior runs.
+3. Paste the actual output (or line/byte count, response, figures) inline.
+4. No evidence ⇒ state UNVERIFIED + the missing check. Do not claim.
+
+Deliberately duplicates `superpowers:verification-before-completion` — the gate must be visible in the workflow, because the sub-skill only fires if invoked.
+
 Invoke `superpowers:verification-before-completion`.
 
 **Then run through `references/quality-gates.md`:**
