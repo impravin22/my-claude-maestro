@@ -1,11 +1,11 @@
 {
   "context7": {
     "release": "@upstash/context7-mcp@3.2.2",
-    "commit": "18e6d4727bbcfb4001a8a17337b0f0f717f1b4fd"
+    "commit": "b1fb8b523263143db858d09698f9c67e3be79e33"
   },
   "lightrag": {
-    "release": "v1.5.3",
-    "commit": "4e1f95269b32cd803cb96e0acc24d922aa6b6932"
+    "release": "v1.5.4",
+    "commit": "2a729d3748fbbfe3f9c87276cf1eb59453a1b16d"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -13,11 +13,11 @@
   },
   "everything-claude-code": {
     "release": "v2.0.0",
-    "commit": "71d22d0a77b7e0684f4e51cba03749b788993cdb"
+    "commit": "81af40761939056ab3dc54732fd4f562a27309d0"
   },
   "ui-ux-pro-max": {
-    "release": "v2.6.0",
-    "commit": "9a863a527534eeff97cad45430b8e5678ab45c40"
+    "release": "v2.10.0",
+    "commit": "3effe971c07a20658952e304099557523bdf9e44"
   },
   "superpowers": {
     "release": "v6.0.3",
@@ -28,24 +28,24 @@
     "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2"
   },
   "n8n-mcp": {
-    "release": "v2.59.3",
-    "commit": "f3d96cb3fcf87cbfa3fc250045a6092d4f9febee"
+    "release": "v2.61.0",
+    "commit": "f5694cce54c26777e6c16d606eb6b90cd39f5f96"
   },
   "claude-mem": {
-    "release": "v13.8.0",
-    "commit": "87e4836a86909bbfd056777a37546db443f90868"
+    "release": "v13.9.1",
+    "commit": "3a2ba296135b89c74b9ea9835af170fc7dae4fab"
   },
   "voicemode": {
-    "release": "v8.7.1",
-    "commit": "21e63b484cd7fe228806ecc6d7e8b100fa51a746"
+    "release": "v8.10.2",
+    "commit": "391681ec4c586da180fb28fe48baedad0bd7be5c"
   },
   "caveman": {
     "release": "v1.9.0",
     "commit": "25d22f864ad68cc447a4cb93aefde918aa4aec9f"
   },
   "playwright-mcp": {
-    "release": "v0.0.76",
-    "commit": "b301c372ec741289eff1cf6aab9d3bec553f31e2"
+    "release": "v0.0.77",
+    "commit": "36ec986b8b1fc6b4d11f2b6971147755e1b0bc84"
   },
-  "last_sync": "2026-06-22T13:33:13Z"
+  "last_sync": "2026-06-30T10:55:21Z"
 }
