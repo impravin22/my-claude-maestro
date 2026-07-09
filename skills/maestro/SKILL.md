@@ -28,6 +28,7 @@ Before using this skill, ensure:
 - **Everything Claude Code** is recommended (`git clone https://github.com/affaan-m/everything-claude-code.git && cd everything-claude-code && ./install.sh --target claude --profile full`) — 150+ skills, 47 agents, 79 commands, 16 rules across 12 language ecosystems; user-scope skills (lower trigger precedence than plugin-scope skills, so superpowers and maestro still win in competition)
 - **LightRAG** is recommended (`uv tool install "lightrag-hku[api]"`) — graph+vector RAG Python library and REST server; optional supplement to Step 2 CONTEXT7 for codebases too large for Context7 alone. External service — a custom MCP bridge is required to surface it inside Claude Code (not yet shipped; out of scope here).
 - **Andrej Karpathy Skills** is recommended (`claude plugin marketplace add forrestchang/andrej-karpathy-skills && claude plugin install andrej-karpathy-skills@karpathy-skills`) — Karpathy's 4 LLM-coding principles (think before coding, simplicity first, surgical changes, goal-driven execution); composes with maestro's engineering-mindset discipline as a second voice. No conflict with Step 3 BRAINSTORM or Step 7 IMPLEMENT — the Karpathy principles enforce discipline at the edit level; maestro enforces at the workflow level.
+- **SkillSpector** is recommended (`uv tool install 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git'` — git-only, not on PyPI; the `[mcp]` extra is required to run `skillspector mcp` — then `claude mcp add skillspector -- skillspector mcp`) — NVIDIA's static security scanner for **AI agent skills** (Apache-2.0, Python 3.12+). Exposes the `scan_skill` MCP tool. Consumed by **Step 8.5** to vet any skill/plugin/MCP artefact in a diff before it ships. **Keyless by design** — it runs a fast static pass (no API key), flags candidates, and Claude adjudicates the flagged `file:line`. The static heuristic deliberately over-flags: teaching-skills, session observers, and security skills routinely trip its regex on benign guideline text and defensive code, so do **not** accept its raw `DO_NOT_INSTALL` verdict at face value. SkillSpector's own optional LLM pass needs a provider key (`SKILLSPECTOR_PROVIDER` + credentials); maestro does **not** depend on it — Claude is the semantic judge, with fuller repo context.
 
 ## Unified Flow
 
@@ -76,7 +77,7 @@ If claude-mem is unavailable, skip this substep and proceed with the classificat
 
 | Classification | Steps to Skip |
 |---------------|---------------|
-| Trivial config/docs change | Skip 3–6 and 8.5, go straight to 7 (implement without TDD ceremony) |
+| Trivial config/docs change (see Supply-chain trigger below — a `SKILL.md`, plugin-manifest, or MCP-config edit is never trivial) | Skip 3–6 and 8.5, go straight to 7 (implement without TDD ceremony) |
 | No frontend touched | Skip 5 (UI/UX gate + design mockup), skip visual verification in 8 |
 | Component-level frontend tweak (className change, copy edit, prop rename) | Skip 5a–5c (mockup) and 5d (UI UX Pro Max refinement), still run 5e (checklist) |
 | Bug fix | Step 3 becomes `superpowers:systematic-debugging` instead of brainstorming |
@@ -85,6 +86,8 @@ If claude-mem is unavailable, skip this substep and proceed with the classificat
 | No dev server running | Skip visual verification (Playwright) in step 8 |
 | No new types introduced | Skip `type-design-analyzer` in step 10 |
 | No comments added/modified | Skip `comment-analyzer` in step 10 |
+
+**Supply-chain trigger:** if the task is *authoring, installing, or updating a skill, plugin, or MCP server* — i.e. the diff will touch a `SKILL.md`, a plugin manifest, or an MCP server config — flag it here. **Step 8.5** then runs the SkillSpector supply-chain scan on the changed artefact before the PR. This is orthogonal to the code-review agents: it vets the *skill supply chain* (malicious instructions, prompt injection, agent-config snooping, MCP rug-pull, excessive agency), a surface ordinary code review does not cover. It does **not** fire on normal app-code diffs. It **overrides** the "Trivial config/docs change → skip 8.5" row above: a `SKILL.md`, plugin-manifest, or MCP-config edit is never "trivial" for gate purposes, however small the diff.
 
 ---
 
@@ -403,6 +406,21 @@ After collecting findings:
 
 **Then proceed to Step 9 FINISH.** Do not commit-and-push without this step passing on non-trivial changes — it is the cheapest place to catch issues before they cost a bot review cycle.
 
+### Supply-chain scan — SkillSpector (conditional)
+
+**Run only if** the diff adds or modifies an *agent artefact* — a skill (`SKILL.md`), a plugin manifest, or an MCP server config. **Skip entirely** for ordinary feature/bug-fix diffs (React, Python, app code): SkillSpector is not a code scanner and will only add noise.
+
+**Why it is separate from the agents above:** the code-review agents check *your* code. SkillSpector checks the *skill supply chain* — prompt injection, agent-config snooping, MCP rug-pull, excessive agency, malicious or vulnerable skill instructions — a surface the code reviewers do not cover.
+
+**Process:**
+
+1. Call `scan_skill(<path-to-changed-artefact>, use_llm=false)` on each changed skill/plugin/MCP artefact — static-only, no API key required.
+2. SkillSpector returns candidate findings. **It over-flags:** teaching-skills, session observers, and security skills routinely trip its regex on benign guideline text and defensive code — e.g. a PID-validation guard, a mobile UX guideline about gesture conflicts, or a React XSS anti-pattern shown as a "don't do this" example.
+3. **Claude adjudicates every HIGH/CRITICAL finding** — read the flagged `file:line` and rule real-vs-false-positive. Do **not** accept the raw `DO_NOT_INSTALL` verdict; it is a static heuristic that cannot judge intent.
+4. **Gate:** a Claude-**confirmed** CRITICAL/HIGH (not a raw-static flag) → block, surface the real issue, fix or reject before Step 9. Findings Claude clears as false positives → note and proceed. **MEDIUM/LOW** findings → note in the PR description if plausibly real; otherwise disregard (static-only MEDIUM/LOW on a trusted artefact is almost always guideline-text or defensive-code noise).
+
+Do **not** rely on SkillSpector's own LLM pass (it needs a provider key). Claude is the semantic judge — keyless, no recurring cost, fuller repo context.
+
 ### When the reviewer agents are unavailable
 
 If `code-reviewer` and language-specific reviewers are not available in the current environment:
@@ -512,6 +530,7 @@ If a recommended plugin is unavailable, the workflow degrades gracefully:
 - **Everything Claude Code missing** → 150+ user-scope skills unavailable; maestro and superpowers skills still cover the workflow. No degradation of the 10-step flow itself.
 - **LightRAG missing (or wired but no MCP bridge)** → Step 2 falls back to Context7 alone; skip the optional LightRAG supplement. No blocker for normal-sized codebases.
 - **Andrej Karpathy Skills missing** → maestro's engineering-mindset discipline (from CLAUDE.md) remains in force; Karpathy-specific phrasing ("think before coding", "surgical changes") won't be explicitly cited but the underlying principles still apply. No gap in behaviour.
+- **SkillSpector missing** → Step 8.5 skips the automated supply-chain scan for skill/plugin/MCP diffs; Claude still manually reviews the changed artefact against the skill-threat list (prompt injection, config snooping, MCP rug-pull, excessive agency, malicious instructions). Note the missing tool so the user can install it (git-only: `uv tool install 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git'`) for automated candidate flagging. Irrelevant for ordinary app-code diffs — its absence is silent there.
 
 ### When extended skill ecosystems are installed
 
