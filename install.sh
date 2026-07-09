@@ -26,7 +26,8 @@ Components installed by default:
   [required]     superpowers plugin, Context7 MCP
   [recommended]  Vercel plugin, Security Guidance, PR Review Toolkit,
                  Playwright MCP, claude-mem, UI UX Pro Max,
-                 Andrej Karpathy Skills, Caveman, Everything Claude Code
+                 Andrej Karpathy Skills, Caveman, SkillSpector,
+                 Everything Claude Code
 
 Flags:
   --minimal              install required components only
@@ -199,6 +200,24 @@ if [ "$MINIMAL" -eq 0 ]; then
   install_plugin "caveman" \
     "JuliusBrussee/caveman" \
     "caveman@caveman"
+
+  if is_skipped "skillspector"; then
+    log_skip "skillspector (explicit --skip)"
+  else
+    log_step "Installing SkillSpector"
+    # SkillSpector is a Python 3.12+ CLI distributed via git (NOT on PyPI), so
+    # install from the NVIDIA repo with the [mcp] extra — the extra is required
+    # for `skillspector mcp` to start. uv is preferred; pip runs if uv is absent
+    # OR the uv install fails. Then register the MCP server so Step 8.5 can call
+    # scan_skill. Both run() strings are compile-time literals — the no-user-input
+    # invariant is preserved.
+    if run "{ command -v uv >/dev/null 2>&1 && uv tool install 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git'; } || pip install --user 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git'" \
+       && run "claude mcp add skillspector -- skillspector mcp"; then
+      log_ok "skillspector"
+    else
+      log_fail "skillspector"
+    fi
+  fi
 
   if is_skipped "everything-claude-code"; then
     log_skip "everything-claude-code (explicit --skip)"

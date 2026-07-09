@@ -8,7 +8,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 2. **Fetches live docs** via [Context7](https://github.com/upstash/context7) for every library involved — no stale training data
 3. **Orchestrates superpowers skills** in the correct order (brainstorm → plan → TDD → implement → verify → PR)
 4. **Enforces UI/UX design system** — WCAG 2.1 AA accessibility, Tailwind token usage, shadcn/ui patterns, responsive design, loading/error/empty states. Step 5 runs an **anti-template design-mockup gate** that produces an approved visual artefact (HTML prototype, sketch, or Storybook story) **before** any production frontend code is written. The gate enforces an explicit anti-template ban (no centred max-w-md card with icon→headline→CTA, no "clean minimal", no unmodified Tailwind defaults), requires the design to demonstrate at least four of ten quality markers (hierarchy, rhythm, depth, typography, semantic colour, drawn states, grid-breaking, atmosphere, motion, dataviz), and self-audits before the user is asked to approve — eliminating both the post-implementation rework loop and the template-by-default failure mode
-5. **Enforces layered security** — OWASP checklists at planning time + real-time pre-edit scanning via [Security Guidance](https://github.com/anthropics/claude-code)
+5. **Enforces layered security** — OWASP checklists at planning time + real-time pre-edit scanning via [Security Guidance](https://github.com/anthropics/claude-code) + [SkillSpector](https://github.com/NVIDIA/SkillSpector) supply-chain vetting of skill/plugin/MCP artefacts before PR (Step 8.5)
 6. **Visual verification** — [Playwright MCP](https://github.com/microsoft/playwright-mcp) verifies frontend changes render correctly, pass accessibility checks, and behave across breakpoints
 7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the polling loop
 8. **Cross-session memory** — [claude-mem](https://github.com/thedotmack/claude-mem) surfaces prior observations (decisions, rejected approaches, failed experiments) during CLASSIFY, BRAINSTORM, and PLAN via the `search`, `timeline`, and `get_observations` MCP tools — no more re-deriving context that already exists
@@ -35,6 +35,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 | [LightRAG](https://github.com/HKUDS/LightRAG) | Recommended | `uv tool install "lightrag-hku[api]"` — graph+vector RAG Python library; optional supplement to Context7 for large codebases (external service; custom MCP bridge required to surface inside Claude Code) |
 | [Andrej Karpathy Skills](https://github.com/forrestchang/andrej-karpathy-skills) | Recommended | `claude plugin marketplace add forrestchang/andrej-karpathy-skills && claude plugin install andrej-karpathy-skills@karpathy-skills` — Karpathy's 4 LLM-coding principles (think before coding, simplicity first, surgical changes, goal-driven execution) as an enforced voice that composes with maestro's own engineering-mindset discipline |
 | [Caveman](https://github.com/JuliusBrussee/caveman) | Recommended | `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman` — ultra-compressed communication mode that cuts ~75% token usage while preserving full technical accuracy |
+| [SkillSpector](https://github.com/NVIDIA/SkillSpector) | Recommended | `uv tool install 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git' && claude mcp add skillspector -- skillspector mcp` (git-only — not on PyPI; the `[mcp]` extra is required to run `skillspector mcp`) — NVIDIA static security scanner for AI agent skills (Apache-2.0); Step 8.5 vets any skill/plugin/MCP artefact in a diff before PR. Keyless: static pass flags candidates, Claude adjudicates (its own LLM pass needs a provider key, not required) |
 
 ## Installation
 
@@ -56,7 +57,7 @@ cd my-claude-maestro
 ./install.sh
 ```
 
-The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, and Everything Claude Code.
+The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, and Everything Claude Code.
 
 Heavy/specialised dependencies (VoiceMode, n8n-MCP, LightRAG) are **excluded by default** — install manually from the Prerequisites table below if you need them.
 
