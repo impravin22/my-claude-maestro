@@ -4,7 +4,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 
 ## What It Does
 
-1. **Classifies** your task (feature, bug fix, refactor, config, UI-only)
+1. **Classifies** your task (feature, bug fix, refactor, config, UI-only) and routes it — to the right **domain pack** and the right **model tier**
 2. **Fetches live docs** via [Context7](https://github.com/upstash/context7) for every library involved — no stale training data
 3. **Orchestrates superpowers skills** in the correct order (brainstorm → plan → TDD → implement → verify → PR)
 4. **Enforces UI/UX design system** — WCAG 2.1 AA accessibility, Tailwind token usage, shadcn/ui patterns, responsive design, loading/error/empty states. Step 5 runs an **anti-template design-mockup gate** that produces an approved visual artefact (HTML prototype, sketch, or Storybook story) **before** any production frontend code is written. The gate enforces an explicit anti-template ban (no centred max-w-md card with icon→headline→CTA, no "clean minimal", no unmodified Tailwind defaults), requires the design to demonstrate at least four of ten quality markers (hierarchy, rhythm, depth, typography, semantic colour, drawn states, grid-breaking, atmosphere, motion, dataviz), and self-audits before the user is asked to approve — eliminating both the post-implementation rework loop and the template-by-default failure mode
@@ -13,8 +13,14 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the polling loop
 8. **Cross-session memory** — [claude-mem](https://github.com/thedotmack/claude-mem) surfaces prior observations (decisions, rejected approaches, failed experiments) during CLASSIFY, BRAINSTORM, and PLAN via the `search`, `timeline`, and `get_observations` MCP tools — no more re-deriving context that already exists
 9. **Composes with an extended plugin ecosystem** — [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) for design styles + palettes, [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) for 400+ n8n integrations, [VoiceMode MCP](https://github.com/mbailey/voicemode) for voice conversations, [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) for 150+ skills across 12 language ecosystems, and [LightRAG](https://github.com/HKUDS/LightRAG) as an optional graph+vector RAG supplement
-10. **Enforces quality gates** — tests mandatory, lint clean, format clean, TypeScript clean, solution justification, British English
-11. **Tracks upstream dependencies** — daily GitHub Actions workflow detects changes in all 12 tracked upstream repos, files issues, and auto-creates PRs for review
+10. **Routes to domain skill packs** — maestro is not only a coding orchestrator. CLASSIFY names a domain and routes to its pack: engineering (superpowers), design ([frontend-design](https://github.com/anthropics/skills), [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill), [Taste](https://github.com/Leonxlnx/taste-skill), [Transitions](https://github.com/Jakubantalik/transitions.dev)), documents and brand ([example-skills](https://github.com/anthropics/skills)), [marketing](https://github.com/coreyhaines31/marketingskills) (47 skills), [social media](https://github.com/charlie947/social-media-skills) (17), and Anthropic's first-party [finance](https://github.com/anthropics/knowledge-work-plugins) (8), [small-business](https://github.com/anthropics/knowledge-work-plugins) (31) and [legal](https://github.com/anthropics/knowledge-work-plugins) (9). Non-code deliverables run a shortened **Deliverable flow** with domain-specific gates (publish approval, voice profile, figures-trace-to-source, drafts-not-advice)
+11. **Routes to the right model** — **Fable** for judgement (architecture, planning, root-cause analysis, security adjudication, review arbitration), **Opus** for execution (implementation, tests, PR fixes, content drafting). N generators on Opus, the single adjudicator on Fable; escalate to Fable only after two failed attempts
+12. **Enforces quality gates** — tests mandatory, lint clean, format clean, TypeScript clean, solution justification, British English
+13. **Tracks upstream dependencies** — daily GitHub Actions workflow detects changes in all 19 tracked upstream repos, files issues, and auto-creates PRs for review
+
+### Token discipline
+
+`SKILL.md` loads on **every** task, so it carries only the router: which domain and model a task maps to, in one line each. Every detail — install commands, per-pack caveats, domain gates, degradation rules, the full model table — lives in `references/` and is read **only when that path actually fires**. Adding eight domain packs (145 skills: 12 + 8 + 31 + 9 + 47 + 17 + 13 + 7 + 1) and model routing in v1.9.0 made `SKILL.md` *smaller* — 5,959 → 5,656 words, about 400 fewer tokens on **every** task.
 
 ## Prerequisites
 
@@ -27,8 +33,14 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 | [PR Review Toolkit](https://github.com/anthropics/claude-code) | Recommended | Ships with Claude Code — 6 specialist review agents |
 | [Playwright MCP](https://github.com/microsoft/playwright-mcp) | Recommended | `npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright` |
 | [claude-mem](https://github.com/thedotmack/claude-mem) | Recommended | `npx claude-mem install` — persistent memory across sessions via 5 lifecycle hooks + 3 MCP tools (`search`, `timeline`, `get_observations`) |
-| `frontend-design` skill | Recommended | Ships with Everything Claude Code (or any equivalent) — used by Step 5a/5b to generate the design direction and mockup artefact **before** any production frontend code is written |
-| [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | Recommended | `npm i -g uipro-cli && uipro init --ai claude` — 50+ styles, 161 colour palettes, 99 UX guidelines (auto-activates on UI/UX prompts; Step 5e checklist remains canonical) |
+| [`frontend-design` skill](https://github.com/anthropics/skills) | Recommended | `claude plugin install frontend-design@claude-plugins-official` — **or** get it bundled inside the `example-skills` row below; either source works, no need for both. Used by Step 5a/5b to generate the design direction and mockup artefact **before** any production frontend code is written |
+| [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | Recommended | `claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill && claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill` — 84 styles, 192 colour palettes, 74 font pairings, 98 UX guidelines (auto-activates on UI/UX prompts; Step 5e checklist remains canonical). **The `uipro-cli` npm package was renamed `ui-ux-pro-max-cli`** — the old name still installs a stale version, so prefer the plugin route |
+| [Anthropic example-skills](https://github.com/anthropics/skills) | Recommended | `claude plugin marketplace add anthropics/skills && claude plugin install example-skills@anthropic-agent-skills` — one plugin covering `skill-creator`, `mcp-builder`, `webapp-testing`, `brand-guidelines`, `web-artifacts-builder`, `frontend-design`, `canvas-design`, `theme-factory` and more. The sibling `document-skills` plugin (docx/pdf/pptx/xlsx) is **source-available, not open source** — install separately only if needed |
+| [finance / small-business / legal](https://github.com/anthropics/knowledge-work-plugins) | Recommended | `claude plugin marketplace add anthropics/knowledge-work-plugins` then `claude plugin install <name>@knowledge-work-plugins` — Anthropic first-party domain packs (8 / 31 / 9 skills, Apache-2.0). These live in `knowledge-work-plugins`, **not** `claude-plugins-official`. Each ships a `.mcp.json` pre-wiring hosted connectors (Snowflake, QuickBooks, DocuSign, Slack…) — dormant until OAuth-approved, but review before org rollout |
+| [marketing-skills](https://github.com/coreyhaines31/marketingskills) | Recommended | `claude plugin marketplace add coreyhaines31/marketingskills && claude plugin install marketing-skills@marketingskills` — 47 MIT skills (copywriting, seo-audit, lead-magnets, launch, pricing, cro, ads…). Install only from the canonical `coreyhaines31` slug — copycat forks circulate |
+| [social-media-skills](https://github.com/charlie947/social-media-skills) | Recommended | `claude plugin marketplace add charlie947/social-media-skills && claude plugin install social-media-skills@social-media-skills` — 17 MIT skills (voice-builder, post-writer, hook-generator, reels-scripting, youtube-thumbnail…). **Run `voice-builder` first** or output carries the author's branding; `reels-scripting` and `post-scorer` call paid third-party APIs |
+| [Taste](https://github.com/Leonxlnx/taste-skill) | Recommended | `claude plugin marketplace add Leonxlnx/taste-skill && claude plugin install taste-skill@taste-skill` — 13 MIT design-taste skills feeding Step 5a as additive direction candidates (still subject to the anti-template ban and the 5c gate) |
+| [Transitions](https://github.com/Jakubantalik/transitions.dev) | Optional | `git clone https://github.com/Jakubantalik/transitions.dev && cp -r transitions.dev/skills/transitions-dev ~/.claude/skills/` — 27 production transition recipes with `prefers-reduced-motion` guards. **No licence file on the canonical repo** (all-rights-reserved by default): fine for personal use, do not vendor its content |
 | [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) | Recommended | `claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp` — 400+ n8n workflow integrations |
 | [VoiceMode MCP](https://github.com/mbailey/voicemode) | Recommended | `claude mcp add --scope user voicemode -- uvx --refresh voice-mode` — local Whisper + Kokoro voice conversations (requires mic/speakers) |
 | [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) | Recommended | `git clone https://github.com/affaan-m/everything-claude-code.git && cd everything-claude-code && ./install.sh --target claude --profile full` — 150+ skills, 47 agents, 79 commands, 16 rules across 12 language ecosystems |
@@ -57,7 +69,7 @@ cd my-claude-maestro
 ./install.sh
 ```
 
-The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, and Everything Claude Code.
+The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, Taste, and Transitions.
 
 Heavy/specialised dependencies (VoiceMode, n8n-MCP, LightRAG) are **excluded by default** — install manually from the Prerequisites table below if you need them.
 
@@ -100,7 +112,7 @@ Then each team member runs:
 Every task follows one flow. Steps are skipped when not applicable:
 
 ```
- 1. CLASSIFY     → Determine task type and scope
+ 1. CLASSIFY     → Task type, scope, domain pack, model tier
  2. CONTEXT7     → Detect libraries → fetch current docs
  3. BRAINSTORM   → superpowers:brainstorming (or systematic-debugging for bugs)
  4. PLAN         → superpowers:writing-plans
@@ -123,14 +135,19 @@ Every task follows one flow. Steps are skipped when not applicable:
 | No dev server running | Visual verification in 8 |
 | No new types introduced | `type-design-analyzer` in 10 |
 | No comments added/modified | `comment-analyzer` in 10 |
+| Non-code deliverable (marketing, social, finance, legal…) | 5, 7, 8.5, 9, 10 → runs the shortened **Deliverable flow** instead |
 
 ## Checklists
 
-The plugin includes three comprehensive reference checklists:
+Reference files are read **on demand**, never on every task — that is what keeps `SKILL.md` cheap:
 
 - **[UI/UX Design System](skills/maestro/references/uiux-checklist.md)** — visual design, accessibility, component patterns, performance, user workflow
 - **[Security (OWASP)](skills/maestro/references/security-checklist.md)** — injection, auth, access control, input/output protection, LLM security, dependencies
 - **[Quality Gates](skills/maestro/references/quality-gates.md)** — testing, linting, code quality, visual verification (Playwright), PR specialist review, solution justification, style, git workflow
+- **[Frontend Design Trigger](skills/maestro/references/frontend-design-trigger.md)** — the decision matrix for when Step 5 needs a mockup
+- **[Skill Pack Registry](skills/maestro/references/skill-pack-registry.md)** — the Deliverable flow, each domain pack's skills, gates, and caveats. Read only when routing to a non-engineering domain
+- **[Model Routing](skills/maestro/references/model-routing.md)** — the full Fable/Opus table, dispatch mechanisms, escalation rules, cost discipline
+- **[Ecosystem](skills/maestro/references/ecosystem.md)** — install commands, per-pack caveats, and the full degradation table. Read only when a pack is missing
 
 ## Customisation
 
@@ -160,10 +177,14 @@ my-claude-maestro/
 ├── skills/
 │   └── maestro/
 │       ├── SKILL.md
-│       └── references/
+│       └── references/          # read on demand, not every task
 │           ├── uiux-checklist.md
 │           ├── security-checklist.md
-│           └── quality-gates.md
+│           ├── quality-gates.md
+│           ├── frontend-design-trigger.md
+│           ├── skill-pack-registry.md
+│           ├── model-routing.md
+│           └── ecosystem.md
 ├── hooks/
 │   ├── hooks.json
 │   └── check-update.sh

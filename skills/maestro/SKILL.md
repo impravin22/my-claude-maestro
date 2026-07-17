@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: Use at the start of every task — master orchestrator that classifies work, fetches live library docs via Context7, generates non-template, anti-default design mockups before any frontend code is written (Step 5 design-mockup gate with explicit anti-template ban and required-qualities check), enforces layered security (OWASP checklists + real-time edit scanning via Security Guidance), visual verification via Playwright MCP, deep PR review with specialist agents (PR Review Toolkit), and orchestrates superpowers skills in the correct order
+description: Use at the start of every task — master orchestrator that classifies work, routes it to the right domain pack (engineering, design, marketing, social, finance, small business, legal) and the right model tier (Fable for judgement, Opus for execution), fetches live docs via Context7, gates frontend work behind an anti-template design mockup, enforces layered security (OWASP + edit scanning + supply-chain skill vetting), verifies visually via Playwright, reviews deeply before and after the PR, and orchestrates superpowers skills in the correct order
 ---
 
 # Maestro — Master Orchestrator
@@ -11,31 +11,56 @@ A single unified workflow for every task. Classify, gather context, plan, implem
 You MUST run through this orchestration flow at the start of every task. No exceptions. No shortcuts. Speed is never an excuse to skip discipline.
 </HARD-GATE>
 
-## Prerequisites
+## Ecosystem
 
-Before using this skill, ensure:
-- **superpowers plugin** is installed (provides brainstorming, writing-plans, TDD, debugging, verification, finishing-a-development-branch)
-- **Context7 MCP** is configured (`npx ctx7 setup --claude`) for live documentation fetching
-- **Vercel plugin** is recommended (provides shadcn and react-best-practices skills for frontend work)
-- **Security Guidance plugin** is recommended (`/plugin install security-guidance@anthropic`) — adds real-time pre-edit security scanning as a hook
-- **PR Review Toolkit plugin** is recommended (ships with Claude Code) — provides 6 specialist review agents for deep PR analysis
-- **Playwright MCP** is recommended (`npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright`) — enables visual verification of frontend changes
-- **claude-mem plugin** is recommended (`npx claude-mem install`) — persistent cross-session memory via 5 lifecycle hooks (SessionStart/UserPromptSubmit/PostToolUse/Stop/SessionEnd) and 3 MCP tools (`search`, `timeline`, `get_observations`); enables maestro to surface prior observations during CLASSIFY, BRAINSTORM, and PLAN
-- **`frontend-design` skill** — **strongly recommended** (`/plugin install frontend-design@claude-plugins-official`) for any new-surface, redesign, or style-refresh work. Used by Step 5a/5b to generate a non-template design direction and mockup artefact **before** any production code is written. If unavailable, Step 5a/5b fall back to a manual design-direction write-up plus a hand-rolled HTML prototype — but the manual fallback must still pass the anti-template ban and required-qualities check in 5a (see `references/frontend-design-trigger.md`).
-- **UI UX Pro Max** is recommended (`npm i -g uipro-cli && uipro init --ai claude`) — 50+ design styles, 161 colour palettes, 99 UX guidelines; auto-activates on UI/UX-flavoured prompts. Consumed by **Step 5d** to refine palette and typography against the direction approved in 5c. **Step 5e** (UI/UX checklist) remains the canonical gate; UI UX Pro Max suggestions are additive and cannot override the approved direction.
-- **n8n-MCP** is recommended (`claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp`) — 400+ n8n workflow integrations accessible as MCP tools; surface only when the task involves building or debugging n8n workflows
-- **VoiceMode MCP** is recommended (`claude mcp add --scope user voicemode -- uvx --refresh voice-mode`) — local Whisper STT + Kokoro TTS for voice conversations with Claude Code; requires mic/speakers and ~GB of local model downloads on first use
-- **Everything Claude Code** is recommended (`git clone https://github.com/affaan-m/everything-claude-code.git && cd everything-claude-code && ./install.sh --target claude --profile full`) — 150+ skills, 47 agents, 79 commands, 16 rules across 12 language ecosystems; user-scope skills (lower trigger precedence than plugin-scope skills, so superpowers and maestro still win in competition)
-- **LightRAG** is recommended (`uv tool install "lightrag-hku[api]"`) — graph+vector RAG Python library and REST server; optional supplement to Step 2 CONTEXT7 for codebases too large for Context7 alone. External service — a custom MCP bridge is required to surface it inside Claude Code (not yet shipped; out of scope here).
-- **Andrej Karpathy Skills** is recommended (`claude plugin marketplace add forrestchang/andrej-karpathy-skills && claude plugin install andrej-karpathy-skills@karpathy-skills`) — Karpathy's 4 LLM-coding principles (think before coding, simplicity first, surgical changes, goal-driven execution); composes with maestro's engineering-mindset discipline as a second voice. No conflict with Step 3 BRAINSTORM or Step 7 IMPLEMENT — the Karpathy principles enforce discipline at the edit level; maestro enforces at the workflow level.
-- **SkillSpector** is recommended (`uv tool install 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git'` — git-only, not on PyPI; the `[mcp]` extra is required to run `skillspector mcp` — then `claude mcp add skillspector -- skillspector mcp`) — NVIDIA's static security scanner for **AI agent skills** (Apache-2.0, Python 3.12+). Exposes the `scan_skill` MCP tool. Consumed by **Step 8.5** to vet any skill/plugin/MCP artefact in a diff before it ships. **Keyless by design** — it runs a fast static pass (no API key), flags candidates, and Claude adjudicates the flagged `file:line`. The static heuristic deliberately over-flags: teaching-skills, session observers, and security skills routinely trip its regex on benign guideline text and defensive code, so do **not** accept its raw `DO_NOT_INSTALL` verdict at face value. SkillSpector's own optional LLM pass needs a provider key (`SKILLSPECTOR_PROVIDER` + credentials); maestro does **not** depend on it — Claude is the semantic judge, with fuller repo context.
+**Required:** superpowers (workflow skills), Context7 MCP (live docs).
+
+Everything else is optional and degrades gracefully — a missing pack never blocks a task. Install commands, per-pack caveats, and degradation rules live in `references/ecosystem.md`. **Read that file only when a pack you need is missing, or the user asks how to install one** — never routinely.
+
+| Consumed at | Packs |
+| --- | --- |
+| Step 1 CLASSIFY | claude-mem (prior observations) |
+| Step 2 CONTEXT7 | Context7 MCP; LightRAG (very large repos) |
+| Step 5 UI/UX | frontend-design, ui-ux-pro-max, taste-skill, transitions-dev |
+| Step 6 SECURITY | security-guidance (edit-time hook) |
+| Step 7 IMPLEMENT | example-skills (mcp-builder, skill-creator), Everything Claude Code, karpathy-skills |
+| Step 8 VERIFY | playwright MCP, example-skills (webapp-testing) |
+| Step 8.5 REVIEW | pr-review-toolkit, skillspector |
+| Domain deliverables | see Domain Routing below |
+
+## Domain Routing
+
+Engineering is the default domain and runs the full flow below. When the task is a **non-code deliverable**, CLASSIFY names the domain and routes to its pack:
+
+| Task is about | Domain | Pack |
+| --- | --- | --- |
+| Copy, SEO, CRO, launches, ads, email, pricing pages | marketing | `marketing-skills` (47) |
+| Posts, threads, reels, thumbnails, content calendars | social | `social-media-skills` (17) |
+| Statements, reconciliation, close, audit, variance | finance | `finance` (8) |
+| Cash flow, payroll, invoicing, CRM and customer ops | small-business | `small-business` (31) |
+| Contracts, NDAs, compliance, legal risk | legal | `legal` (9) |
+| Artifacts, long-form docs, office files | documents | `example-skills`, `document-skills` |
+| Brand compliance, internal announcements | brand | `example-skills` |
+| Code, tests, infra, MCP servers, skill authoring | engineering | superpowers + the flow below |
+
+Routing to a non-engineering domain? **Read `references/skill-pack-registry.md`** — it carries the shortened Deliverable flow, each pack's gates, and its caveats. Engineering tasks skip it entirely.
+
+## Model Routing
+
+**`fable` for judgement, `opus` for execution.** Tier aliases, not pinned versions.
+
+Judgement = architecture, planning ambiguous work, root-cause analysis, security adjudication, arbitration. Execution = implementing, testing, fixing, drafting from an approved plan.
+
+Pass `model:` per dispatch (Agent tool, workflow `agent()`, agent frontmatter); N generators on `opus`, the single adjudicator on `fable`. The main-conversation model is user-selected — recommend a tier at CLASSIFY, then proceed regardless.
+
+Full table, escalation rules, fallback, and cost discipline: `references/model-routing.md`.
 
 ## Unified Flow
 
 Every task follows this flow. Steps are skipped only when explicitly not applicable.
 
 ```
- 1. CLASSIFY     → Determine task type and scope
+ 1. CLASSIFY     → Determine task type, scope, domain pack, and model tier
  2. CONTEXT7     → Detect libraries → fetch current docs
  3. BRAINSTORM   → Invoke superpowers:brainstorming
  4. PLAN         → Invoke superpowers:writing-plans
@@ -59,9 +84,11 @@ Determine the task type and scope before doing anything else.
 - What parts of the codebase are affected? (frontend, backend, full-stack, infrastructure)
 - Is this trivial (one-line config, comment fix) or non-trivial?
 - Are there libraries/frameworks involved that I need current docs for?
+- Which **domain** does this belong to? (engineering by default; design, documents, brand, marketing, social media, finance, small business, or legal when a domain pack from the Skill Pack Registry applies — non-code deliverables take the Deliverable flow)
+- Which **model tier** fits each phase? (consult Model Routing: `fable` for judgement-heavy steps, `opus` for execution)
 
 **Output:** A one-line classification statement, e.g.:
-> "Feature: full-stack — adding OKR alignment suggestions. Involves: Next.js (frontend), FastAPI + DSPy (backend). Non-trivial."
+> "Feature: full-stack — adding OKR alignment suggestions. Involves: Next.js (frontend), FastAPI + DSPy (backend). Non-trivial. Domain: engineering. Model: fable for Steps 3–4, opus for Step 7."
 
 **Memory-assisted classification (if claude-mem is available):**
 
@@ -86,6 +113,7 @@ If claude-mem is unavailable, skip this substep and proceed with the classificat
 | No dev server running | Skip visual verification (Playwright) in step 8 |
 | No new types introduced | Skip `type-design-analyzer` in step 10 |
 | No comments added/modified | Skip `comment-analyzer` in step 10 |
+| Non-code deliverable (marketing, social, finance, small-business, or legal content/analysis with no repo diff) | Run the **Deliverable flow** (see Skill Pack Registry): skip 5, 7 (TDD), 8.5, 9, 10; Step 6 only if credentials/customer data/PII are handled; Step 7 becomes DRAFT with the domain pack's skills; Step 8 Evidence Gate + domain gate still run |
 
 **Supply-chain trigger:** if the task is *authoring, installing, or updating a skill, plugin, or MCP server* — i.e. the diff will touch a `SKILL.md`, a plugin manifest, or an MCP server config — flag it here. **Step 8.5** then runs the SkillSpector supply-chain scan on the changed artefact before the PR. This is orthogonal to the code-review agents: it vets the *skill supply chain* (malicious instructions, prompt injection, agent-config snooping, MCP rug-pull, excessive agency), a surface ordinary code review does not cover. It does **not** fire on normal app-code diffs. It **overrides** the "Trivial config/docs change → skip 8.5" row above: a `SKILL.md`, plugin-manifest, or MCP-config edit is never "trivial" for gate purposes, however small the diff.
 
@@ -184,6 +212,8 @@ Invoke the `frontend-design` skill (or `vercel:shadcn` + `vercel:react-best-prac
 - **Typography pairing** — specific families, weights, and the type scale.
 - **Layout strategy** — grid, bento, sidebar+canvas, scrollytelling, magazine, asymmetric. **Banned default:** centred single-column max-w-md card with icon → headline → body → CTA → secondary link. That is the canonical generic template; if the proposed layout looks like that, reject and re-pick.
 - **Motion language** — what motion clarifies (hierarchy, state change, focus) vs. what it distracts from. Respect `prefers-reduced-motion: reduce`.
+
+**Optional direction voices (if installed):** Taste can contribute direction candidates, Transitions the motion language. Both are **additive only** — their output still faces the anti-template ban below, the required-qualities check, and the 5c gate. Neither replaces `frontend-design` as the direction generator.
 
 **Anti-template ban — these are forbidden in the output:**
 
@@ -313,7 +343,7 @@ Invoke `superpowers:test-driven-development` to write tests first, then implemen
 - **Surface pattern conflicts, don't blend them** — if two existing patterns in the codebase contradict (e.g. mixed error-handling, mixed state management, mixed naming conventions in adjacent modules), pick the more recent or more tested one, justify the choice in the PR description, and flag the other for cleanup in a follow-up. Blended code that satisfies both patterns is the worst outcome: it doubles the surface area to maintain and obscures the canonical pattern for future readers
 - Every test file must include security-focused tests where applicable
 
-**For independent subtasks:** Use `superpowers:dispatching-parallel-agents` or `superpowers:subagent-driven-development` to parallelise work.
+**For independent subtasks:** Use `superpowers:dispatching-parallel-agents` or `superpowers:subagent-driven-development` to parallelise work. Dispatch implementation subagents on `opus` per Model Routing — the plan (written on `fable` when the work warranted it) already carries the judgement; escalate a subagent to `fable` only after two failed attempts on the same task.
 
 ---
 
@@ -383,6 +413,8 @@ Run as **parallel Agent calls** against the local diff (`git diff main...HEAD`, 
 | Language-specific reviewer (`typescript-reviewer`, `python-reviewer`, `go-reviewer`, `rust-reviewer`, etc.) | When the diff is concentrated in one language and the corresponding agent is installed | Language-idiomatic issues, type safety, async correctness, language-specific footguns |
 
 For mixed-language diffs, dispatch the relevant per-language reviewers in parallel alongside `code-reviewer`. Do **not** serialise — run them in a single message with multiple Agent tool uses.
+
+**Model routing here:** dispatch the reviewer agents on `opus`; when their findings conflict, or a security-reviewer/SkillSpector verdict needs adjudication, the final judgement call runs on `fable` (generator/judge asymmetry — see Model Routing).
 
 ### Severity thresholds
 
@@ -460,8 +492,8 @@ Dispatch the relevant specialist agents from the PR Review Toolkit in parallel. 
 
 **Process:**
 1. Determine which agents are relevant based on the PR diff
-2. Dispatch all relevant agents **in parallel** using the Agent tool
-3. Collect findings from all agents
+2. Dispatch all relevant agents **in parallel** using the Agent tool (on `opus` per Model Routing)
+3. Collect findings from all agents — when specialists disagree, arbitrate the conflict on `fable`
 4. Fix any issues flagged by the agents — commit and push
 5. Re-run any agents whose scope was affected by the fixes (if needed)
 
@@ -510,33 +542,15 @@ After designing any solution, before presenting it:
 
 ### When Skills or Plugins Are Unavailable
 
-If a superpowers skill cannot be invoked (plugin not installed, skill not found):
-- **Do not skip the step.** Perform the equivalent manually.
-- Brainstorming → ask clarifying questions, propose 2–3 approaches, get approval
-- Writing-plans → write a numbered implementation plan
-- TDD → write tests before implementation code
-- Verification → run all quality gate commands manually
-- Note the missing skill in your response so the user can install it
+A missing pack **never blocks a task** — do the step manually, note the gap once so the user can install it, and carry on. Full per-pack degradation table and install commands: `references/ecosystem.md`.
 
-If a recommended plugin is unavailable, the workflow degrades gracefully:
-- **Security Guidance missing** → Step 6 still enforces security via the checklist; no real-time edit scanning
-- **Playwright MCP missing** → Step 8 skips visual verification; tests, lint, and type checks still apply
-- **PR Review Toolkit missing** → Step 10 skips Phase 1 (specialist agents); Phase 2 (polling loop) still runs
-- **claude-mem missing** → Steps 1/3/4 skip the memory-lookup substeps; the workflow proceeds using only the current request. Note the missing plugin in your response so the user can install it for cross-session continuity.
-- **`frontend-design` skill missing** → Step 5a/5b still run, but as a manual design-direction write-up plus a hand-rolled single-file HTML prototype. **Surface a loud warning** in the response — manual fallback is significantly more prone to template output (centred card, gray-on-white, generic CTAs). The anti-template ban and required-qualities check in 5a apply to the manual fallback **without exception**. The 5c approval gate is still mandatory regardless of artefact source. Recommend the user install `frontend-design` (`/plugin install frontend-design@claude-plugins-official`) for any non-trivial new-surface work.
-- **UI UX Pro Max missing** → Step 5d is skipped; 5a/5b/5c/5e still run. Style/palette suggestions come from `frontend-design` (or the manual fallback) alone; accessibility and responsive gates remain enforced via 5e.
-- **n8n-MCP missing** → surface this only when a task actually involves n8n workflows; for any other task, it is irrelevant and its absence is silent.
-- **VoiceMode MCP missing** → voice conversations unavailable; text workflow unchanged. Non-blocking for any coding task.
-- **Everything Claude Code missing** → 150+ user-scope skills unavailable; maestro and superpowers skills still cover the workflow. No degradation of the 10-step flow itself.
-- **LightRAG missing (or wired but no MCP bridge)** → Step 2 falls back to Context7 alone; skip the optional LightRAG supplement. No blocker for normal-sized codebases.
-- **Andrej Karpathy Skills missing** → maestro's engineering-mindset discipline (from CLAUDE.md) remains in force; Karpathy-specific phrasing ("think before coding", "surgical changes") won't be explicitly cited but the underlying principles still apply. No gap in behaviour.
-- **SkillSpector missing** → Step 8.5 skips the automated supply-chain scan for skill/plugin/MCP diffs; Claude still manually reviews the changed artefact against the skill-threat list (prompt injection, config snooping, MCP rug-pull, excessive agency, malicious instructions). Note the missing tool so the user can install it (git-only: `uv tool install 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git'`) for automated candidate flagging. Irrelevant for ordinary app-code diffs — its absence is silent there.
+Two rules that are not negotiable when a pack is missing:
 
-### When extended skill ecosystems are installed
+- **Never skip the step.** No brainstorming skill → propose 2–3 approaches and get approval. No writing-plans → write a numbered plan. No TDD skill → write tests first anyway. No verification skill → run the gate commands by hand.
+- **`frontend-design` missing is a loud warning, not a silent downgrade.** The manual fallback is far more prone to template output; the anti-template ban, required-qualities check, and the 5c approval gate still apply without exception.
 
-If Everything Claude Code (or any future large skill-collection plugin) is installed alongside superpowers and maestro, be explicit about trigger precedence:
+### Precedence when many skill sources are installed
 
-- **Plugin-scope skills** (e.g. `superpowers:*`, `maestro:*`, `vercel-plugin:*`) take precedence over user-scope skills in Claude Code's matcher.
-- **User-scope skills** (anything in `~/.claude/skills/` without a plugin namespace, such as Everything Claude Code's 150+ skills) are advisory — they are available but do not override the maestro/superpowers workflow.
-- When a user-scope skill appears more specialised than a maestro/superpowers one (e.g. `springboot-tdd` vs `superpowers:test-driven-development` for a Spring Boot task), use the more specialised one for domain-specific guidance but keep the maestro workflow skeleton.
-- If a user-scope skill's name collides with a maestro/superpowers skill (e.g. ECC's `tdd-workflow` vs `superpowers:test-driven-development`), prefer the plugin-scope version — the user-scope one is an alternative voice, not a replacement.
+- **Plugin-scope skills** (`superpowers:*`, `maestro:*`, registry packs) beat **user-scope skills** (`~/.claude/skills/`, e.g. Everything Claude Code's 150+) on name collisions — the user-scope one is an alternative voice, not a replacement.
+- Prefer a **more specialised** skill for domain guidance (e.g. `springboot-tdd` over `superpowers:test-driven-development` for Spring Boot) but keep the maestro workflow skeleton.
+- **Domain packs are voices, not conductors** — they never override a maestro gate (security, accessibility, evidence).

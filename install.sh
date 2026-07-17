@@ -27,17 +27,23 @@ Components installed by default:
   [recommended]  Vercel plugin, Security Guidance, PR Review Toolkit,
                  Playwright MCP, claude-mem, UI UX Pro Max,
                  Andrej Karpathy Skills, Caveman, SkillSpector,
+                 Anthropic example-skills, knowledge-work plugins
+                 (finance, small-business, legal), marketing-skills,
+                 social-media-skills, Taste, Transitions,
                  Everything Claude Code
 
 Flags:
   --minimal              install required components only
   --dry-run              print commands without executing
-  --skip-<name>          skip a component (e.g. --skip-vercel, --skip-voicemode)
+  --skip-<name>          skip a component (e.g. --skip-vercel, --skip-transitions)
   --help                 show this help
 
 Heavy components NOT installed by this script:
   VoiceMode MCP, n8n-MCP, LightRAG
   (see README.md for manual install instructions)
+
+Licence note: Transitions (Jakubantalik/transitions.dev) has no licence file —
+it is installed as a user-scope skill for personal use; do not vendor it.
 EOF
 }
 
@@ -83,11 +89,16 @@ is_skipped() {
 }
 
 run() {
-  # INVARIANT: every string passed to `run` is a compile-time literal
-  # defined inside this script. No user input (argv, env vars, --skip-* values,
-  # plugin names) is ever interpolated into these strings. If that invariant is
-  # ever broken, switch this to an array-based form (`"$@"` without eval) to
-  # prevent shell injection.
+  # INVARIANT: every string passed to `run` is a compile-time literal defined
+  # inside this script, with ONE bounded exception: the two clone-and-copy
+  # blocks (Transitions, Everything Claude Code) interpolate a `$(mktemp -d)`
+  # path, and mktemp honours $TMPDIR. That is an env-derived value reaching
+  # `eval` below. It is not a meaningful escalation — a hostile $TMPDIR implies
+  # the attacker already runs code as this user — but it means the invariant is
+  # "literals plus mktemp paths", not "literals only". Nothing from argv,
+  # --skip-* values, or plugin names is ever interpolated. If you add a call
+  # site that interpolates anything else, switch to an array form (`"$@"`
+  # without eval) instead of widening this exception.
   if [ "$DRY_RUN" -eq 1 ]; then
     printf "    ${YELLOW}[dry-run]${RESET} %s\n" "$*"
     return 0
@@ -182,20 +193,74 @@ if [ "$MINIMAL" -eq 0 ]; then
     "thedotmack/claude-mem" \
     "claude-mem@thedotmack"
 
-  if is_skipped "ui-ux-pro-max"; then
-    log_skip "ui-ux-pro-max (explicit --skip)"
-  else
-    log_step "Installing UI UX Pro Max"
-    if run "npm i -g uipro-cli" && run "uipro init --ai claude"; then
-      log_ok "ui-ux-pro-max"
-    else
-      log_fail "ui-ux-pro-max"
-    fi
-  fi
+  # Native plugin route (canonical since v2.x). The npm package was renamed
+  # uipro-cli -> ui-ux-pro-max-cli; the old name still installs a stale version,
+  # so this script no longer uses the CLI route at all.
+  install_plugin "ui-ux-pro-max" \
+    "nextlevelbuilder/ui-ux-pro-max-skill" \
+    "ui-ux-pro-max@ui-ux-pro-max-skill"
 
   install_plugin "andrej-karpathy-skills" \
     "forrestchang/andrej-karpathy-skills" \
     "andrej-karpathy-skills@karpathy-skills"
+
+  # --- Skill Pack Registry: domain packs -----------------------------------
+  # Anthropic's official skills repo. One plugin covers skill-creator,
+  # mcp-builder, webapp-testing, brand-guidelines, web-artifacts-builder and
+  # frontend-design. The sibling document-skills plugin (docx/pdf/pptx/xlsx) is
+  # source-available rather than open source, so it is NOT installed here.
+  install_plugin "example-skills" \
+    "anthropics/skills" \
+    "example-skills@anthropic-agent-skills"
+
+  # Anthropic first-party knowledge-work packs. These live in
+  # knowledge-work-plugins, NOT claude-plugins-official. Each ships a .mcp.json
+  # pre-wiring hosted third-party connectors (Snowflake, QuickBooks, DocuSign,
+  # Slack, ...). Connectors stay dormant until OAuth-approved, but review them
+  # before an org-wide rollout — see skills/maestro/references/ecosystem.md.
+  install_plugin "finance" \
+    "anthropics/knowledge-work-plugins" \
+    "finance@knowledge-work-plugins"
+
+  install_plugin "small-business" \
+    "anthropics/knowledge-work-plugins" \
+    "small-business@knowledge-work-plugins"
+
+  install_plugin "legal" \
+    "anthropics/knowledge-work-plugins" \
+    "legal@knowledge-work-plugins"
+
+  install_plugin "marketing-skills" \
+    "coreyhaines31/marketingskills" \
+    "marketing-skills@marketingskills"
+
+  # post-scorer and reels-scripting call paid third-party APIs; voice-builder
+  # must run first or output carries the pack author's branding.
+  install_plugin "social-media-skills" \
+    "charlie947/social-media-skills" \
+    "social-media-skills@social-media-skills"
+
+  install_plugin "taste-skill" \
+    "Leonxlnx/taste-skill" \
+    "taste-skill@taste-skill"
+
+  if is_skipped "transitions"; then
+    log_skip "transitions (explicit --skip)"
+  else
+    log_step "Installing Transitions"
+    # Ships no .claude-plugin manifest, so it installs as a user-scope skill by
+    # copy. The canonical repo carries NO licence file (all-rights-reserved by
+    # default) — fine for local personal use, do not vendor its content.
+    TMPDIR_TRANSITIONS="$(mktemp -d)"
+    if run "git clone --depth 1 https://github.com/Jakubantalik/transitions.dev \"$TMPDIR_TRANSITIONS/t\"" \
+       && run "mkdir -p \"\$HOME/.claude/skills\"" \
+       && run "cp -R \"$TMPDIR_TRANSITIONS/t/skills/transitions-dev\" \"\$HOME/.claude/skills/\""; then
+      log_ok "transitions"
+    else
+      log_fail "transitions"
+    fi
+    rm -rf "$TMPDIR_TRANSITIONS"
+  fi
 
   install_plugin "caveman" \
     "JuliusBrussee/caveman" \
