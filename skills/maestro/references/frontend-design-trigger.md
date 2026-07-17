@@ -153,7 +153,7 @@ These are common ways the design gate gets skipped or weakened. Do not do them.
 | Treating UI UX Pro Max suggestions as gospel | The user approved the direction. UI UX Pro Max is additive, not authoritative. |
 | Calling the style "clean minimal" / "modern" / "professional" / "elegant" | These are not directions. They are excuses to ship template output. Pick a real direction (editorial, brutalist, bento, scrollytelling, etc.). |
 | Defaulting to a centred max-w-md card with icon → headline → body → CTA → secondary link | This is the canonical generic-template empty state. It looks like every shadcn starter. Break the layout. |
-| Skipping `frontend-design` because "manual is faster" | Manual fallback is significantly more prone to template output. Install `frontend-design` (`/plugin install frontend-design@claude-plugins-official`) for any non-trivial new-surface work. |
+| Skipping `frontend-design` because "manual is faster" | Manual fallback is significantly more prone to template output. Install `frontend-design` (`/plugin install frontend-design@claude-plugins-official` (or get it bundled inside `example-skills@anthropic-agent-skills`)) for any non-trivial new-surface work. |
 | Presenting the mockup before running the pre-approval self-check | The self-check exists because LLM-generated UI defaults to template patterns. Presenting an unaudited mockup wastes a 5c iteration. |
 
 ---

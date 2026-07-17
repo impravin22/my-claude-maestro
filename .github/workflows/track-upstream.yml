@@ -46,6 +46,13 @@ jobs:
           REPOS[lightrag]="HKUDS/LightRAG"
           REPOS[karpathy-skills]="forrestchang/andrej-karpathy-skills"
           REPOS[caveman]="JuliusBrussee/caveman"
+          REPOS[skillspector]="NVIDIA/skillspector"
+          REPOS[anthropic-skills]="anthropics/skills"
+          REPOS[knowledge-work-plugins]="anthropics/knowledge-work-plugins"
+          REPOS[marketing-skills]="coreyhaines31/marketingskills"
+          REPOS[social-media-skills]="charlie947/social-media-skills"
+          REPOS[taste-skill]="Leonxlnx/taste-skill"
+          REPOS[transitions]="Jakubantalik/transitions.dev"
 
           # Load previous state (or create empty)
           if [ -f "$STATE_FILE" ]; then
@@ -62,8 +69,11 @@ jobs:
             printf '%s' "$response" | tr -d '\000-\010\013-\014\016-\037'
           }
 
-          NEW_STATE='{'
-          FIRST=true
+          # Built with jq rather than string concatenation: release tags and
+          # commit SHAs come from third-party repos, and a tag name containing a
+          # double quote (legal in git refs) would otherwise emit invalid JSON
+          # and fail the run.
+          NEW_STATE='{}'
 
           for KEY in "${!REPOS[@]}"; do
             REPO="${REPOS[$KEY]}"
@@ -180,15 +190,12 @@ jobs:
             fi
 
             # Build new state JSON
-            if [ "$FIRST" = true ]; then
-              FIRST=false
-            else
-              NEW_STATE="$NEW_STATE,"
-            fi
-            NEW_STATE="$NEW_STATE\"$KEY\":{\"release\":\"$LATEST_RELEASE\",\"commit\":\"$LATEST_COMMIT\"}"
+            NEW_STATE=$(printf '%s' "$NEW_STATE" | jq \
+              --arg key "$KEY" \
+              --arg release "$LATEST_RELEASE" \
+              --arg commit "$LATEST_COMMIT" \
+              '.[$key] = {release: $release, commit: $commit}')
           done
-
-          NEW_STATE="$NEW_STATE}"
 
           # Save new state
           echo "$NEW_STATE" | jq '.' > "$STATE_FILE"
@@ -213,6 +220,8 @@ jobs:
               '- [ ] Check if Playwright MCP API or capabilities have changed' \
               '- [ ] Check if claude-mem MCP tool names or hook schema have changed' \
               '- [ ] Check if UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG, Karpathy Skills, or Caveman have breaking changes' \
+              '- [ ] Check if SkillSpector, anthropics/skills (example-skills), or the knowledge-work plugins (finance / small-business / legal) changed plugin names, skill names, or connector wiring' \
+              '- [ ] Check if marketing-skills, social-media-skills, Taste, or Transitions changed skill names, licence terms, or added paid-API / scraping behaviour' \
               '- [ ] Update SKILL.md if needed' \
               '- [ ] Update checklists if needed' \
               '- [ ] Bump version in plugin.json if changes made' \
