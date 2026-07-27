@@ -20,7 +20,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 
 ### Token discipline
 
-`SKILL.md` loads on **every** task, so it carries only the router: which domain and model a task maps to, in one line each. Every detail — install commands, per-pack caveats, domain gates, degradation rules, the full model table — lives in `references/` and is read **only when that path actually fires**. Adding eight domain packs (145 skills: 12 + 8 + 31 + 9 + 47 + 17 + 13 + 7 + 1) and model routing in v1.9.0 made `SKILL.md` *smaller* — 5,959 → 5,656 words, about 400 fewer tokens on **every** task.
+`SKILL.md` loads on **every** task, so it carries only the router: which domain and model a task maps to, in one line each. Every detail — install commands, per-pack caveats, domain gates, degradation rules, the full model table — lives in `references/` and is read **only when that path actually fires**. Adding eight domain packs (145 skills: 12 + 8 + 31 + 9 + 47 + 17 + 13 + 7 + 1) and model routing in v1.9.0 made `SKILL.md` *smaller* — 5,959 → 5,534 words. v1.10.0 spends ~190 of that saving deliberately: the YAGNI decision ladder is an every-task implementation rule, so it lives on the hot path by design (5,723 words — still ~240 under the pre-registry baseline). Rare-path detail still never goes in `SKILL.md`.
 
 ## Prerequisites
 
@@ -192,7 +192,8 @@ my-claude-maestro/
 │   ├── 2026-04-03-maestro-design.md
 │   ├── 2026-04-07-plugin-integration-design.md
 │   ├── 2026-04-13-claude-mem-integration-design.md
-│   └── 2026-04-13-multi-plugin-integration-design.md
+│   ├── 2026-04-13-multi-plugin-integration-design.md
+│   └── 2026-07-22-ponytail-integration-design.md
 ├── install.sh          # companion ecosystem installer
 ├── README.md
 └── LICENSE
