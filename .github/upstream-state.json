@@ -1,11 +1,11 @@
 {
   "context7": {
-    "release": "@upstash/context7-mcp@3.2.2",
-    "commit": "68a6c63f3c5c77c2e888ccbe627d1800666f7429"
+    "release": "ctx7@0.5.4",
+    "commit": "503abf87743abf6bb2fa6de3228ce81dc43c9953"
   },
   "lightrag": {
     "release": "v1.5.4",
-    "commit": "e9ddb8d46c55d3138663e7d0a4ca5ca2c05d4641"
+    "commit": "fedd95ce7db0d69d12923177c7f0604b0b23655b"
   },
   "vercel-agent-skills": {
     "release": "none",
@@ -16,8 +16,8 @@
     "commit": "4130457d674d2180c5af2c5f634f3cae4cbc6c4f"
   },
   "ui-ux-pro-max": {
-    "release": "v2.10.1",
-    "commit": "4baa399d00da806f83ed93652172f66943205153"
+    "release": "v2.10.2",
+    "commit": "12b486b22e67f5d887962ef8351c1ac863bfaeb9"
   },
   "superpowers": {
     "release": "v6.1.1",
@@ -33,11 +33,11 @@
   },
   "claude-mem": {
     "release": "v13.10.2",
-    "commit": "804504b351cabbe45c63fa8692ff09c57e0d03e6"
+    "commit": "312d640b0188753acd92a1a82d95a84d5c7c43db"
   },
   "voicemode": {
     "release": "v8.10.2",
-    "commit": "391681ec4c586da180fb28fe48baedad0bd7be5c"
+    "commit": "4245604a4b9aa5cb94f1c867ffd6f6020de309fb"
   },
   "caveman": {
     "release": "v1.9.1",
@@ -47,5 +47,5 @@
     "release": "v0.0.77",
     "commit": "36ec986b8b1fc6b4d11f2b6971147755e1b0bc84"
   },
-  "last_sync": "2026-07-06T12:03:09Z"
+  "last_sync": "2026-07-07T10:53:25Z"
 }
