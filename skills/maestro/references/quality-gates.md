@@ -29,6 +29,7 @@ Every task must pass these gates before claiming completion. Run through this ch
 - [ ] **No magic values** — constants named and explained; no unexplained numbers or strings
 - [ ] **Imports verified** — all new imports exist, function signatures match, types are consistent
 - [ ] **No regressions** — re-read changed code once more; check for logical errors, off-by-one mistakes, edge cases
+- [ ] **Every `yagni:` comment is complete** — names the real ceiling (e.g. global lock, O(n²) scan, naive heuristic) and the upgrade path; no gate on this checklist was skipped in the name of minimal code
 
 ## Solution Justification
 
