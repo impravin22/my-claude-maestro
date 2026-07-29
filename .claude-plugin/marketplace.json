@@ -7,8 +7,8 @@
   "plugins": [
     {
       "name": "maestro",
-      "description": "Master orchestrator — task classification, live docs, anti-template design-mockup gate before frontend code, layered security (OWASP + edit scanning + SkillSpector supply-chain skill-vetting), visual verification via Playwright, deep PR review with specialist agents, cross-session memory via claude-mem, domain skill-pack routing (design, documents, brand, marketing, social media, finance, small business, legal), model routing (Fable for judgement, Opus for execution), and an extended plugin ecosystem (frontend-design, UI UX Pro Max, Taste, Transitions, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG), applies a YAGNI-first decision ladder at Step 7 (minimum code that works, gates never relaxed), and reports through a Progress Protocol (flow position first, at most one open ask, evidence above justification, no wall-clock estimates)",
-      "version": "1.11.0",
+      "description": "Master orchestrator — task classification, live docs, anti-template design-mockup gate before frontend code, layered security (OWASP + edit scanning + SkillSpector supply-chain skill-vetting), visual verification via Playwright, deep PR review with specialist agents, cross-session memory via claude-mem, domain skill-pack routing (documents, brand, marketing, social media, finance, small business, legal), model routing (Fable for judgement, Opus for execution), and an extended plugin ecosystem (frontend-design, UI UX Pro Max, Taste, Transitions, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG), applies a YAGNI-first decision ladder at Step 7 (minimum code that works, gates never relaxed), and reports through a Progress Protocol (flow position first, at most one open ask, evidence above justification, no wall-clock estimates)",
+      "version": "1.11.1",
       "source": "./",
       "author": {
         "name": "Praveen Kumar Chittem"
