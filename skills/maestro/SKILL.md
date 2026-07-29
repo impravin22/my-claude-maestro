@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: Use at the start of every task — master orchestrator that classifies work, routes it to the right domain pack (engineering, design, marketing, social, finance, small business, legal) and the right model tier (Fable for judgement, Opus for execution), fetches live docs via Context7, gates frontend work behind an anti-template design mockup, enforces layered security (OWASP + edit scanning + supply-chain skill vetting), verifies visually via Playwright, reviews deeply before and after the PR, and orchestrates superpowers skills in the correct order
+description: Use at the start of every task — master orchestrator that classifies work, routes it to the right domain pack (engineering, documents, brand, marketing, social, finance, small business, legal) and the right model tier (Opus by default, Fable reserved for adjudication), fetches live docs via Context7, gates frontend work behind an anti-template design mockup, enforces layered security (OWASP + edit scanning + supply-chain skill vetting), verifies visually via Playwright, reviews deeply before and after the PR, and orchestrates superpowers skills in the correct order
 ---
 
 # Maestro — Master Orchestrator
@@ -47,9 +47,9 @@ Routing to a non-engineering domain? **Read `references/skill-pack-registry.md`*
 
 ## Model Routing
 
-**`fable` for judgement, `opus` for execution.** Tier aliases, not pinned versions.
+**`opus` by default; `fable` only to adjudicate.** Tier aliases, not pinned versions.
 
-Judgement = architecture, planning ambiguous work, root-cause analysis, security adjudication, arbitration. Execution = implementing, testing, fixing, drafting from an approved plan.
+A blind head-to-head (2026-07-29) could not separate the two on architecture, planning, or root-cause analysis, so those run on `opus`. `fable` is reserved for the three rows that experiment did not measure and whose failure cost is asymmetric: security adjudication, final review arbitration, and high-stakes domain judgement.
 
 Pass `model:` per dispatch (Agent tool, workflow `agent()`, agent frontmatter); N generators on `opus`, the single adjudicator on `fable`. The main-conversation model is user-selected — recommend a tier at CLASSIFY, then proceed regardless.
 
@@ -85,10 +85,10 @@ Determine the task type and scope before doing anything else.
 - Is this trivial (one-line config, comment fix) or non-trivial?
 - Are there libraries/frameworks involved that I need current docs for?
 - Which **domain** does this belong to? (engineering by default; design, documents, brand, marketing, social media, finance, small business, or legal when a domain pack from the Skill Pack Registry applies — non-code deliverables take the Deliverable flow)
-- Which **model tier** fits each phase? (consult Model Routing: `fable` for judgement-heavy steps, `opus` for execution)
+- Which **model tier** fits each phase? (consult Model Routing: `opus` unless the step is security adjudication, review arbitration, or high-stakes domain judgement)
 
 **Output:** A one-line classification statement, e.g.:
-> "Feature: full-stack — adding OKR alignment suggestions. Involves: Next.js (frontend), FastAPI + DSPy (backend). Non-trivial. Domain: engineering. Model: fable for Steps 3–4, opus for Step 7."
+> "Feature: full-stack — adding OKR alignment suggestions. Involves: Next.js (frontend), FastAPI + DSPy (backend). Non-trivial. Domain: engineering. Model: opus throughout; fable only if Step 8.5 turns up a security verdict to adjudicate."
 
 **Memory-assisted classification (if claude-mem is available):**
 
@@ -344,7 +344,7 @@ Invoke `superpowers:test-driven-development` to write tests first, then implemen
 - **Surface pattern conflicts, don't blend them** — if two existing patterns in the codebase contradict (e.g. mixed error-handling, mixed state management, mixed naming conventions in adjacent modules), pick the more recent or more tested one, justify the choice in the PR description, and flag the other for cleanup in a follow-up. Blended code that satisfies both patterns is the worst outcome: it doubles the surface area to maintain and obscures the canonical pattern for future readers
 - Every test file must include security-focused tests where applicable
 
-**For independent subtasks:** Use `superpowers:dispatching-parallel-agents` or `superpowers:subagent-driven-development` to parallelise work. Dispatch implementation subagents on `opus` per Model Routing — the plan (written on `fable` when the work warranted it) already carries the judgement; escalate a subagent to `fable` only after two failed attempts on the same task.
+**For independent subtasks:** Use `superpowers:dispatching-parallel-agents` or `superpowers:subagent-driven-development` to parallelise work. Dispatch implementation subagents on `opus` per Model Routing — the plan already carries the judgement, and it was written on `opus` too. Escalate a subagent to `fable` only after two failed attempts on the same task.
 
 ---
 
