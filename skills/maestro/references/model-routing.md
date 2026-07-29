@@ -2,7 +2,9 @@
 
 Read this when a dispatch decision is non-obvious, when an agent has failed twice, or when the user asks why a tier was chosen. The summary in `SKILL.md` covers the common case; this file is the detail.
 
-`fable` and `opus` are **tier aliases**, not pinned versions — `fable` resolves to the current Fable (claude-fable-5, Mythos-class, above Opus), `opus` to the newest Opus (4.8 today). Writing tiers rather than model IDs keeps this table correct across version bumps.
+`fable` and `opus` are **tier aliases**, not pinned versions — each resolves to the newest model in its family at dispatch time. Writing tiers rather than model IDs is the only option available, not merely the tidy one: the Agent tool, workflow `agent()`, and agent frontmatter all accept `sonnet | opus | haiku | fable` and expose no version-pinned selector. A dispatch on `opus` therefore lands on the current Opus generation automatically, with no edit here. Never name a specific version number in this file — it goes stale every release, and the alias already tracks forward.
+
+**On the Fable/Opus gap.** The tiering below was set when Fable led Opus by a wide margin. Both families have since shipped new generations, and this file carries no benchmark for the current gap. Treat the `fable` rows as a standing default, not a measured result: if a head-to-head shows the current Opus matching Fable on a given row, demote that row. Keep the premium tier on final review arbitration and security adjudication regardless — those are single calls whose verdict compounds across everything downstream, so the cost of buying judgement there is trivial against the cost of getting it wrong.
 
 ## The table
 
