@@ -1,0 +1,89 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: install.sh smoke (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS ships bash 3.2.57, the interpreter where the empty-array
+          # `set -u` abort actually reproduces. This leg is the one that gives
+          # the regression guard its teeth — do not drop it for being slow.
+          - os: macos-latest
+            label: bash 3.2 (macOS)
+            shell_bin: /bin/bash
+          # Linux runs bash 5.x, where the abort cannot reproduce. Kept so the
+          # rest of the suite is covered on the platform most contributors use;
+          # the suite prints a NOTE saying the guard is advisory here.
+          - os: ubuntu-latest
+            label: bash 5.x (Linux)
+            shell_bin: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report interpreter
+        env:
+          SHELL_BIN: ${{ matrix.shell_bin }}
+        run: |
+          "$SHELL_BIN" --version | head -1
+
+      - name: Syntax check
+        env:
+          SHELL_BIN: ${{ matrix.shell_bin }}
+        run: |
+          "$SHELL_BIN" -n install.sh
+          "$SHELL_BIN" -n tests/install-smoke.sh
+
+      - name: Run smoke suite
+        env:
+          SHELL_BIN: ${{ matrix.shell_bin }}
+        run: |
+          "$SHELL_BIN" tests/install-smoke.sh
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      # install.sh carries one known SC2294 (`eval "$@"`) behind a documented
+      # security invariant, so it is excluded by code rather than by lowering
+      # the severity floor for the whole repo.
+      - name: Lint
+        run: |
+          shellcheck -S warning -e SC2294 install.sh
+          shellcheck -S warning tests/install-smoke.sh
+
+  manifests:
+    name: manifests parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON and version parity
+        run: |
+          python3 - <<'PY'
+          import json, sys
+
+          plugin = json.load(open(".claude-plugin/plugin.json"))
+          market = json.load(open(".claude-plugin/marketplace.json"))
+          entry = next(p for p in market["plugins"] if p["name"] == "maestro")
+
+          if plugin["version"] != entry["version"]:
+              sys.exit(
+                  f'version drift: plugin.json {plugin["version"]} '
+                  f'!= marketplace.json {entry["version"]}'
+              )
+          print(f'both manifests at {plugin["version"]}')
+          PY

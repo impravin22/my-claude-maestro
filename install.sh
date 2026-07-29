@@ -309,7 +309,13 @@ printf "${BLUE}========================================${RESET}\n"
 printf "${BLUE}  Maestro ecosystem install summary${RESET}\n"
 printf "${BLUE}========================================${RESET}\n"
 printf "${GREEN}Installed (${#INSTALLED[@]}):${RESET}\n"
-for i in "${INSTALLED[@]}"; do echo "  ✔ $i"; done
+# Guard the expansion: under `set -u`, bash < 4.4 (macOS ships 3.2) treats an
+# empty array as unset, so a bare "${INSTALLED[@]}" aborts the script before
+# the Skipped and Failed lists ever print. The count form is safe; only the
+# expansion is not. SKIPPED and FAILED below are already guarded this way.
+if [ ${#INSTALLED[@]} -gt 0 ]; then
+  for i in "${INSTALLED[@]}"; do echo "  ✔ $i"; done
+fi
 if [ ${#SKIPPED[@]} -gt 0 ]; then
   printf "\n${YELLOW}Skipped (${#SKIPPED[@]}):${RESET}\n"
   for s in "${SKIPPED[@]}"; do echo "  ⊘ $s"; done
