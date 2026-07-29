@@ -534,6 +534,17 @@ After designing any solution, before presenting it:
 2. State the impact of each weakness
 3. Explain why the approach is still the best option despite them (or revise)
 
+### Progress Protocol (every response inside a multi-step flow)
+
+The flow is ten numbered steps behind approval gates, and the reader cannot hold "we are on step 5 of 10" between messages. While a flow is active, every response must:
+
+1. **State flow position first** — "Step 5 of 10 (UI/UX gate), blocked on your mockup approval." Position before prose, always.
+2. **Close on exactly one open action** — one thing the user does next. Gates 5c, 8.5, and 10 are the usual candidates. Never leave two open asks competing.
+3. **Lead with the evidence, not the justification** — Step 8.0 already forces a fresh command run, so put its output up top instead of burying it under prose. The solution justification still ships; it sits below the result.
+4. **Never estimate wall-clock time** — duration is a claim, and the Evidence Gate forbids unevidenced claims. State remaining steps or remaining gates, never minutes.
+
+Adapted from cognitive-accessibility formatting practice. It shapes **reporting only** — never gate content. A checklist is never truncated and a justification is never dropped to fit this protocol.
+
 ### Context7 Protocol
 
 - Fetch docs **before** brainstorming, not during implementation
