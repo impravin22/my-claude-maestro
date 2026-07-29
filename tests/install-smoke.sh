@@ -2,11 +2,17 @@
 #
 # Smoke tests for install.sh.
 #
-# Nothing here installs anything. Five of the seven cases pass --dry-run, which
+# Nothing here installs anything. Seven of the nine cases pass --dry-run, which
 # routes every install command through run() and only prints it; the other two
 # (--help, unknown flag) exit during argument parsing, before preflight. The
 # only filesystem effect of a dry run is two self-cleaning `mktemp -d` calls in
 # install.sh itself.
+#
+# install.sh is launched via "$BASH", not a bare `bash`. Those differ whenever a
+# newer bash sits ahead of /bin/bash on PATH, and the version gate below reads
+# the SUITE's interpreter — so a bare `bash` could report 3.2 while running the
+# installer under 5.x, which is a silent false pass on the one CI leg that
+# exists to prevent exactly that.
 #
 # The suite stubs claude/node/npx/curl onto PATH because install.sh's preflight
 # exits 1 when any is missing and --dry-run does not bypass it. Without the
@@ -61,7 +67,7 @@ assert_run() {
 
   stderr_file="$(mktemp)" || { echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
 
-  bash "$INSTALLER" "$@" >/dev/null 2>"$stderr_file"
+  "$BASH" "$INSTALLER" "$@" >/dev/null 2>"$stderr_file"
   actual_exit=$?
   stderr="$(cat "$stderr_file")"
   rm -f "$stderr_file"
@@ -87,13 +93,71 @@ assert_run() {
   PASS=$((PASS + 1))
 }
 
+# assert_no_home_abort
+#
+# Its own function rather than an assert_run case, because it needs to strip a
+# variable from the environment and assert on the *manner* of failure, not just
+# the status. `--dry-run` alone would not catch the regression: the escaped
+# \$HOME expands inside eval, which dry-run skips, so the abort only ever fired
+# on a real install. The preflight assertion is what makes it observable here.
+# assert_home_guard <description> <env-setter...> -- runs install.sh with HOME
+# in a hostile state and requires it to fail *via the guard*.
+#
+# Asserting only "exit 1 and no unbound variable" would be satisfied by the
+# missing-tools preflight at install.sh:120-124, so a broken PATH stub would
+# silently downgrade this case to a no-op that still reports green. Matching
+# the guard's own message is what makes it a real assertion.
+assert_home_guard() {
+  local description="$1" mode="$2"
+  local stderr_file actual_exit stderr
+
+  stderr_file="$(mktemp)" || { echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
+
+  if [ "$mode" = "unset" ]; then
+    env -u HOME "$BASH" "$INSTALLER" --dry-run >/dev/null 2>"$stderr_file"
+  else
+    HOME='' "$BASH" "$INSTALLER" --dry-run >/dev/null 2>"$stderr_file"
+  fi
+  actual_exit=$?
+  stderr="$(cat "$stderr_file")"
+  rm -f "$stderr_file"
+
+  case "$stderr" in
+    *"unbound variable"*)
+      echo "FAIL: $description — set -u abort instead of a clean failure"
+      echo "      stderr: $stderr"
+      FAIL=$((FAIL + 1))
+      return
+      ;;
+  esac
+
+  if [ "$actual_exit" -ne 1 ]; then
+    echo "FAIL: $description — expected exit 1, got $actual_exit"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  case "$stderr" in
+    *"Set HOME and re-run"*) ;;
+    *)
+      echo "FAIL: $description — exited 1, but not via the HOME guard"
+      echo "      stderr: $stderr"
+      FAIL=$((FAIL + 1))
+      return
+      ;;
+  esac
+
+  echo "PASS: $description"
+  PASS=$((PASS + 1))
+}
+
 # assert_stdout_contains <description> <needle> <flags...>
 assert_stdout_contains() {
   local description="$1" needle="$2"
   shift 2
   local output
 
-  output="$(bash "$INSTALLER" "$@" 2>/dev/null)"
+  output="$("$BASH" "$INSTALLER" "$@" 2>/dev/null)"
 
   case "$output" in
     *"$needle"*)
@@ -111,8 +175,9 @@ assert_stdout_contains() {
 echo "install.sh smoke tests — bash $BASH_VERSION"
 if [ "$GUARD_REPRODUCES" -eq 0 ]; then
   echo "NOTE: bash >= 4.4 does not reproduce the empty-array 'set -u' abort."
-  echo "      The regression case below is ADVISORY on this interpreter and"
-  echo "      passes with or without the fix. Run it on bash 3.2 to get cover."
+  echo "      The two empty-install-set cases are ADVISORY on this interpreter"
+  echo "      and pass with or without the fix. Run on bash 3.2 for cover."
+  echo "      The HOME guard cases are unaffected and carry full cover here."
 fi
 echo ""
 
@@ -134,6 +199,12 @@ assert_run "unknown flag exits 2" 2 --not-a-real-flag
 # the prefix proves commands were previewed rather than executed.
 assert_stdout_contains "dry-run previews commands instead of running them" \
   "[dry-run]" --dry-run --minimal
+
+# Unset and set-but-empty are different states: only the first trips `set -u`.
+# The second expanded silently and pointed mkdir at the filesystem root, which
+# was the quieter and worse of the two pre-fix behaviours.
+assert_home_guard "HOME unset fails fast instead of aborting mid-install" unset
+assert_home_guard "HOME set-but-empty fails fast instead of writing to /" empty
 
 echo ""
 echo "passed: $PASS  failed: $FAIL"

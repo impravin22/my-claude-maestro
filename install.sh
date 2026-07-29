@@ -122,6 +122,24 @@ if [ ${#missing_tools[@]} -gt 0 ]; then
   echo "Install them first, then re-run this script." >&2
   exit 1
 fi
+
+# Several components write under $HOME — the Transitions block via an escaped
+# \$HOME that only expands inside eval, and the everything-claude-code
+# installer through its own script. With HOME unset, `set -u` would abort at
+# the first of those: partway through the run, after other components had
+# already installed, with nothing but "HOME: unbound variable" to explain it.
+# With HOME set-but-empty there is no abort at all — the path collapses to
+# /.claude and the installer writes at the filesystem root, which is quieter
+# and worse. Assert both here so the failure is early, complete and legible.
+#
+# Read defensively: a bare $HOME would itself abort under set -u. ${HOME:-}
+# yields empty for unset and for set-but-empty alike, which is what -z wants.
+if [ -z "${HOME:-}" ]; then
+  log_fail "HOME is not set, or is empty"
+  echo "This installer writes to \$HOME/.claude. Set HOME and re-run." >&2
+  exit 1
+fi
+
 printf "${GREEN}✔ claude, node, npx, curl available${RESET}\n"
 
 # --- Install helpers --------------------------------------------------------
