@@ -534,16 +534,16 @@ After designing any solution, before presenting it:
 2. State the impact of each weakness
 3. Explain why the approach is still the best option despite them (or revise)
 
-### Progress Protocol (every response inside a multi-step flow)
+### Progress Protocol (responses inside a multi-step flow)
 
-The flow is ten numbered steps behind approval gates, and the reader cannot hold "we are on step 5 of 10" between messages. While a flow is active, every response must:
+Applies once CLASSIFY names a step set with more than one step left, and stops when the final step closes — never on trivial single-step tasks or conversational turns. The reader cannot hold flow position between messages, so each response carries it:
 
-1. **State flow position first** — "Step 5 of 10 (UI/UX gate), blocked on your mockup approval." Position before prose, always.
-2. **Close on exactly one open action** — one thing the user does next. Gates 5c, 8.5, and 10 are the usual candidates. Never leave two open asks competing.
-3. **Lead with the evidence, not the justification** — Step 8.0 already forces a fresh command run, so put its output up top instead of burying it under prose. The solution justification still ships; it sits below the result.
-4. **Never estimate wall-clock time** — duration is a claim, and the Evidence Gate forbids unevidenced claims. State remaining steps or remaining gates, never minutes.
+1. **Open with flow position** — name the step and its state: "Step 5 (UI/UX gate) — blocked on your mockup approval." No total and no percentage: the step set varies by classification, and Step 8.5 makes any fixed denominator wrong. Name the stage instead on the Deliverable flow. Response order is position, then evidence, then prose.
+2. **Leave at most one open ask** — 5c is the usual case. If two gates come due together, present both and rank them; **never drop one to satisfy this rule.** A question may be deferred, never suppressed. Most steps need nothing from the user and git operations are auto-approved, so when no action is due, close by naming the step you are moving to.
+3. **Evidence above justification** — Step 8.0 already forces a fresh command run; put its output above the justification prose, not below. The justification still ships in full.
+4. **No wall-clock estimates** — a duration is a guess dressed as a figure, and nothing here can check it. State steps or gates remaining. A fixed cadence, like Step 10's four-minute poll, is a schedule and fine to quote.
 
-Adapted from cognitive-accessibility formatting practice. It shapes **reporting only** — never gate content. A checklist is never truncated and a justification is never dropped to fit this protocol.
+Governs **reporting order and ask count only.** Never truncates a checklist, drops a justification, or suppresses a gate's question.
 
 ### Context7 Protocol
 
