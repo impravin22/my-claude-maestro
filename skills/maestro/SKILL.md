@@ -534,6 +534,17 @@ After designing any solution, before presenting it:
 2. State the impact of each weakness
 3. Explain why the approach is still the best option despite them (or revise)
 
+### Progress Protocol (responses inside a multi-step flow)
+
+Applies once CLASSIFY names a step set with more than one step left, and stops when the final step closes — never on trivial single-step tasks or conversational turns. The reader cannot hold flow position between messages, so each response carries it:
+
+1. **Open with flow position** — name the step and its state: "Step 5 (UI/UX gate) — blocked on your mockup approval." No total and no percentage: the step set varies by classification, and Step 8.5 makes any fixed denominator wrong. Name the stage instead on the Deliverable flow. Response order is position, then evidence, then prose.
+2. **Leave at most one open ask** — 5c is the usual case. If two gates come due together, present both and rank them; **never drop one to satisfy this rule.** A question may be deferred, never suppressed. Most steps need nothing from the user and git operations are auto-approved, so when no action is due, close by naming the step you are moving to.
+3. **Evidence above justification** — Step 8.0 already forces a fresh command run; put its output above the justification prose, not below. The justification still ships in full.
+4. **No wall-clock estimates** — a duration is a guess dressed as a figure, and nothing here can check it. State steps or gates remaining. A fixed cadence, like Step 10's four-minute poll, is a schedule and fine to quote.
+
+Governs **reporting order and ask count only.** Never truncates a checklist, drops a justification, or suppresses a gate's question.
+
 ### Context7 Protocol
 
 - Fetch docs **before** brainstorming, not during implementation
