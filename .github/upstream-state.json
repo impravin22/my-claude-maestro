@@ -1,51 +1,79 @@
 {
+  "social-media-skills": {
+    "release": "none",
+    "commit": "94f72ea2ece388fa30ef49a26fb2e6fd2109e0b1"
+  },
   "context7": {
-    "release": "ctx7@0.5.4",
-    "commit": "503abf87743abf6bb2fa6de3228ce81dc43c9953"
+    "release": "@upstash/context7-mcp@3.2.5",
+    "commit": "b250c2515694eee4b6df4db82fa056df9ed3e306"
   },
   "lightrag": {
-    "release": "v1.5.4",
-    "commit": "fedd95ce7db0d69d12923177c7f0604b0b23655b"
+    "release": "v1.5.5rc1",
+    "commit": "bbebdd64272d9c9cd71cf93c7446b1054a00388c"
   },
   "vercel-agent-skills": {
     "release": "none",
-    "commit": "f8a72b9603728bb92a217a879b7e62e43ad76c81"
+    "commit": "7c180d9044c9ae2b442b567aad4e42a28dd5ed62"
   },
   "everything-claude-code": {
     "release": "v2.0.0",
-    "commit": "4130457d674d2180c5af2c5f634f3cae4cbc6c4f"
+    "commit": "6a9f075cd97c139a5f7e84e1e3f2c9ab095adf64"
+  },
+  "marketing-skills": {
+    "release": "v2.9.0",
+    "commit": "c21a984a56da10fb6085e6334f6f60929220a4da"
   },
   "ui-ux-pro-max": {
-    "release": "v2.10.2",
-    "commit": "12b486b22e67f5d887962ef8351c1ac863bfaeb9"
+    "release": "v2.11.2",
+    "commit": "3b5df7547964f0cb3424de74cff55b69039250d3"
   },
   "superpowers": {
-    "release": "v6.1.1",
-    "commit": "d884ae04edebef577e82ff7c4e143debd0bbec99"
+    "release": "v6.2.0",
+    "commit": "3dcbd5c4b48e02263fbf4a3c01e3fe4f81d584d9"
+  },
+  "anthropic-skills": {
+    "release": "none",
+    "commit": "b29e7cf65e5cb78a5ac33d582270551bc74a14eb"
+  },
+  "knowledge-work-plugins": {
+    "release": "none",
+    "commit": "5dd7f84b824de680b296e85b55bad840a95bd0fa"
   },
   "karpathy-skills": {
     "release": "none",
     "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2"
   },
   "n8n-mcp": {
-    "release": "v2.63.1",
-    "commit": "d1115d85142be57331dde1fcb711e99e3ad23734"
+    "release": "v2.66.1",
+    "commit": "f1e6e5be393f390b0223057906c675d81f938f63"
+  },
+  "skillspector": {
+    "release": "none",
+    "commit": "fd25398d7aa99353d86237b9c260759351f0e644"
+  },
+  "transitions": {
+    "release": "none",
+    "commit": "047d036a79cc2ddecd868e7f1e3aa04b495644b2"
+  },
+  "taste-skill": {
+    "release": "none",
+    "commit": "e988add20dab0fa97d7a76781c48961c8184288e"
   },
   "claude-mem": {
-    "release": "v13.10.2",
-    "commit": "312d640b0188753acd92a1a82d95a84d5c7c43db"
+    "release": "v13.12.4",
+    "commit": "132b46343e60ecf4057c427736c57b08f7615dfe"
   },
   "voicemode": {
-    "release": "v8.10.2",
-    "commit": "4245604a4b9aa5cb94f1c867ffd6f6020de309fb"
+    "release": "v8.12.0",
+    "commit": "5c1b3e4d9421cd365d039da1d29827a0a83a18c7"
   },
   "caveman": {
     "release": "v1.9.1",
     "commit": "0d95a81d35a9f2d123a5e9430d1cfc43d55f1bb0"
   },
   "playwright-mcp": {
-    "release": "v0.0.77",
-    "commit": "36ec986b8b1fc6b4d11f2b6971147755e1b0bc84"
+    "release": "v0.0.78",
+    "commit": "55679f5f3d4b4f3e2534ec0ce2fc5683ba2eaf3f"
   },
-  "last_sync": "2026-07-07T10:53:25Z"
+  "last_sync": "2026-07-27T11:18:17Z"
 }
