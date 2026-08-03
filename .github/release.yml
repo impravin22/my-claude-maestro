@@ -1,0 +1,17 @@
+# Release-notes layout for `gh release create --generate-notes`.
+# Categories are label-driven; `upstream-update` is applied automatically by
+# track-upstream.yml, so the split below costs no extra labelling discipline.
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: Changes
+      labels:
+        - "*"
+      exclude:
+        labels:
+          - upstream-update
+    - title: Upstream dependency syncs
+      labels:
+        - upstream-update
