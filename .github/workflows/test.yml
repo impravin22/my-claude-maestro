@@ -1,0 +1,153 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # Lets release.yml re-run this suite against the tagged commit. A local-path
+  # `uses:` resolves at the caller's commit, so the tag's own copy is what runs.
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: install.sh smoke (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS ships bash 3.2.57, the interpreter where the empty-array
+          # `set -u` abort actually reproduces. This leg is the one that gives
+          # the regression guard its teeth — do not drop it for being slow.
+          - os: macos-latest
+            label: bash 3.2 (macOS)
+            shell_bin: /bin/bash
+          # Linux runs bash 5.x, where the abort cannot reproduce. Kept so the
+          # rest of the suite is covered on the platform most contributors use;
+          # the suite prints a NOTE saying the guard is advisory here.
+          - os: ubuntu-latest
+            label: bash 5.x (Linux)
+            shell_bin: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Report interpreter
+        env:
+          SHELL_BIN: ${{ matrix.shell_bin }}
+        run: |
+          "$SHELL_BIN" --version | head -1
+
+      - name: Syntax check
+        env:
+          SHELL_BIN: ${{ matrix.shell_bin }}
+        run: |
+          "$SHELL_BIN" -n install.sh
+          "$SHELL_BIN" -n tests/install-smoke.sh
+
+      - name: Run smoke suite
+        env:
+          SHELL_BIN: ${{ matrix.shell_bin }}
+        run: |
+          "$SHELL_BIN" tests/install-smoke.sh
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      # install.sh carries one known SC2294 (`eval "$@"`) behind a documented
+      # security invariant, so it is excluded by code rather than by lowering
+      # the severity floor for the whole repo.
+      - name: Lint
+        run: |
+          shellcheck -S warning -e SC2294 install.sh
+          shellcheck -S warning tests/install-smoke.sh
+
+  manifests:
+    name: manifests parse
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate JSON and version parity
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+
+          plugin = json.load(open(".claude-plugin/plugin.json"))
+          market = json.load(open(".claude-plugin/marketplace.json"))
+          # Parse-only: invalid JSON here would kill every SessionStart.
+          json.load(open("hooks/hooks.json"))
+
+          entries = [p for p in market["plugins"] if p["name"] == plugin["name"]]
+          if len(entries) != 1:
+              sys.exit(
+                  f'expected exactly one marketplace entry named '
+                  f'{plugin["name"]!r}, found {len(entries)}'
+              )
+          entry = entries[0]
+
+          bad = []
+          if plugin["version"] != entry["version"]:
+              bad.append(
+                  f'version drift: plugin.json {plugin["version"]} '
+                  f'!= marketplace.json {entry["version"]}'
+              )
+          if entry.get("source") != "./":
+              bad.append(
+                  f'marketplace source is {entry.get("source")!r}; '
+                  'this repo ships the plugin in-tree as "./"'
+              )
+          for path in ("skills/maestro/SKILL.md", "hooks/check-update.sh", "install.sh"):
+              if not os.path.isfile(path):
+                  bad.append(
+                      f'missing {path} — the manifests reference a payload '
+                      'that is not in the tree'
+                  )
+          if not plugin.get("description") or not plugin.get("homepage"):
+              bad.append(
+                  "plugin.json is missing description or homepage "
+                  "(both are user-facing in /plugin)"
+              )
+
+          if bad:
+              sys.exit("manifest problems:\n  " + "\n  ".join(bad))
+          print(f'manifests consistent at {plugin["version"]}')
+          PY
+
+  # Single stable name for branch protection to require. The matrix job names
+  # are prose ("install.sh smoke (bash 3.2 (macOS))") and change with labels;
+  # pinning protection to this one aggregator means adding or renaming jobs
+  # only ever touches this needs: list, never repo settings.
+  ci-ok:
+    name: ci-ok
+    # Runs even when a dependency fails: a job skipped by a failed `needs` is
+    # reported as neutral to branch protection, which would let a red PR merge.
+    # `!cancelled()` rather than `always()` so a deliberately cancelled run
+    # does not also paint a red ci-ok on top of the cancellation.
+    if: ${{ !cancelled() }}
+    needs: [smoke, shellcheck, manifests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Assert every required job succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$NEEDS"
+          FAILED=$(printf '%s' "$NEEDS" | jq -r '
+            [to_entries[] | select(.value.result != "success")
+             | "\(.key)=\(.value.result)"] | join(", ")')
+          if [ -n "$FAILED" ]; then
+            echo "::error::required jobs did not succeed: $FAILED"
+            exit 1
+          fi

@@ -19,7 +19,7 @@ jobs:
       change_summary: ${{ steps.check.outputs.change_summary }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check upstream repos for updates
         id: check
@@ -224,6 +224,7 @@ jobs:
               '- [ ] Check if marketing-skills, social-media-skills, Taste, or Transitions changed skill names, licence terms, or added paid-API / scraping behaviour' \
               '- [ ] Update SKILL.md if needed' \
               '- [ ] Update checklists if needed' \
+              '- [ ] Update README.md if an install command, tier label, or pack list changed — it is user-facing and drifts silently otherwise' \
               '- [ ] Bump version in plugin.json if changes made' \
               '' \
               '*This issue was automatically created by the upstream tracker workflow.*')
@@ -261,7 +262,7 @@ jobs:
           fi
 
       - name: Upload computed state
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: upstream-state
           path: .github/upstream-state.json
@@ -275,7 +276,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check for existing upstream sync PR
         id: existing-pr
@@ -285,7 +286,7 @@ jobs:
 
       - name: Download computed state
         if: steps.existing-pr.outputs.pr_number == ''
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: upstream-state
           path: .github/
@@ -329,8 +330,10 @@ jobs:
           - [ ] Update SKILL.md if upstream capabilities changed
           - [ ] Update install.sh if install methods changed
           - [ ] Update checklists if needed
+          - [ ] Update README.md if an install command, tier label, or pack list changed — it is user-facing and drifts silently otherwise
           - [ ] Bump version in plugin.json if changes made
           - [ ] Run \`install.sh --dry-run\` to verify
+          - [ ] Run \`bash tests/install-smoke.sh\` to verify the installer still exits cleanly
 
           *This PR was automatically created by the upstream tracker workflow.*"
 

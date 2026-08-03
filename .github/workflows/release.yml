@@ -1,0 +1,133 @@
+name: release
+
+# Tags are cut AFTER the version bump lands on main — Claude Code marketplaces
+# install from the default branch and hooks/check-update.sh reads raw main, so
+# main is the source of truth for "what version is available" and the tag is a
+# post-hoc marker for humans, changelogs and archival. See RELEASING.md.
+on:
+  push:
+    tags:
+      # Plain semver — matches the ecosystem convention (obra/superpowers,
+      # thedotmack/claude-mem both tag vX.Y.Z). Prerelease tags (v1.2.3-rc.1)
+      # are deliberately out of scope: nothing matches them and no run fires.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      # What `claude plugin tag` produces. Accepted so the built-in helper
+      # works as a first-class alternative to a manual git tag.
+      - 'maestro--v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Parse tag and assert manifest parity
+        id: parse
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#maestro--}"
+          VERSION="${VERSION#v}"
+          python3 - "$VERSION" <<'PY'
+          import json, sys
+
+          want = sys.argv[1]
+          plugin = json.load(open(".claude-plugin/plugin.json"))
+          market = json.load(open(".claude-plugin/marketplace.json"))
+
+          entries = [p for p in market["plugins"] if p["name"] == plugin["name"]]
+          if len(entries) != 1:
+              sys.exit(
+                  f'expected exactly one marketplace entry named '
+                  f'{plugin["name"]!r}, found {len(entries)}'
+              )
+          entry = entries[0]
+
+          bad = []
+          if plugin["version"] != want:
+              bad.append(f'tag {want} != plugin.json {plugin["version"]}')
+          if entry["version"] != want:
+              bad.append(f'tag {want} != marketplace.json {entry["version"]}')
+          if bad:
+              sys.exit("release blocked:\n  " + "\n  ".join(bad))
+          print(f"tag, plugin.json and marketplace.json all at {want}")
+          PY
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Reachability alone is not enough: an old ancestor's manifests genuinely
+      # carried an old version, so a backfilled historical tag would pass the
+      # parity gate yet advertise a version main no longer serves. Require the
+      # tag's version to be the one main ships right now.
+      - name: Assert the tag is on main and matches main's version
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::${GITHUB_REF_NAME} is not an ancestor of main. hooks/check-update.sh reads the version from main, so a release cut off-main would advertise a version users cannot install."
+            exit 1
+          fi
+          MAIN_VERSION=$(git show origin/main:.claude-plugin/plugin.json \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["version"])')
+          if [ "$MAIN_VERSION" != "$VERSION" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} is v${VERSION} but main currently ships v${MAIN_VERSION}"
+            exit 1
+          fi
+
+  tests:
+    name: tests
+    needs: verify
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: publish release
+    needs: [verify, tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    # No checkout: gh only needs GH_REPO for API calls, and checking out with a
+    # write-scoped token would persist that credential into the workspace.
+    # Plain gh rather than a third-party release action: preinstalled on the
+    # runner, job-scoped GITHUB_TOKEN, zero added supply-chain surface.
+    steps:
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Both tag schemes are accepted, so guard by version, not tag name —
+          # otherwise v1.13.0 and maestro--v1.13.0 would each publish a release.
+          EXISTING=$(gh release list --limit 100 --json tagName --jq '.[].tagName' \
+            | sed -e 's/^maestro--//' -e 's/^v//' | grep -Fx "$VERSION" || true)
+          if [ -n "$EXISTING" ]; then
+            echo "a release for ${VERSION} already exists — nothing to do"
+            exit 0
+          fi
+          # `--notes` + `--generate-notes` prepends the notes above the auto
+          # changelog; update instruction mirrors hooks/check-update.sh.
+          gh release create "$TAG" \
+            --verify-tag \
+            --title "v${VERSION}" \
+            --notes "Update with \`/plugin uninstall maestro@impravin22 && /plugin install maestro@impravin22\`, then restart Claude Code." \
+            --generate-notes

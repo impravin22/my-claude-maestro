@@ -1,5 +1,8 @@
 # Maestro — Master Orchestrator for Claude Code
 
+[![tests](https://github.com/impravin22/my-claude-maestro/actions/workflows/test.yml/badge.svg)](https://github.com/impravin22/my-claude-maestro/actions/workflows/test.yml)
+[![release](https://github.com/impravin22/my-claude-maestro/actions/workflows/release.yml/badge.svg)](https://github.com/impravin22/my-claude-maestro/actions/workflows/release.yml)
+
 A Claude Code plugin that orchestrates your entire development workflow. Maestro activates at the start of every task to classify work, fetch live library documentation, enforce engineering standards, and guide you through a disciplined build-verify-ship cycle.
 
 ## What It Does
@@ -13,14 +16,15 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the polling loop
 8. **Cross-session memory** — [claude-mem](https://github.com/thedotmack/claude-mem) surfaces prior observations (decisions, rejected approaches, failed experiments) during CLASSIFY, BRAINSTORM, and PLAN via the `search`, `timeline`, and `get_observations` MCP tools — no more re-deriving context that already exists
 9. **Composes with an extended plugin ecosystem** — [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) for design styles + palettes, [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) for 400+ n8n integrations, [VoiceMode MCP](https://github.com/mbailey/voicemode) for voice conversations, [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) for 150+ skills across 12 language ecosystems, and [LightRAG](https://github.com/HKUDS/LightRAG) as an optional graph+vector RAG supplement
-10. **Routes to domain skill packs** — maestro is not only a coding orchestrator. CLASSIFY names a domain and routes to its pack: engineering (superpowers), design ([frontend-design](https://github.com/anthropics/skills), [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill), [Taste](https://github.com/Leonxlnx/taste-skill), [Transitions](https://github.com/Jakubantalik/transitions.dev)), documents and brand ([example-skills](https://github.com/anthropics/skills)), [marketing](https://github.com/coreyhaines31/marketingskills) (47 skills), [social media](https://github.com/charlie947/social-media-skills) (17), and Anthropic's first-party [finance](https://github.com/anthropics/knowledge-work-plugins) (8), [small-business](https://github.com/anthropics/knowledge-work-plugins) (31) and [legal](https://github.com/anthropics/knowledge-work-plugins) (9). Non-code deliverables run a shortened **Deliverable flow** with domain-specific gates (publish approval, voice profile, figures-trace-to-source, drafts-not-advice)
-11. **Routes to the right model** — **Fable** for judgement (architecture, planning, root-cause analysis, security adjudication, review arbitration), **Opus** for execution (implementation, tests, PR fixes, content drafting). N generators on Opus, the single adjudicator on Fable; escalate to Fable only after two failed attempts
+10. **Routes to domain skill packs** — maestro is not only a coding orchestrator. CLASSIFY names a domain and routes to its pack: engineering (superpowers), documents and brand ([example-skills](https://github.com/anthropics/skills)), [marketing](https://github.com/coreyhaines31/marketingskills) (47 skills), [social media](https://github.com/charlie947/social-media-skills) (17), and Anthropic's first-party [finance](https://github.com/anthropics/knowledge-work-plugins) (8), [small-business](https://github.com/anthropics/knowledge-work-plugins) (31) and [legal](https://github.com/anthropics/knowledge-work-plugins) (9). Design is **not** a routing destination — [frontend-design](https://github.com/anthropics/skills), [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill), [Taste](https://github.com/Leonxlnx/taste-skill) and [Transitions](https://github.com/Jakubantalik/transitions.dev) are voices consumed inside Step 5, not domains CLASSIFY can name. Non-code deliverables run a shortened **Deliverable flow** with domain-specific gates (publish approval, voice profile, figures-trace-to-source, drafts-not-advice)
+11. **Routes to the right model** — **Opus by default; Fable reserved for adjudication.** A [blind head-to-head](docs/2026-07-29-fable-opus-head-to-head.md) (6 tasks, 12 blind judgements, two independent judges) could not separate the tiers on architecture, planning, or root-cause analysis — judges agreed with each other at chance level — so those moved to Opus rather than keep paying a premium for an unmeasurable difference. Fable now holds three rows the experiment deliberately did **not** measure and whose failure cost is asymmetric: security adjudication, final review arbitration, and high-stakes domain judgement. N generators on Opus, the single adjudicator on Fable; escalate to Fable only after two failed attempts on the same task. Both are **tier aliases** that resolve to whatever generation is current in each family at dispatch time — the documented tier values (`sonnet`, `opus`, `haiku`, `fable`) pin no version, so the routing table never names one and never goes stale on release day
 12. **Enforces quality gates** — tests mandatory, lint clean, format clean, TypeScript clean, solution justification, British English
-13. **Tracks upstream dependencies** — daily GitHub Actions workflow detects changes in all 19 tracked upstream repos, files issues, and auto-creates PRs for review
+13. **Reports through a Progress Protocol** — inside a multi-step flow, every response opens with its position ("Step 5 (UI/UX gate) — blocked on your mockup approval"), leaves at most one open ask, puts fresh command output above the justification prose, and quotes no wall-clock estimates. Adapted from cognitive-accessibility formatting practice; it governs reporting order and ask count only, and never truncates a checklist, drops a justification, or suppresses a gate's question
+14. **Tracks upstream dependencies** — daily GitHub Actions workflow detects changes in all 19 tracked upstream repos, files issues, and auto-creates PRs for review
 
 ### Token discipline
 
-`SKILL.md` loads on **every** task, so it carries only the router: which domain and model a task maps to, in one line each. Every detail — install commands, per-pack caveats, domain gates, degradation rules, the full model table — lives in `references/` and is read **only when that path actually fires**. Adding eight domain packs (145 skills: 12 + 8 + 31 + 9 + 47 + 17 + 13 + 7 + 1) and model routing in v1.9.0 made `SKILL.md` *smaller* — 5,959 → 5,534 words. v1.10.0 spends ~190 of that saving deliberately: the YAGNI decision ladder is an every-task implementation rule, so it lives on the hot path by design (5,723 words — still ~240 under the pre-registry baseline). Rare-path detail still never goes in `SKILL.md`.
+`SKILL.md` loads on **every** task, so it carries only the router: which domain and model a task maps to, in one line each. Every detail — install commands, per-pack caveats, domain gates, degradation rules, the full model table — lives in `references/` and is read **only when that path actually fires**. Adding eight domain packs (145 skills: 12 + 8 + 31 + 9 + 47 + 17 + 13 + 7 + 1) and model routing in v1.9.0 made `SKILL.md` *smaller* — 5,959 → 5,534 words. v1.10.0 spends ~190 of that saving deliberately: the YAGNI decision ladder is an every-task implementation rule, so it lives on the hot path by design (5,723 words). v1.11.0 spends a further ~260 on the Progress Protocol for the same reason — it governs every response inside a flow, so a `references/` file it never reads would be worthless. v1.12.0 adds ~40 more restating the model-routing default, now that it is `opus` rather than `fable`. That puts `SKILL.md` at 6,022 words, ~60 past the 5,959 pre-registry baseline — a deliberate overspend on three every-task rules, not drift. Rare-path detail still never goes in `SKILL.md`.
 
 ## Prerequisites
 
@@ -29,7 +33,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 | [superpowers plugin](https://github.com/obra/superpowers) | Yes | Comes with Claude Code |
 | [Context7 MCP](https://github.com/upstash/context7) | Yes | `npx ctx7 setup --claude` |
 | [Vercel plugin](https://github.com/vercel-labs/agent-skills) | Recommended | Provides shadcn + react-best-practices skills |
-| [Security Guidance](https://github.com/anthropics/claude-code) | Recommended | `/plugin install security-guidance@anthropic` — real-time pre-edit security scanning |
+| [Security Guidance](https://github.com/anthropics/claude-code) | Recommended | `claude plugin install security-guidance@claude-plugins-official` — real-time pre-edit security scanning |
 | [PR Review Toolkit](https://github.com/anthropics/claude-code) | Recommended | Ships with Claude Code — 6 specialist review agents |
 | [Playwright MCP](https://github.com/microsoft/playwright-mcp) | Recommended | `npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright` |
 | [claude-mem](https://github.com/thedotmack/claude-mem) | Recommended | `npx claude-mem install` — persistent memory across sessions via 5 lifecycle hooks + 3 MCP tools (`search`, `timeline`, `get_observations`) |
@@ -40,11 +44,11 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 | [marketing-skills](https://github.com/coreyhaines31/marketingskills) | Recommended | `claude plugin marketplace add coreyhaines31/marketingskills && claude plugin install marketing-skills@marketingskills` — 47 MIT skills (copywriting, seo-audit, lead-magnets, launch, pricing, cro, ads…). Install only from the canonical `coreyhaines31` slug — copycat forks circulate |
 | [social-media-skills](https://github.com/charlie947/social-media-skills) | Recommended | `claude plugin marketplace add charlie947/social-media-skills && claude plugin install social-media-skills@social-media-skills` — 17 MIT skills (voice-builder, post-writer, hook-generator, reels-scripting, youtube-thumbnail…). **Run `voice-builder` first** or output carries the author's branding; `reels-scripting` and `post-scorer` call paid third-party APIs |
 | [Taste](https://github.com/Leonxlnx/taste-skill) | Recommended | `claude plugin marketplace add Leonxlnx/taste-skill && claude plugin install taste-skill@taste-skill` — 13 MIT design-taste skills feeding Step 5a as additive direction candidates (still subject to the anti-template ban and the 5c gate) |
-| [Transitions](https://github.com/Jakubantalik/transitions.dev) | Optional | `git clone https://github.com/Jakubantalik/transitions.dev && cp -r transitions.dev/skills/transitions-dev ~/.claude/skills/` — 27 production transition recipes with `prefers-reduced-motion` guards. **No licence file on the canonical repo** (all-rights-reserved by default): fine for personal use, do not vendor its content |
-| [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) | Recommended | `claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp` — 400+ n8n workflow integrations |
-| [VoiceMode MCP](https://github.com/mbailey/voicemode) | Recommended | `claude mcp add --scope user voicemode -- uvx --refresh voice-mode` — local Whisper + Kokoro voice conversations (requires mic/speakers) |
+| [Transitions](https://github.com/Jakubantalik/transitions.dev) | Recommended | `git clone https://github.com/Jakubantalik/transitions.dev && cp -r transitions.dev/skills/transitions-dev ~/.claude/skills/` — 27 production transition recipes with `prefers-reduced-motion` guards. **No licence file on the canonical repo** (all-rights-reserved by default): fine for personal use, do not vendor its content |
+| [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) | Heavy / manual | `claude mcp add n8n-mcp -e MCP_MODE=stdio -e LOG_LEVEL=error -e DISABLE_CONSOLE_OUTPUT=true -- npx -y n8n-mcp` — 400+ n8n workflow integrations |
+| [VoiceMode MCP](https://github.com/mbailey/voicemode) | Heavy / manual | `claude mcp add --scope user voicemode -- uvx --refresh voice-mode` — local Whisper + Kokoro voice conversations (requires mic/speakers) |
 | [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) | Recommended | `git clone https://github.com/affaan-m/everything-claude-code.git && cd everything-claude-code && ./install.sh --target claude --profile full` — 150+ skills, 47 agents, 79 commands, 16 rules across 12 language ecosystems |
-| [LightRAG](https://github.com/HKUDS/LightRAG) | Recommended | `uv tool install "lightrag-hku[api]"` — graph+vector RAG Python library; optional supplement to Context7 for large codebases (external service; custom MCP bridge required to surface inside Claude Code) |
+| [LightRAG](https://github.com/HKUDS/LightRAG) | Heavy / manual | `uv tool install "lightrag-hku[api]"` — graph+vector RAG Python library; optional supplement to Context7 for large codebases (external service; custom MCP bridge required to surface inside Claude Code) |
 | [Andrej Karpathy Skills](https://github.com/forrestchang/andrej-karpathy-skills) | Recommended | `claude plugin marketplace add forrestchang/andrej-karpathy-skills && claude plugin install andrej-karpathy-skills@karpathy-skills` — Karpathy's 4 LLM-coding principles (think before coding, simplicity first, surgical changes, goal-driven execution) as an enforced voice that composes with maestro's own engineering-mindset discipline |
 | [Caveman](https://github.com/JuliusBrussee/caveman) | Recommended | `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman` — ultra-compressed communication mode that cuts ~75% token usage while preserving full technical accuracy |
 | [SkillSpector](https://github.com/NVIDIA/SkillSpector) | Recommended | `uv tool install 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git' && claude mcp add skillspector -- skillspector mcp` (git-only — not on PyPI; the `[mcp]` extra is required to run `skillspector mcp`) — NVIDIA static security scanner for AI agent skills (Apache-2.0); Step 8.5 vets any skill/plugin/MCP artefact in a diff before PR. Keyless: static pass flags candidates, Claude adjudicates (its own LLM pass needs a provider key, not required) |
@@ -120,6 +124,7 @@ Every task follows one flow. Steps are skipped when not applicable:
  6. SECURITY     → OWASP + LLM security checklist + real-time edit scanning
  7. IMPLEMENT    → superpowers:test-driven-development
  8. VERIFY       → superpowers:verification + quality gates + Playwright visual checks
+8.5 LOCAL REVIEW → code-reviewer on the local diff (+ SkillSpector for skill artefacts)
  9. FINISH       → superpowers:finishing-a-development-branch → PR
 10. REVIEW       → PR Review Toolkit specialist agents → polling loop
 ```
@@ -128,14 +133,16 @@ Every task follows one flow. Steps are skipped when not applicable:
 
 | Condition | Steps Skipped |
 |-----------|---------------|
-| Trivial config/docs change | 3–6 |
+| Trivial config/docs change | 3–6 and 8.5 — but a `SKILL.md`, plugin-manifest or MCP-config edit is never trivial, and always runs 8.5 |
 | No frontend touched | 5, visual verification in 8 |
+| Component-level frontend tweak (className, copy edit, prop rename) | 5a–5c (mockup) and 5d — 5e checklist still runs |
 | Bug fix | 3 → systematic-debugging |
 | No libraries detected | 2 |
 | No dev server running | Visual verification in 8 |
+| Independent subtasks identified | Nothing skipped — 7 may use `dispatching-parallel-agents` |
 | No new types introduced | `type-design-analyzer` in 10 |
 | No comments added/modified | `comment-analyzer` in 10 |
-| Non-code deliverable (marketing, social, finance, legal…) | 5, 7, 8.5, 9, 10 → runs the shortened **Deliverable flow** instead |
+| Non-code deliverable (marketing, social, finance, legal…) | 5, 7, 8.5, 9, 10 → runs the shortened **Deliverable flow** instead. 6 runs only if credentials, customer data, or PII are handled |
 
 ## Checklists
 
@@ -174,6 +181,13 @@ my-claude-maestro/
 ├── .claude-plugin/
 │   ├── plugin.json
 │   └── marketplace.json
+├── .github/
+│   ├── workflows/               # tests, tag-driven release, upstream tracker
+│   ├── ISSUE_TEMPLATE/
+│   ├── CODEOWNERS
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   ├── dependabot.yml
+│   └── release.yml              # release-notes categories
 ├── skills/
 │   └── maestro/
 │       ├── SKILL.md
@@ -188,16 +202,27 @@ my-claude-maestro/
 ├── hooks/
 │   ├── hooks.json
 │   └── check-update.sh
+├── tests/
+│   └── install-smoke.sh        # bash tests/install-smoke.sh — runs in CI
 ├── docs/
 │   ├── 2026-04-03-maestro-design.md
 │   ├── 2026-04-07-plugin-integration-design.md
 │   ├── 2026-04-13-claude-mem-integration-design.md
 │   ├── 2026-04-13-multi-plugin-integration-design.md
-│   └── 2026-07-22-ponytail-integration-design.md
+│   ├── 2026-07-22-ponytail-integration-design.md
+│   └── 2026-07-29-fable-opus-head-to-head.md   # evidence behind the v1.12.0 re-tier
 ├── install.sh          # companion ecosystem installer
+├── CONTRIBUTING.md     # dev setup + the rules CI enforces
+├── SECURITY.md         # private vulnerability reporting
+├── RELEASING.md        # bump → merge → tag, and why that order
+├── CODE_OF_CONDUCT.md
 ├── README.md
 └── LICENSE
 ```
+
+## Contributing
+
+Contributions are welcome — [CONTRIBUTING.md](CONTRIBUTING.md) covers the dev setup and the handful of rules CI enforces (bash 3.2 floor, hermetic smoke suite, the SKILL.md token budget, version-bump parity). Questions and proposals go in [Discussions](https://github.com/impravin22/my-claude-maestro/discussions); vulnerabilities go through [private reporting](SECURITY.md), never public issues. Releases follow [RELEASING.md](RELEASING.md) — versions ship from `main`, tags mark them afterwards.
 
 ## Licence
 
