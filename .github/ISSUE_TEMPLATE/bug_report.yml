@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in maestro misbehaves — a hook, the installer, the skill flow, or CI.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you do, what did maestro do, and what did you expect instead?
+      placeholder: |
+        1. Started a task with "…"
+        2. Maestro classified it as … and skipped …
+        3. Expected … instead
+    validations:
+      required: true
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`
+      placeholder: "2.1.220"
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Maestro version
+      description: The `version` field in the installed `.claude-plugin/plugin.json` (or the version the update notice printed)
+      placeholder: "1.12.1"
+    validations:
+      required: true
+  - type: input
+    id: os-bash
+    attributes:
+      label: OS and bash version
+      description: OS + output of `bash --version | head -1` — macOS ships bash 3.2, which matters for install.sh bugs
+      placeholder: "macOS 15.5, GNU bash 3.2.57"
+    validations:
+      required: true
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How was maestro installed?
+      options:
+        - "/plugin marketplace add + /plugin install"
+        - "./install.sh (companion ecosystem installer)"
+        - "Other / not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Error messages, hook output, or CI logs. Redact anything private.
+      render: text
