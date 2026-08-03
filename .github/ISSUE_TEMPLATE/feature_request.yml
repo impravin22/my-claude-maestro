@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a new gate, step, integration, or improvement to the flow.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What goes wrong, or what is missing, in the current flow? Concrete scenarios beat abstractions.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What should maestro do instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: placement
+    attributes:
+      label: Where would this live?
+      description: SKILL.md loads on every task, so hot-path additions carry a recurring token cost for every user and need an every-task justification. Rare-path detail belongs in references/.
+      options:
+        - "references/ (read on demand — most additions belong here)"
+        - "SKILL.md hot path (every-task rule — justify the token cost below)"
+        - "install.sh / hooks"
+        - "CI / repo tooling"
+        - "Not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else did you consider, and why is the proposal better?

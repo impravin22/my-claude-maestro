@@ -1,5 +1,8 @@
 # Maestro — Master Orchestrator for Claude Code
 
+[![tests](https://github.com/impravin22/my-claude-maestro/actions/workflows/test.yml/badge.svg)](https://github.com/impravin22/my-claude-maestro/actions/workflows/test.yml)
+[![release](https://github.com/impravin22/my-claude-maestro/actions/workflows/release.yml/badge.svg)](https://github.com/impravin22/my-claude-maestro/actions/workflows/release.yml)
+
 A Claude Code plugin that orchestrates your entire development workflow. Maestro activates at the start of every task to classify work, fetch live library documentation, enforce engineering standards, and guide you through a disciplined build-verify-ship cycle.
 
 ## What It Does
@@ -178,6 +181,13 @@ my-claude-maestro/
 ├── .claude-plugin/
 │   ├── plugin.json
 │   └── marketplace.json
+├── .github/
+│   ├── workflows/               # tests, tag-driven release, upstream tracker
+│   ├── ISSUE_TEMPLATE/
+│   ├── CODEOWNERS
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   ├── dependabot.yml
+│   └── release.yml              # release-notes categories
 ├── skills/
 │   └── maestro/
 │       ├── SKILL.md
@@ -202,9 +212,17 @@ my-claude-maestro/
 │   ├── 2026-07-22-ponytail-integration-design.md
 │   └── 2026-07-29-fable-opus-head-to-head.md   # evidence behind the v1.12.0 re-tier
 ├── install.sh          # companion ecosystem installer
+├── CONTRIBUTING.md     # dev setup + the rules CI enforces
+├── SECURITY.md         # private vulnerability reporting
+├── RELEASING.md        # bump → merge → tag, and why that order
+├── CODE_OF_CONDUCT.md
 ├── README.md
 └── LICENSE
 ```
+
+## Contributing
+
+Contributions are welcome — [CONTRIBUTING.md](CONTRIBUTING.md) covers the dev setup and the handful of rules CI enforces (bash 3.2 floor, hermetic smoke suite, the SKILL.md token budget, version-bump parity). Questions and proposals go in [Discussions](https://github.com/impravin22/my-claude-maestro/discussions); vulnerabilities go through [private reporting](SECURITY.md), never public issues. Releases follow [RELEASING.md](RELEASING.md) — versions ship from `main`, tags mark them afterwards.
 
 ## Licence
 

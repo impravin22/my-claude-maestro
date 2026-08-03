@@ -1,0 +1,4 @@
+# Auto-requests review from the maintainer on every PR. Review *enforcement*
+# stays at zero required approvals in the branch ruleset — a solo maintainer
+# cannot approve their own PR, so requiring one would deadlock the repo.
+* @impravin22
