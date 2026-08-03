@@ -286,7 +286,7 @@ jobs:
 
       - name: Download computed state
         if: steps.existing-pr.outputs.pr_number == ''
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: upstream-state
           path: .github/
