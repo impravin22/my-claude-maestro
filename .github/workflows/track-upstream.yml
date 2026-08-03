@@ -19,7 +19,7 @@ jobs:
       change_summary: ${{ steps.check.outputs.change_summary }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check upstream repos for updates
         id: check
@@ -276,7 +276,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check for existing upstream sync PR
         id: existing-pr
