@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Lets release.yml re-run this suite against the tagged commit. A local-path
+  # `uses:` resolves at the caller's commit, so the tag's own copy is what runs.
+  workflow_call:
 
 permissions:
   contents: read
@@ -13,6 +16,7 @@ jobs:
   smoke:
     name: install.sh smoke (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -30,7 +34,7 @@ jobs:
             label: bash 5.x (Linux)
             shell_bin: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Report interpreter
         env:
@@ -54,8 +58,9 @@ jobs:
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       # install.sh carries one known SC2294 (`eval "$@"`) behind a documented
@@ -69,21 +74,80 @@ jobs:
   manifests:
     name: manifests parse
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Validate JSON and version parity
         run: |
           python3 - <<'PY'
-          import json, sys
+          import json, os, sys
 
           plugin = json.load(open(".claude-plugin/plugin.json"))
           market = json.load(open(".claude-plugin/marketplace.json"))
-          entry = next(p for p in market["plugins"] if p["name"] == "maestro")
+          # Parse-only: invalid JSON here would kill every SessionStart.
+          json.load(open("hooks/hooks.json"))
 
-          if plugin["version"] != entry["version"]:
+          entries = [p for p in market["plugins"] if p["name"] == plugin["name"]]
+          if len(entries) != 1:
               sys.exit(
+                  f'expected exactly one marketplace entry named '
+                  f'{plugin["name"]!r}, found {len(entries)}'
+              )
+          entry = entries[0]
+
+          bad = []
+          if plugin["version"] != entry["version"]:
+              bad.append(
                   f'version drift: plugin.json {plugin["version"]} '
                   f'!= marketplace.json {entry["version"]}'
               )
-          print(f'both manifests at {plugin["version"]}')
+          if entry.get("source") != "./":
+              bad.append(
+                  f'marketplace source is {entry.get("source")!r}; '
+                  'this repo ships the plugin in-tree as "./"'
+              )
+          for path in ("skills/maestro/SKILL.md", "hooks/check-update.sh", "install.sh"):
+              if not os.path.isfile(path):
+                  bad.append(
+                      f'missing {path} — the manifests reference a payload '
+                      'that is not in the tree'
+                  )
+          if not plugin.get("description") or not plugin.get("homepage"):
+              bad.append(
+                  "plugin.json is missing description or homepage "
+                  "(both are user-facing in /plugin)"
+              )
+
+          if bad:
+              sys.exit("manifest problems:\n  " + "\n  ".join(bad))
+          print(f'manifests consistent at {plugin["version"]}')
           PY
+
+  # Single stable name for branch protection to require. The matrix job names
+  # are prose ("install.sh smoke (bash 3.2 (macOS))") and change with labels;
+  # pinning protection to this one aggregator means adding or renaming jobs
+  # only ever touches this needs: list, never repo settings.
+  ci-ok:
+    name: ci-ok
+    # Runs even when a dependency fails: a job skipped by a failed `needs` is
+    # reported as neutral to branch protection, which would let a red PR merge.
+    # `!cancelled()` rather than `always()` so a deliberately cancelled run
+    # does not also paint a red ci-ok on top of the cancellation.
+    if: ${{ !cancelled() }}
+    needs: [smoke, shellcheck, manifests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Assert every required job succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$NEEDS"
+          FAILED=$(printf '%s' "$NEEDS" | jq -r '
+            [to_entries[] | select(.value.result != "success")
+             | "\(.key)=\(.value.result)"] | join(", ")')
+          if [ -n "$FAILED" ]; then
+            echo "::error::required jobs did not succeed: $FAILED"
+            exit 1
+          fi
