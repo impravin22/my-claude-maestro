@@ -26,6 +26,10 @@ Read this **only when** a pack you need is missing, the user asks how to install
 | marketing-skills | `claude plugin marketplace add coreyhaines31/marketingskills && claude plugin install marketing-skills@marketingskills` | Marketing domain |
 | social-media-skills | `claude plugin marketplace add charlie947/social-media-skills && claude plugin install social-media-skills@social-media-skills` | Social domain |
 | finance / small-business / legal | `claude plugin marketplace add anthropics/knowledge-work-plugins` then `claude plugin install <name>@knowledge-work-plugins` | Those domains |
+| leadership-skills | `claude plugin marketplace add PierrickMartos/Leadership-Skills` then `claude plugin install <performance-management\|communication\|decision-making\|hiring\|learning>@leadership-skills` | Leadership domain |
+| pm-claude-skills | `claude plugin marketplace add mohitagw15856/pm-claude-skills` then `claude plugin install <pm-delivery\|pm-people\|pm-career\|pm-comms>@pm-claude-skills` — **pin to a reviewed SHA** | Leadership domain |
+| pm-product-discovery | `claude plugin marketplace add phuryn/pm-skills && claude plugin install pm-product-discovery@pm-skills` | Leadership domain (opportunity scans) |
+| c-level-skills | `claude plugin marketplace add alirezarezvani/claude-skills && claude plugin install c-level-skills@claude-code-skills` — marketplace registers as `claude-code-skills`, not the repo name | Leadership domain (org leverage) |
 | SkillSpector | `uv tool install 'skillspector[mcp] @ git+https://github.com/NVIDIA/skillspector.git' && claude mcp add skillspector -- skillspector mcp` | Step 8.5 (supply-chain scan) |
 | Andrej Karpathy Skills | `claude plugin marketplace add forrestchang/andrej-karpathy-skills && claude plugin install andrej-karpathy-skills@karpathy-skills` | Step 7 (edit-level discipline) |
 | Caveman | `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman` | Output compression (orthogonal) |
@@ -49,6 +53,9 @@ Read this **only when** a pack you need is missing, the user asks how to install
 - **marketing-skills** — canonical slug is `coreyhaines31/marketingskills`; copycat forks with identical descriptions exist.
 - **social-media-skills** — run `voice-builder` first; `reels-scripting` and `post-scorer` cost money and scrape. See `skill-pack-registry.md`.
 - **knowledge-work plugins** — these live in `anthropics/knowledge-work-plugins`, **not** `claude-plugins-official`. Each ships a `.mcp.json` pre-wiring third-party connectors — review before org rollout. See `skill-pack-registry.md`.
+- **leadership packs** — route to already-installed `atlassian` and `pm-*` skills before installing any of these; ticket summarising in particular is already saturated. Install the named bundles, never a whole marketplace. See `skill-pack-registry.md` for the job-to-skill map and the impact-claim gate.
+- **pm-claude-skills** — its README badge claims a listing in Anthropic's official plugin directory that does not exist (the badge links to its own README anchor). Content is sound and the four leadership bundles make zero network calls, but **pin to a reviewed commit SHA**. Do not confuse it with `phuryn/pm-skills`, a different and better-known repo, which it tells users to search for by name.
+- **Excluded leadership repos** — `deanpeters/Product-Manager-Skills` is CC BY-NC-SA (NonCommercial unresolved for commercial employers); `htk007/claude-skills-for-leaders` and `shaik41/em-skills-claude-code` ship no LICENSE file, so all-rights-reserved applies. Good content in all three; none is safely adoptable at work.
 - **SkillSpector** — git-only (not on PyPI); the `[mcp]` extra is required for `skillspector mcp`. Keyless by design: the static pass flags candidates, **Claude adjudicates**. It over-flags teaching-skills and defensive code — never accept a raw `DO_NOT_INSTALL` verdict at face value.
 - **Everything Claude Code** — user-scope skills, so plugin-scope skills (superpowers, maestro) win on collisions.
 
@@ -69,6 +76,7 @@ A missing pack **never blocks a task**. Perform the equivalent manually and note
 | example-skills | mcp-builder / webapp-testing / brand-guidelines / web-artifacts-builder unavailable; engineering flow unaffected. Brand gate falls back to whatever brand material the user provides |
 | finance / small-business / legal | Domain tasks still run the Deliverable flow with general reasoning; domain gates (figures trace to source, drafts-not-advice) enforced manually. **State explicitly that no domain pack is installed** |
 | marketing / social packs | Content tasks proceed manually through the Deliverable flow. The publish-approval gate applies regardless |
+| leadership packs | Route to the installed `atlassian` and `pm-*` skills named in `skill-pack-registry.md` — they cover ticket summarising outright and most ticket craft. The impact-claim, Jira-write, and people-data gates apply regardless of which pack is present |
 | SkillSpector | Step 8.5 skips the automated supply-chain scan; Claude still manually reviews the artefact against the skill-threat list (prompt injection, config snooping, MCP rug-pull, excessive agency). Silent for ordinary app-code diffs |
 | n8n-MCP | Surface only when a task actually involves n8n; otherwise silent |
 | VoiceMode | Text workflow unchanged; non-blocking |
