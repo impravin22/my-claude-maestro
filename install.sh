@@ -30,8 +30,9 @@ Components installed by default:
                  Anthropic example-skills, knowledge-work plugins
                  (finance, small-business, legal), marketing-skills,
                  social-media-skills, leadership-skills,
-                 pm-product-discovery, c-level-advisor, Taste,
-                 Transitions, Everything Claude Code
+                 pm-product-discovery, c-level-advisor,
+                 pm-claude-skills (pinned), Taste, Transitions,
+                 Everything Claude Code
 
 Flags:
   --minimal              install required components only
@@ -47,9 +48,12 @@ Heavy components NOT installed by this script:
 Licence note: Transitions (Jakubantalik/transitions.dev) has no licence file —
 it is installed as a user-scope skill for personal use; do not vendor it.
 
-Leadership note: pm-claude-skills is NOT auto-installed. Its content is sound,
-but its README claims an official-directory listing that does not exist, so it wants a pinned SHA rather
-than tracking main — a deliberate choice this script cannot make for you. See
+Leadership note: pm-claude-skills installs PINNED to a reviewed commit, not from
+its default branch — its README claims an official-directory listing that does
+not exist, and it lands ~12 commits a day. The pin is cloned to
+~/.claude/pinned/pm-claude-skills; if the checkout is at another commit or has
+local modifications the pack is skipped, the run continues, and install.sh
+exits non-zero. Skip it with --skip-pm-claude-skills. See
 skills/maestro/references/skill-pack-registry.md.
 EOF
 }
@@ -111,6 +115,12 @@ run() {
   # --skip-* values, or plugin names is ever interpolated. If you add a call
   # site that interpolates anything else, switch to an array form (`"$@"`
   # without eval) instead of widening this exception.
+  #
+  # The $HOME-derived paths (Transitions, Everything Claude Code, the pinned
+  # pm-claude-skills block) are NOT exceptions: they are written \$HOME and
+  # \$PIN_DIR so the expansion happens inside eval as an ordinary parameter
+  # expansion. The value is never re-parsed as source, so a HOME containing
+  # $(...) is inert. Keep that form for anything env-derived.
   if [ "$DRY_RUN" -eq 1 ]; then
     printf "    ${YELLOW}[dry-run]${RESET} %s\n" "$*"
     return 0
@@ -157,6 +167,60 @@ printf "${GREEN}✔ claude, node, npx, curl available${RESET}\n"
 # --- Install helpers --------------------------------------------------------
 
 ADDED_MARKETPLACES=" "
+
+# The pm-claude-skills commit that was actually reviewed: SkillSpector-scanned
+# per bundle, and grep-confirmed to make zero network calls across pm-delivery,
+# pm-people, pm-career and pm-comms. Bumping this constant means re-reviewing —
+# it is a supply-chain assertion, not a version string.
+# Reviewed 2026-08-05: "docs(readme): add a prominent Subscribe-to-newsletter
+# button (#219)", 2026-08-04T14:59:33Z.
+PM_CLAUDE_SKILLS_SHA="3d0c4c35b38c9611b9352a7c87c60b06d8261b91"
+PM_CLAUDE_SKILLS_URL="https://github.com/mohitagw15856/pm-claude-skills.git"
+
+# verify_pinned_sha <dir> <expected-sha>
+#
+# The whole point of pinning is that the tree matches the commit that was
+# reviewed, so a mismatch must ABORT the install rather than warn. Without this
+# the fetch could silently resolve elsewhere — a stale directory left at another
+# commit, a ref that moved, a partial fetch — and the pin would be decorative.
+# Under --dry-run nothing was cloned, so there is nothing to verify: report and
+# succeed, or the dry run would report a failure that a real run would not hit.
+verify_pinned_sha() {
+  local dir="$1" expected="$2" actual
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf "    [dry-run] verify %s is at %s\n" "$dir" "$expected"
+    return 0
+  fi
+
+  actual="$(git -C "$dir" rev-parse HEAD 2>/dev/null)"
+  if [ "$actual" != "$expected" ]; then
+    printf "${RED}✘ pinned checkout mismatch in %s${RESET}\n" "$dir" >&2
+    printf "  expected %s\n  actual   %s\n" "$expected" "${actual:-<none>}" >&2
+    return 1
+  fi
+
+  # HEAD alone is not the guarantee. `git checkout` over a modified worktree
+  # succeeds and keeps the modification, so a pin directory can sit at the right
+  # commit while shipping different bytes — which is the thing the pin exists to
+  # prevent. Fail closed and let the user delete the directory; silently forcing
+  # the checkout would destroy whatever they were looking at.
+  # --untracked-files=all catches an injected file, not just a modified one.
+  # The .DS_Store excludes are load-bearing: this upstream TRACKS 25 .DS_Store
+  # files (5 inside the sparse cone), so one Finder visit would otherwise wedge
+  # a re-runnable installer and misreport OS metadata churn as tampering.
+  # stderr is folded into the captured string rather than discarded — `git
+  # status` on an unreadable path prints nothing to stdout and still exits 0, so
+  # swallowing stderr would make "cannot inspect" look identical to "clean".
+  if [ -n "$(git -C "$dir" status --porcelain --untracked-files=all \
+              -- ':(exclude).DS_Store' ':(exclude,glob)**/.DS_Store' 2>&1)" ]; then
+    printf "${RED}✘ pinned checkout has local modifications: %s${RESET}\n" "$dir" >&2
+    printf "  the tree no longer matches the reviewed commit\n" >&2
+    printf "  remove the directory and re-run to restore it\n" >&2
+    return 1
+  fi
+  return 0
+}
 
 install_plugin() {
   local name="$1" marketplace="$2" plugin_spec="$3"
@@ -273,12 +337,6 @@ if [ "$MINIMAL" -eq 0 ]; then
   # Leadership domain. Route to already-installed atlassian/pm-* skills first —
   # these fill the gaps those leave: exec translation, performance artefacts,
   # opportunity scanning, engineering-org leverage. All MIT.
-  #
-  # pm-claude-skills is deliberately NOT here. Its four leadership bundles scan
-  # clean and make zero network calls, but its README claims a listing in
-  # Anthropic's official plugin directory that does not exist, so it warrants a
-  # pinned SHA rather than tracking main. Installing it unpinned is a decision
-  # for the user, not this script — see references/skill-pack-registry.md.
   install_plugin "leadership-performance-management" \
     "PierrickMartos/Leadership-Skills" \
     "performance-management@leadership-skills"
@@ -298,6 +356,54 @@ if [ "$MINIMAL" -eq 0 ]; then
   install_plugin "c-level-advisor" \
     "alirezarezvani/claude-skills" \
     "c-level-skills@claude-code-skills"
+
+  # pm-claude-skills, pinned. Unlike every other pack here this one is NOT
+  # tracked at its default branch, because its README claims a listing in
+  # Anthropic's official plugin directory that does not exist (the badge links
+  # to an anchor in its own README) and it lands roughly a dozen commits a day
+  # across 849 skills. The content is sound — the four leadership bundles scan
+  # clean and make zero network calls — so it ships pinned to the commit that
+  # was actually reviewed rather than excluded outright. "Reviewed" means: the
+  # four bundles scan to CAUTION static-only (pm-delivery risk 48, 2 HIGH), and
+  # every HIGH is a prose false positive on adjudication. A re-review passes
+  # only if no NEW finding appears.
+  #
+  # `claude plugin marketplace add` cannot pin: it takes a URL, path or repo and
+  # always resolves the default branch. A path source can be pinned though, so
+  # clone the reviewed commit ourselves and register the directory.
+  #
+  # --filter=blob:none + cone sparse-checkout fetches only the four bundles:
+  # 5.8M rather than the ~101M a plain --depth 1 costs on this repo.
+  if is_skipped "pm-claude-skills"; then
+    log_skip "pm-claude-skills (explicit --skip)"
+  else
+    log_step "Installing pm-claude-skills (pinned $PM_CLAUDE_SKILLS_SHA)"
+    PIN_DIR="$HOME/.claude/pinned/pm-claude-skills"
+    # \$PIN_DIR is escaped in every string below so it expands INSIDE eval as an
+    # ordinary parameter expansion. Interpolating it directly would make the
+    # value of $HOME shell source text that eval re-parses — a HOME containing
+    # $(...) would execute — which is exactly what run()'s invariant says to
+    # avoid by escaping rather than widening the exception. The Transitions
+    # block below already uses this form.
+    if run "mkdir -p \"\$PIN_DIR\"" \
+       && run "git -C \"\$PIN_DIR\" init -q" \
+       && run "git -C \"\$PIN_DIR\" remote set-url origin $PM_CLAUDE_SKILLS_URL 2>/dev/null || git -C \"\$PIN_DIR\" remote add origin $PM_CLAUDE_SKILLS_URL" \
+       && run "git -C \"\$PIN_DIR\" sparse-checkout init --cone" \
+       && run "git -C \"\$PIN_DIR\" sparse-checkout set .claude-plugin plugins/pm-delivery plugins/pm-people plugins/pm-career plugins/pm-comms" \
+       && run "git -C \"\$PIN_DIR\" fetch --depth 1 --filter=blob:none origin $PM_CLAUDE_SKILLS_SHA" \
+       && run "git -C \"\$PIN_DIR\" checkout -q FETCH_HEAD" \
+       && run "git -C \"\$PIN_DIR\" remote remove origin" \
+       && verify_pinned_sha "$PIN_DIR" "$PM_CLAUDE_SKILLS_SHA" \
+       && run "claude plugin marketplace add \"\$PIN_DIR\"" \
+       && run "claude plugin install pm-delivery@pm-claude-skills" \
+       && run "claude plugin install pm-people@pm-claude-skills" \
+       && run "claude plugin install pm-career@pm-claude-skills" \
+       && run "claude plugin install pm-comms@pm-claude-skills"; then
+      log_ok "pm-claude-skills (pinned)"
+    else
+      log_fail "pm-claude-skills (pinned)"
+    fi
+  fi
 
   install_plugin "taste-skill" \
     "Leonxlnx/taste-skill" \

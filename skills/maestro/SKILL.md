@@ -39,7 +39,7 @@ Engineering is the default domain and runs the full flow below. When the task is
 | Statements, reconciliation, close, audit, variance | finance | `finance` (8) |
 | Cash flow, payroll, invoicing, CRM and customer ops | small-business | `small-business` (31) |
 | Contracts, NDAs, compliance, legal risk | legal | `legal` (9) |
-| Jira tickets, status roll-ups, exec updates, impact write-ups, 1:1s, performance reviews, opportunity scans | leadership | `atlassian` + `pm-*` (installed) + `leadership-skills`, `pm-product-discovery`, `c-level-skills` |
+| Jira tickets, status roll-ups, exec updates, impact write-ups, 1:1s, performance reviews, opportunity scans | leadership | `atlassian` + `pm-*` (installed) + `leadership-skills`, `pm-product-discovery`, `c-level-skills`, `pm-claude-skills` (pinned) |
 | Artifacts, long-form docs, office files | documents | `example-skills`, `document-skills` |
 | Brand compliance, internal announcements | brand | `example-skills` |
 | Code, tests, infra, MCP servers, skill authoring | engineering | superpowers + the flow below |
