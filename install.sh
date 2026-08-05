@@ -29,13 +29,15 @@ Components installed by default:
                  Andrej Karpathy Skills, Caveman, SkillSpector,
                  Anthropic example-skills, knowledge-work plugins
                  (finance, small-business, legal), marketing-skills,
-                 social-media-skills, Taste, Transitions,
-                 Everything Claude Code
+                 social-media-skills, leadership-skills,
+                 pm-product-discovery, c-level-advisor, Taste,
+                 Transitions, Everything Claude Code
 
 Flags:
   --minimal              install required components only
   --dry-run              print commands without executing
-  --skip-<name>          skip a component (e.g. --skip-vercel, --skip-transitions)
+  --skip-<name>          skip a component (e.g. --skip-vercel, --skip-transitions;
+                         --skip-leadership-skills skips all three leadership bundles)
   --help                 show this help
 
 Heavy components NOT installed by this script:
@@ -44,6 +46,11 @@ Heavy components NOT installed by this script:
 
 Licence note: Transitions (Jakubantalik/transitions.dev) has no licence file —
 it is installed as a user-scope skill for personal use; do not vendor it.
+
+Leadership note: pm-claude-skills is NOT auto-installed. Its content is sound,
+but its README claims an official-directory listing that does not exist, so it wants a pinned SHA rather
+than tracking main — a deliberate choice this script cannot make for you. See
+skills/maestro/references/skill-pack-registry.md.
 EOF
 }
 
@@ -52,6 +59,11 @@ for arg in "$@"; do
     --minimal) MINIMAL=1 ;;
     --dry-run) DRY_RUN=1 ;;
     --help|-h) print_help; exit 0 ;;
+    # Whole-pack alias. Leadership-Skills installs as three separate bundles,
+    # so the intuitive flag must expand to all three or it silently skips one.
+    # Must precede the generic --skip-* case, which would otherwise swallow it.
+    --skip-leadership-skills)
+      SKIP_LIST="$SKIP_LIST leadership-performance-management leadership-communication leadership-decision-making" ;;
     --skip-*) SKIP_LIST="$SKIP_LIST ${arg#--skip-}" ;;
     *) echo "Unknown flag: $arg" >&2; print_help; exit 2 ;;
   esac
@@ -257,6 +269,35 @@ if [ "$MINIMAL" -eq 0 ]; then
   install_plugin "social-media-skills" \
     "charlie947/social-media-skills" \
     "social-media-skills@social-media-skills"
+
+  # Leadership domain. Route to already-installed atlassian/pm-* skills first —
+  # these fill the gaps those leave: exec translation, performance artefacts,
+  # opportunity scanning, engineering-org leverage. All MIT.
+  #
+  # pm-claude-skills is deliberately NOT here. Its four leadership bundles scan
+  # clean and make zero network calls, but its README claims a listing in
+  # Anthropic's official plugin directory that does not exist, so it warrants a
+  # pinned SHA rather than tracking main. Installing it unpinned is a decision
+  # for the user, not this script — see references/skill-pack-registry.md.
+  install_plugin "leadership-performance-management" \
+    "PierrickMartos/Leadership-Skills" \
+    "performance-management@leadership-skills"
+
+  install_plugin "leadership-communication" \
+    "PierrickMartos/Leadership-Skills" \
+    "communication@leadership-skills"
+
+  install_plugin "leadership-decision-making" \
+    "PierrickMartos/Leadership-Skills" \
+    "decision-making@leadership-skills"
+
+  install_plugin "pm-product-discovery" \
+    "phuryn/pm-skills" \
+    "pm-product-discovery@pm-skills"
+
+  install_plugin "c-level-advisor" \
+    "alirezarezvani/claude-skills" \
+    "c-level-skills@claude-code-skills"
 
   install_plugin "taste-skill" \
     "Leonxlnx/taste-skill" \

@@ -2,9 +2,9 @@
 #
 # Smoke tests for install.sh.
 #
-# Nothing here installs anything. Seven of the nine cases pass --dry-run, which
-# routes every install command through run() and only prints it; the other two
-# (--help, unknown flag) exit during argument parsing, before preflight. The
+# Nothing here installs anything. Every case passes --dry-run — which routes each
+# install command through run() and only prints it — except --help and the
+# unknown-flag case, which exit during argument parsing, before preflight. The
 # only filesystem effect of a dry run is two self-cleaning `mktemp -d` calls in
 # install.sh itself.
 #
@@ -172,6 +172,41 @@ assert_stdout_contains() {
   esac
 }
 
+# Absence assertion. Takes an ANCHOR as well as the forbidden needle: proving a
+# string is absent is worthless if the run never got far enough to print it, and
+# a bare absence check is the one assertion shape that passes on empty stdout.
+# The anchor must appear or the case fails, so absence only counts when the run
+# demonstrably reached the block under test.
+assert_stdout_lacks() {
+  local description="$1" needle="$2" anchor="$3"
+  shift 3
+  local output
+
+  output="$("$BASH" "$INSTALLER" "$@" 2>/dev/null)"
+
+  case "$output" in
+    *"$anchor"*) ;;
+    *)
+      echo "FAIL: $description"
+      echo "      run never reached the anchor: $anchor"
+      FAIL=$((FAIL + 1))
+      return
+      ;;
+  esac
+
+  case "$output" in
+    *"$needle"*)
+      echo "FAIL: $description"
+      echo "      stdout unexpectedly contained: $needle"
+      FAIL=$((FAIL + 1))
+      ;;
+    *)
+      echo "PASS: $description"
+      PASS=$((PASS + 1))
+      ;;
+  esac
+}
+
 echo "install.sh smoke tests — bash $BASH_VERSION"
 if [ "$GUARD_REPRODUCES" -eq 0 ]; then
   echo "NOTE: bash >= 4.4 does not reproduce the empty-array 'set -u' abort."
@@ -205,6 +240,49 @@ assert_stdout_contains "dry-run previews commands instead of running them" \
 # was the quieter and worse of the two pre-fix behaviours.
 assert_home_guard "HOME unset fails fast instead of aborting mid-install" unset
 assert_home_guard "HOME set-but-empty fails fast instead of writing to /" empty
+
+# The leadership domain routes to three marketplaces, and the two that are not
+# Pierrick's are easy to lose in a refactor because install_plugin de-duplicates
+# marketplace adds — a wrong `marketplace` argument still emits a plausible
+# install line while silently never registering the source.
+assert_stdout_contains "leadership packs install from their own marketplaces" \
+  "claude plugin marketplace add PierrickMartos/Leadership-Skills" --dry-run
+assert_stdout_contains "pm-product-discovery installs from phuryn/pm-skills" \
+  "claude plugin marketplace add phuryn/pm-skills" --dry-run
+assert_stdout_contains "c-level pack installs from alirezarezvani/claude-skills" \
+  "claude plugin marketplace add alirezarezvani/claude-skills" --dry-run
+
+# Asserting the marketplace line alone is not enough: install_plugin de-duplicates
+# marketplace adds, so a spec naming a marketplace that was never registered still
+# prints a plausible install line and only fails at runtime. Pre-review this suite
+# was green while shipping `c-level-advisor@claude-skills` — wrong on both sides
+# (the marketplace registers as `claude-code-skills`, and the plugin is
+# `c-level-skills`). These pin the exact upstream specs, verified live against each
+# marketplace.json.
+assert_stdout_contains "performance-management installs by its real spec" \
+  "claude plugin install performance-management@leadership-skills" --dry-run
+assert_stdout_contains "communication installs by its real spec" \
+  "claude plugin install communication@leadership-skills" --dry-run
+assert_stdout_contains "decision-making installs by its real spec" \
+  "claude plugin install decision-making@leadership-skills" --dry-run
+assert_stdout_contains "pm-product-discovery installs by its real spec" \
+  "claude plugin install pm-product-discovery@pm-skills" --dry-run
+assert_stdout_contains "c-level pack installs by its real spec" \
+  "claude plugin install c-level-skills@claude-code-skills" --dry-run
+
+# The intuitive whole-pack flag must expand to all three bundles, not just the
+# one whose component name resembles it.
+assert_stdout_lacks "--skip-leadership-skills skips every leadership bundle" \
+  "claude plugin install communication@leadership-skills" \
+  "claude plugin marketplace add phuryn/pm-skills" --dry-run --skip-leadership-skills
+
+# Deliberate exclusion, not an oversight. pm-claude-skills scans clean but its
+# README claims an official-directory listing that does not exist, so it wants a
+# pinned SHA the installer cannot choose. Without this guard a future contributor
+# "completes the set" and silently ships an unpinned dependency on 849 skills.
+assert_stdout_lacks "pm-claude-skills is never auto-installed" \
+  "mohitagw15856/pm-claude-skills" \
+  "claude plugin marketplace add PierrickMartos/Leadership-Skills" --dry-run
 
 echo ""
 echo "passed: $PASS  failed: $FAIL"

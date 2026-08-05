@@ -62,6 +62,38 @@ review-contract, triage-nda, compliance-check, legal-risk-assessment, brief, leg
 
 - **Gate:** outputs are **drafts for counsel review, never legal advice**. Say so in the deliverable itself, not just in chat.
 
+### Leadership & delivery — installed packs first, then `leadership-skills` / `pm-claude-skills`
+
+Covers five jobs. **Route to what is already installed before installing anything** — an audit of a fully-provisioned setup found the PM packs installed but never invoked, because nothing routed to them.
+
+| Job | Route to (installed) | Install only if the gap below bites |
+| --- | --- | --- |
+| Write a Jira ticket | `pm-execution:user-stories` / `wwas` / `write-stories` for craft (3 C's, INVEST, testable AC); `atlassian:spec-to-backlog`, `capture-tasks-from-meeting-notes`, `triage-issue` to create it | Craft and pipe never touch: pm-execution emits markdown and is Jira-blind, atlassian needs a Confluence page, meeting notes, or an existing bug. No path from a bare idea to a created ticket → `pm-delivery:user-story-writer` (pm-claude-skills, opt-in); `jira-expert` (the `pm-skills` plugin inside alirezarezvani/claude-skills, not installed by default) |
+| Summarise tickets | `atlassian:generate-status-report` (multi-query JQL, exec tier, RAG status), `jira-sprint-dashboard-canvas` (read-only by default) | **Saturated — install nothing.** Five installed surfaces already claim this phrasing. Only residue is cross-sprint delta; not worth a plugin |
+| Organise thoughts | `superpowers:brainstorming` → `writing-plans` for anything feature-shaped | brainstorming is hard-gated into code and terminates in `writing-plans`; it will turn a quarter-planning dump into a design doc. For non-feature dumps → `decision-memo`, `bluf-communication` |
+| Identify opportunities | `pm-execution:prioritization-frameworks` (Opportunity Score = Importance × (1 − Satisfaction)), `outcome-roadmap`, `engineering:tech-debt` | All frames, no scanners — they rank a list you already wrote. For discovery → `pm-product-discovery:opportunity-solution-tree` (Torres); for engineering-org leverage → `vpe-advisor` |
+| Translate shipped code for execs | `example-skills:internal-comms` for register only | **Largest genuine gap.** internal-comms reads Slack/Drive, never git; `release-notes` targets customers. A grep for brag doc / promotion packet / self-review / performance review across a full install returns zero hits → `leadership-skills:reframe-for-execs` plus the performance-management cluster (both installed by default); `pm-career:brag-doc` (pm-claude-skills, opt-in — pin a SHA, see Caveats) |
+
+**Packs, all MIT:**
+
+- **`leadership-skills`** (PierrickMartos, 13 skills) — write-performance-review, calibrate-talent, write-self-review, assess-career-growth, difficult-conversations, communication-coach, escalate-without-drama, bluf-communication, reframe-for-execs, decision-memo, adversarial-review; plus screen-candidate-for-hm-call (`hiring`) and learn-deeply (`learning`), whose bundles install.sh leaves to taste. Task-and-artefact shaped: each ends in a deliverable with a fixed contract.
+- **`pm-claude-skills`** (mohitagw15856) — install the `pm-delivery`, `pm-people`, `pm-career`, `pm-comms` bundles only, never the whole marketplace.
+- **`pm-product-discovery`** (phuryn, 13 skills) — the discovery pack most `pm-skills` users do not have; opportunity-solution-tree, identify/prioritize-assumptions, brainstorm-experiments.
+- **`c-level-skills`** (alirezarezvani, repo directory `c-level-advisor`) — vpe-advisor, chro-advisor, org-health-diagnostic, decision-logger. `executive-mentor` is a sibling plugin, installed separately. Persona-and-diagnostic shaped; ships stdlib-only Python analysis tools.
+
+**Gates:**
+
+- **Impact claims trace to artefacts.** Every business-impact statement in an exec write-up names the PR, commit, metric, or ticket behind it. Unattributed impact is the failure mode of this whole domain — these skills will happily generate a confident number nobody can source. This is the Evidence Gate (Step 8.0) applied to narrative, and it is not optional because the output is not code.
+- **Jira writes need approval.** `createJiraIssue`, `editJiraIssue` and `transitionJiraIssue` are side-effectful against a shared team board. Draft freely; get explicit approval immediately before the write. Read-only by default.
+- **People data is PII.** Performance reviews, PIPs, calibration notes and 1:1 records name real employees. Never commit them to a repo, never paste them into a third-party API, never write them to a shared path. Step 6 SECURITY fires on any task in this cluster regardless of domain.
+- **Exec updates are outward-facing.** Publish approval (above) applies before anything reaches leadership.
+
+**Caveats:**
+
+- **The `pm-claude-skills` provenance badge is false.** Its README badge claims listing in Anthropic's official plugin directory; the badge links to an anchor in its own README, and the live 278-plugin manifest has no such entry. The content is sound and the four leadership bundles carry zero network calls, but **pin to a reviewed commit SHA rather than tracking `main`** — 849 skills at v70 in six months is a wide surface to inherit blindly.
+- **Two different repos are called "pm-skills".** `phuryn/pm-skills` is the well-known one; `pm-claude-skills` instructs users to search `pm-skills` in `/plugin`. Check the author before installing.
+- **Excluded on licence, deliberately.** `deanpeters/Product-Manager-Skills` is CC BY-NC-SA — strong content, but the NonCommercial clause is unresolved for use inside a commercial employer. `htk007/claude-skills-for-leaders` and `shaik41/em-skills-claude-code` ship no LICENSE file at all, which defaults to all-rights-reserved.
+
 ### Documents & artefacts — `example-skills` (+ optional `document-skills`)
 
 web-artifacts-builder (claude.ai artifacts — note the name; "artifacts-builder" does not exist), doc-coauthoring, canvas-design, algorithmic-art, slack-gif-creator, theme-factory. Office formats (docx, pdf, pptx, xlsx) live in the separate `document-skills` plugin.

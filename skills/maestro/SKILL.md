@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: Use at the start of every task — master orchestrator that classifies work, routes it to the right domain pack (engineering, documents, brand, marketing, social, finance, small business, legal) and the right model tier (Opus by default, Fable reserved for adjudication), fetches live docs via Context7, gates frontend work behind an anti-template design mockup, enforces layered security (OWASP + edit scanning + supply-chain skill vetting), verifies visually via Playwright, reviews deeply before and after the PR, and orchestrates superpowers skills in the correct order
+description: Use at the start of every task — master orchestrator that classifies work, routes it to the right domain pack (engineering, documents, brand, marketing, social, finance, small business, legal, leadership) and the right model tier (Opus by default, Fable reserved for adjudication), fetches live docs via Context7, gates frontend work behind an anti-template design mockup, enforces layered security (OWASP + edit scanning + supply-chain skill vetting), verifies visually via Playwright, reviews deeply before and after the PR, and orchestrates superpowers skills in the correct order
 ---
 
 # Maestro — Master Orchestrator
@@ -39,6 +39,7 @@ Engineering is the default domain and runs the full flow below. When the task is
 | Statements, reconciliation, close, audit, variance | finance | `finance` (8) |
 | Cash flow, payroll, invoicing, CRM and customer ops | small-business | `small-business` (31) |
 | Contracts, NDAs, compliance, legal risk | legal | `legal` (9) |
+| Jira tickets, status roll-ups, exec updates, impact write-ups, 1:1s, performance reviews, opportunity scans | leadership | `atlassian` + `pm-*` (installed) + `leadership-skills`, `pm-product-discovery`, `c-level-skills` |
 | Artifacts, long-form docs, office files | documents | `example-skills`, `document-skills` |
 | Brand compliance, internal announcements | brand | `example-skills` |
 | Code, tests, infra, MCP servers, skill authoring | engineering | superpowers + the flow below |
@@ -84,7 +85,7 @@ Determine the task type and scope before doing anything else.
 - What parts of the codebase are affected? (frontend, backend, full-stack, infrastructure)
 - Is this trivial (one-line config, comment fix) or non-trivial?
 - Are there libraries/frameworks involved that I need current docs for?
-- Which **domain** does this belong to? (engineering by default; design, documents, brand, marketing, social media, finance, small business, or legal when a domain pack from the Skill Pack Registry applies — non-code deliverables take the Deliverable flow)
+- Which **domain** does this belong to? (engineering by default; design, documents, brand, marketing, social media, finance, small business, legal, or leadership when a domain pack from the Skill Pack Registry applies — non-code deliverables take the Deliverable flow)
 - Which **model tier** fits each phase? (consult Model Routing: `opus` unless the step is security adjudication, review arbitration, or high-stakes domain judgement)
 
 **Output:** A one-line classification statement, e.g.:
@@ -113,7 +114,7 @@ If claude-mem is unavailable, skip this substep and proceed with the classificat
 | No dev server running | Skip visual verification (Playwright) in step 8 |
 | No new types introduced | Skip `type-design-analyzer` in step 10 |
 | No comments added/modified | Skip `comment-analyzer` in step 10 |
-| Non-code deliverable (marketing, social, finance, small-business, or legal content/analysis with no repo diff) | Run the **Deliverable flow** (see Skill Pack Registry): skip 5, 7 (TDD), 8.5, 9, 10; Step 6 only if credentials/customer data/PII are handled; Step 7 becomes DRAFT with the domain pack's skills; Step 8 Evidence Gate + domain gate still run |
+| Non-code deliverable (marketing, social, finance, small-business, legal, or leadership content/analysis with no repo diff) | Run the **Deliverable flow** (see Skill Pack Registry): skip 5, 7 (TDD), 8.5, 9, 10; Step 6 only if credentials/customer data/PII are handled; Step 7 becomes DRAFT with the domain pack's skills; Step 8 Evidence Gate + domain gate still run |
 
 **Supply-chain trigger:** if the task is *authoring, installing, or updating a skill, plugin, or MCP server* — i.e. the diff will touch a `SKILL.md`, a plugin manifest, or an MCP server config — flag it here. **Step 8.5** then runs the SkillSpector supply-chain scan on the changed artefact before the PR. This is orthogonal to the code-review agents: it vets the *skill supply chain* (malicious instructions, prompt injection, agent-config snooping, MCP rug-pull, excessive agency), a surface ordinary code review does not cover. It does **not** fire on normal app-code diffs. It **overrides** the "Trivial config/docs change → skip 8.5" row above: a `SKILL.md`, plugin-manifest, or MCP-config edit is never "trivial" for gate purposes, however small the diff.
 
