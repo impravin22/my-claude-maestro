@@ -8,11 +8,11 @@
 
    ```bash
    git checkout main && git pull
-   git tag -a v1.13.0 -m "maestro 1.13.0"
-   git push origin v1.13.0
+   git tag -a v<X.Y.Z> -m "maestro <X.Y.Z>"
+   git push origin v<X.Y.Z>
    ```
 
-   or, equivalently, use the built-in helper (it validates manifest parity first and produces a `maestro--v1.13.0` tag — both schemes are accepted):
+   or, equivalently, use the built-in helper (it validates manifest parity first and produces a `maestro--v<X.Y.Z>` tag — both schemes are accepted):
 
    ```bash
    claude plugin tag --push
@@ -27,6 +27,6 @@ Claude Code marketplaces install from the **default branch** — the local plugi
 ## Notes on the mechanics
 
 - Releases are **immutable** once published (repo setting): a botched release is fixed by shipping a new patch version, never by moving the tag.
-- One version, one release: pushing both `v1.13.0` and `maestro--v1.13.0` publishes only once — the publish job guards by version, not tag name.
-- Prerelease tags (`v1.13.0-rc.1`) are out of scope by design; nothing fires on them.
+- One version, one release: pushing both `v<X.Y.Z>` and `maestro--v<X.Y.Z>` publishes only once — the publish job guards by version, not tag name.
+- Prerelease tags (`v<X.Y.Z>-rc.1`) are out of scope by design; nothing fires on them.
 - Release-notes categories come from PR labels (`.github/release.yml`): `upstream-update` PRs are grouped separately; label a PR `ignore-for-release` to keep it out of the notes.

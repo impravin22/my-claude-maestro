@@ -207,6 +207,58 @@ assert_stdout_lacks() {
   esac
 }
 
+# assert_pin_guard <description> <mode: match|mismatch|missing|dirty>
+#
+# Every other pin case runs under --dry-run, which deliberately short-circuits
+# verify_pinned_sha — so without this the abort that makes the pin meaningful is
+# never executed by the suite at all. Rather than perform a real install, lift
+# the function out of install.sh and exercise it against a scratch repo whose
+# HEAD we control.
+assert_pin_guard() {
+  local description="$1" mode="$2"
+  local repo sha expected rc
+
+  repo="$(mktemp -d)" || { echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
+
+  git -C "$repo" init -q
+  : > "$repo/f"
+  git -C "$repo" add f
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -qm t
+  sha="$(git -C "$repo" rev-parse HEAD)"
+
+  case "$mode" in
+    match)    expected="$sha" ;;
+    mismatch) expected="0000000000000000000000000000000000000000" ;;
+    missing)  rm -rf "$repo/.git"; expected="$sha" ;;
+    # Right commit, wrong bytes: `git checkout` over a modified worktree exits 0
+    # and keeps the edit, so HEAD alone cannot detect this.
+    dirty)    echo drift >> "$repo/f"; expected="$sha" ;;
+  esac
+
+  (
+    eval "$(sed -n '/^verify_pinned_sha() {/,/^}/p' "$INSTALLER")"
+    # Read by the eval'd function above, which shellcheck cannot follow.
+    # DRY_RUN=0 is the point of the case: it forces the real verification path
+    # that every --dry-run case deliberately skips.
+    # shellcheck disable=SC2034
+    { DRY_RUN=0; RED=''; RESET=''; }
+    verify_pinned_sha "$repo" "$expected" 2>/dev/null
+  )
+  rc=$?
+  rm -rf "$repo"
+
+  # match must succeed; every other mode — wrong commit, missing repo, dirty
+  # worktree — must fail closed.
+  if { [ "$mode" = "match" ] && [ "$rc" -eq 0 ]; } ||
+     { [ "$mode" != "match" ] && [ "$rc" -ne 0 ]; }; then
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $description (mode=$mode returned $rc)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 echo "install.sh smoke tests — bash $BASH_VERSION"
 if [ "$GUARD_REPRODUCES" -eq 0 ]; then
   echo "NOTE: bash >= 4.4 does not reproduce the empty-array 'set -u' abort."
@@ -276,13 +328,48 @@ assert_stdout_lacks "--skip-leadership-skills skips every leadership bundle" \
   "claude plugin install communication@leadership-skills" \
   "claude plugin marketplace add phuryn/pm-skills" --dry-run --skip-leadership-skills
 
-# Deliberate exclusion, not an oversight. pm-claude-skills scans clean but its
-# README claims an official-directory listing that does not exist, so it wants a
-# pinned SHA the installer cannot choose. Without this guard a future contributor
-# "completes the set" and silently ships an unpinned dependency on 849 skills.
-assert_stdout_lacks "pm-claude-skills is never auto-installed" \
-  "mohitagw15856/pm-claude-skills" \
+# pm-claude-skills is the one pack installed from a pinned commit rather than a
+# default branch. These cases exist because the pin is a supply-chain assertion:
+# if the installer ever resolves this pack by branch, the reviewed-commit
+# guarantee is gone while everything still looks green.
+#
+# The negative case is the load-bearing one. `claude plugin marketplace add
+# mohitagw15856/pm-claude-skills` would work perfectly and track main — which is
+# precisely the failure being prevented.
+assert_stdout_lacks "pm-claude-skills is never added as a branch-tracking marketplace" \
+  "claude plugin marketplace add mohitagw15856/pm-claude-skills" \
   "claude plugin marketplace add PierrickMartos/Leadership-Skills" --dry-run
+
+assert_stdout_contains "pm-claude-skills is fetched at the reviewed commit" \
+  "fetch --depth 1 --filter=blob:none origin 3d0c4c35b38c9611b9352a7c87c60b06d8261b91" \
+  --dry-run
+
+assert_stdout_contains "the pinned checkout is verified before anything installs" \
+  "verify /" --dry-run
+
+# Only the four reviewed bundles. The repo ships 849 skills across 104 plugins;
+# the sparse paths are what keep the other 100 bundles off disk and out of the
+# skill namespace.
+assert_stdout_contains "only the four reviewed bundles are sparse-checked-out" \
+  "sparse-checkout set .claude-plugin plugins/pm-delivery plugins/pm-people plugins/pm-career plugins/pm-comms" \
+  --dry-run
+
+for bundle in pm-delivery pm-people pm-career pm-comms; do
+  assert_stdout_contains "$bundle installs from the pinned marketplace" \
+    "claude plugin install $bundle@pm-claude-skills" --dry-run
+done
+
+assert_stdout_lacks "--skip-pm-claude-skills skips the pinned pack entirely" \
+  "claude plugin install pm-delivery@pm-claude-skills" \
+  "claude plugin marketplace add phuryn/pm-skills" --dry-run --skip-pm-claude-skills
+
+# The guard itself, executed for real. A pin that warns instead of aborting is
+# decorative, so the mismatch case must fail closed — as must a directory that
+# is not a git repo at all, where rev-parse yields nothing.
+assert_pin_guard "pinned checkout at the reviewed commit is accepted" match
+assert_pin_guard "pinned checkout at the wrong commit aborts the install" mismatch
+assert_pin_guard "a non-repo pin directory aborts rather than passing empty" missing
+assert_pin_guard "a modified pinned worktree aborts even at the right commit" dirty
 
 echo ""
 echo "passed: $PASS  failed: $FAIL"
