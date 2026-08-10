@@ -259,6 +259,108 @@ assert_pin_guard() {
   fi
 }
 
+# assert_pin_dir_refused <description>
+#
+# Runs the installer with HOME pointed at a throwaway directory and requires it
+# to refuse to register the pinned marketplace.
+#
+# `claude plugin marketplace add` records an ABSOLUTE path in the user's global
+# registry, and claude resolves that registry independently of the HOME this
+# script ran with. A run under a temporary HOME therefore writes a path into the
+# REAL config that is guaranteed to vanish, after which every `claude plugin
+# list` reports `cache-miss` and the four pinned bundles silently stop loading.
+# Observed in the wild from an end-to-end run under a session scratchpad HOME.
+#
+# Asserting only "no marketplace add was emitted" would be satisfied by any early
+# abort, so the guard's own stderr message is required as well, and an anchor on
+# stdout proves the run got as far as the packs that precede the pinned block.
+assert_pin_dir_refused() {
+  local description="$1"
+  local home out_file err_file out err
+
+  home="$(mktemp -d)" || { echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
+  out_file="$(mktemp)" || { rm -rf "$home"; echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
+  err_file="$(mktemp)" || { rm -rf "$home"; rm -f "$out_file"; echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
+
+  HOME="$home" "$BASH" "$INSTALLER" --dry-run >"$out_file" 2>"$err_file"
+  out="$(cat "$out_file")"
+  err="$(cat "$err_file")"
+  rm -rf "$home"
+  rm -f "$out_file" "$err_file"
+
+  case "$out" in
+    *"claude plugin marketplace add PierrickMartos/Leadership-Skills"*) ;;
+    *)
+      echo "FAIL: $description"
+      echo "      run never reached the leadership block, so absence proves nothing"
+      FAIL=$((FAIL + 1))
+      return
+      ;;
+  esac
+
+  case "$out" in
+    *"claude plugin marketplace add \"\$PIN_DIR\""*|*"/.claude/pinned/pm-claude-skills"*)
+      echo "FAIL: $description"
+      echo "      the pinned marketplace was still registered from a temporary HOME"
+      FAIL=$((FAIL + 1))
+      return
+      ;;
+  esac
+
+  case "$err" in
+    *"refusing to register the pinned marketplace"*)
+      echo "PASS: $description"
+      PASS=$((PASS + 1))
+      ;;
+    *)
+      echo "FAIL: $description"
+      echo "      no guard message on stderr: $err"
+      FAIL=$((FAIL + 1))
+      ;;
+  esac
+}
+
+# assert_every_component_is_skippable <description>
+#
+# Asserts the user-facing invariant directly rather than diffing against the
+# KNOWN_COMPONENTS constant: every name the installer can skip must survive
+# `--skip-<name>` validation. Written this way so adding a pack without adding
+# it to the allowlist fails here, at CI time, instead of silently turning that
+# pack's --skip flag into a hard exit for whoever tries it first.
+assert_every_component_is_skippable() {
+  local description="$1"
+  local declared name rejected="" rc
+
+  declared="$(sed -n \
+    -e 's/.*install_plugin "\([^"]*\)".*/\1/p' \
+    -e 's/.*install_mcp "\([^"]*\)".*/\1/p' \
+    -e 's/.*is_skipped "\([^"]*\)".*/\1/p' \
+    "$INSTALLER" | grep -v '^\$' | sort -u)"
+
+  if [ -z "$declared" ]; then
+    echo "FAIL: $description (extracted no component names from install.sh)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  for name in $declared; do
+    "$BASH" "$INSTALLER" --dry-run "--skip-$name" >/dev/null 2>&1
+    rc=$?
+    if [ "$rc" -eq 2 ]; then
+      rejected="$rejected $name"
+    fi
+  done
+
+  if [ -n "$rejected" ]; then
+    echo "FAIL: $description"
+    echo "      real components rejected by --skip validation:$rejected"
+    FAIL=$((FAIL + 1))
+  else
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  fi
+}
+
 echo "install.sh smoke tests — bash $BASH_VERSION"
 if [ "$GUARD_REPRODUCES" -eq 0 ]; then
   echo "NOTE: bash >= 4.4 does not reproduce the empty-array 'set -u' abort."
@@ -347,7 +449,8 @@ assert_stdout_contains "pm-claude-skills is fetched at the reviewed commit" \
 assert_stdout_contains "the pinned checkout is verified before anything installs" \
   "verify /" --dry-run
 
-# Only the four reviewed bundles. The repo ships 849 skills across 104 plugins;
+# Only the four reviewed bundles. At the pinned commit the repo ships 858 skills
+# across 104 plugins;
 # the sparse paths are what keep the other 100 bundles off disk and out of the
 # skill namespace.
 assert_stdout_contains "only the four reviewed bundles are sparse-checked-out" \
@@ -370,6 +473,20 @@ assert_pin_guard "pinned checkout at the reviewed commit is accepted" match
 assert_pin_guard "pinned checkout at the wrong commit aborts the install" mismatch
 assert_pin_guard "a non-repo pin directory aborts rather than passing empty" missing
 assert_pin_guard "a modified pinned worktree aborts even at the right commit" dirty
+
+# Registering the pin from a throwaway HOME poisons the real global registry
+# with a path that will not exist later. Refuse rather than register.
+assert_pin_dir_refused "a temporary HOME refuses to register the pinned marketplace"
+
+# An unvalidated --skip- typo used to be accepted silently: SKIP_LIST grew a name
+# matching no component, the pack installed anyway, and the user believed they
+# had opted out. That failure mode is worst on --skip-pm-claude-skills, the
+# opt-out for the one pack installed from a pinned commit.
+assert_run "unknown --skip-<name> is rejected rather than silently ignored" 2 \
+  --dry-run --skip-nonexistent-pack
+
+# The allowlist that makes the case above possible must not go stale.
+assert_every_component_is_skippable "every real component survives --skip validation"
 
 echo ""
 echo "passed: $PASS  failed: $FAIL"

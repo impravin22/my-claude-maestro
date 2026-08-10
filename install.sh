@@ -51,11 +51,45 @@ it is installed as a user-scope skill for personal use; do not vendor it.
 Leadership note: pm-claude-skills installs PINNED to a reviewed commit, not from
 its default branch — its README claims an official-directory listing that does
 not exist, and it lands ~12 commits a day. The pin is cloned to
-~/.claude/pinned/pm-claude-skills; if the checkout is at another commit or has
-local modifications the pack is skipped, the run continues, and install.sh
-exits non-zero. Skip it with --skip-pm-claude-skills. See
-skills/maestro/references/skill-pack-registry.md.
+~/.claude/pinned/pm-claude-skills; if the checkout is at another commit, has
+local modifications, or would be registered from a temporary HOME, the pack is
+skipped, the run continues, and install.sh exits non-zero. Skip it with
+--skip-pm-claude-skills. See skills/maestro/references/skill-pack-registry.md.
+
+Unknown --skip-<name> values are rejected with the list of valid names, rather
+than accepted and silently matched against nothing.
 EOF
+}
+
+# Every name `is_skipped` can match, and therefore every valid --skip-<name>.
+# The two MCP entries are capitalised because that is the name install_mcp is
+# called with; --skip-context7 is not the same string as --skip-Context7.
+#
+# Validating against this list rather than accepting any --skip-* is the point:
+# an unrecognised value used to be appended to SKIP_LIST silently, where it
+# matched no component, so the pack installed anyway while the user believed
+# they had opted out. That is the wrong failure mode for --skip-pm-claude-skills
+# in particular, which is the opt-out for the one pack installed from a pinned
+# commit. Deny by default, and say which names are real.
+#
+# tests/install-smoke.sh drives --skip-<name> for every name it can find at an
+# install_plugin / install_mcp / is_skipped call site, so a pack added without
+# being listed here fails CI rather than turning its own --skip flag into a
+# hard exit for whoever reaches for it first.
+KNOWN_COMPONENTS="superpowers Context7 vercel security-guidance pr-review-toolkit
+Playwright claude-mem ui-ux-pro-max andrej-karpathy-skills example-skills
+finance small-business legal marketing-skills social-media-skills
+leadership-performance-management leadership-communication
+leadership-decision-making pm-product-discovery c-level-advisor
+pm-claude-skills taste-skill transitions caveman skillspector
+everything-claude-code"
+
+is_known_component() {
+  local name="$1" known
+  for known in $KNOWN_COMPONENTS; do
+    [ "$known" = "$name" ] && return 0
+  done
+  return 1
 }
 
 for arg in "$@"; do
@@ -66,9 +100,22 @@ for arg in "$@"; do
     # Whole-pack alias. Leadership-Skills installs as three separate bundles,
     # so the intuitive flag must expand to all three or it silently skips one.
     # Must precede the generic --skip-* case, which would otherwise swallow it.
+    # It is also why the alias never reaches the validation below: it is a flag
+    # name, not a component name, and is not in KNOWN_COMPONENTS.
     --skip-leadership-skills)
       SKIP_LIST="$SKIP_LIST leadership-performance-management leadership-communication leadership-decision-making" ;;
-    --skip-*) SKIP_LIST="$SKIP_LIST ${arg#--skip-}" ;;
+    --skip-*)
+      skip_component="${arg#--skip-}"
+      if ! is_known_component "$skip_component"; then
+        echo "Unknown component: $skip_component" >&2
+        echo "Valid --skip-<name> values (plus the --skip-leadership-skills alias):" >&2
+        # Deliberately unquoted: KNOWN_COMPONENTS is a compile-time literal and
+        # the word splitting is what turns it into one name per line.
+        # shellcheck disable=SC2086
+        printf '  %s\n' $KNOWN_COMPONENTS >&2
+        exit 2
+      fi
+      SKIP_LIST="$SKIP_LIST $skip_component" ;;
     *) echo "Unknown flag: $arg" >&2; print_help; exit 2 ;;
   esac
 done
@@ -177,6 +224,41 @@ ADDED_MARKETPLACES=" "
 PM_CLAUDE_SKILLS_SHA="3d0c4c35b38c9611b9352a7c87c60b06d8261b91"
 PM_CLAUDE_SKILLS_URL="https://github.com/mohitagw15856/pm-claude-skills.git"
 
+# is_ephemeral_path <path>
+#
+# True when the path sits under a temporary root.
+#
+# `claude plugin marketplace add` records an ABSOLUTE path in the user's global
+# registry, and claude resolves that registry independently of the HOME this
+# script ran with. An installer run under a temporary HOME therefore writes a
+# path into the REAL config that is guaranteed to vanish. Every later `claude
+# plugin list` then reports `cache-miss` and the four pinned bundles silently
+# stop loading, with nothing in the install output hinting at it. Observed in
+# the wild from an end-to-end run under a session scratchpad HOME.
+#
+# Checked against the pin directory rather than HOME itself, because the
+# directory is the value actually handed to `marketplace add`.
+is_ephemeral_path() {
+  local path="${1%/}/" tmp
+
+  case "$path" in
+    /tmp/*|/private/tmp/*|/var/tmp/*|/private/var/tmp/*) return 0 ;;
+    # macOS per-user temp roots, where mktemp lands when TMPDIR is set.
+    /var/folders/*|/private/var/folders/*) return 0 ;;
+  esac
+
+  # $TMPDIR is the portable answer but is neither always set nor always one of
+  # the roots above, so it supplements those literals rather than replacing them.
+  tmp="${TMPDIR:-}"
+  if [ -n "$tmp" ]; then
+    case "$path" in
+      "${tmp%/}"/*) return 0 ;;
+    esac
+  fi
+
+  return 1
+}
+
 # verify_pinned_sha <dir> <expected-sha>
 #
 # The whole point of pinning is that the tree matches the commit that was
@@ -207,8 +289,9 @@ verify_pinned_sha() {
   # the checkout would destroy whatever they were looking at.
   # --untracked-files=all catches an injected file, not just a modified one.
   # The .DS_Store excludes are load-bearing: this upstream TRACKS 25 .DS_Store
-  # files (5 inside the sparse cone), so one Finder visit would otherwise wedge
-  # a re-runnable installer and misreport OS metadata churn as tampering.
+  # files, 3 of them inside the sparse cone at the pinned commit, so one Finder
+  # visit would otherwise wedge a re-runnable installer and misreport OS
+  # metadata churn as tampering.
   # stderr is folded into the captured string rather than discarded — `git
   # status` on an unreadable path prints nothing to stdout and still exits 0, so
   # swallowing stderr would make "cannot inspect" look identical to "clean".
@@ -361,10 +444,11 @@ if [ "$MINIMAL" -eq 0 ]; then
   # tracked at its default branch, because its README claims a listing in
   # Anthropic's official plugin directory that does not exist (the badge links
   # to an anchor in its own README) and it lands roughly a dozen commits a day
-  # across 849 skills. The content is sound — the four leadership bundles scan
-  # clean and make zero network calls — so it ships pinned to the commit that
-  # was actually reviewed rather than excluded outright. "Reviewed" means: the
-  # four bundles scan to CAUTION static-only (pm-delivery risk 48, 2 HIGH), and
+  # across 858 skills at the pinned commit. The content is sound — the four
+  # leadership bundles scan clean and make zero network calls — so it ships
+  # pinned to the commit that was actually reviewed rather than excluded
+  # outright. "Reviewed" means: the four bundles scan to CAUTION static-only
+  # (pm-delivery risk 48, 2 HIGH), and
   # every HIGH is a prose false positive on adjudication. A re-review passes
   # only if no NEW finding appears.
   #
@@ -374,11 +458,23 @@ if [ "$MINIMAL" -eq 0 ]; then
   #
   # --filter=blob:none + cone sparse-checkout fetches only the four bundles:
   # 5.8M rather than the ~101M a plain --depth 1 costs on this repo.
+  PIN_DIR="$HOME/.claude/pinned/pm-claude-skills"
   if is_skipped "pm-claude-skills"; then
     log_skip "pm-claude-skills (explicit --skip)"
+  elif is_ephemeral_path "$PIN_DIR"; then
+    # Fail rather than skip: a silent skip exits 0 and reads as success, and the
+    # damage this prevents lands in the user's real config, not in this run.
+    log_step "Installing pm-claude-skills (pinned $PM_CLAUDE_SKILLS_SHA)"
+    printf "${RED}✘ refusing to register the pinned marketplace from a temporary path${RESET}\n" >&2
+    printf "  %s\n" "$PIN_DIR" >&2
+    printf "  The path is recorded absolutely in the global plugin registry, so a\n" >&2
+    printf "  temporary HOME leaves an entry pointing at a directory that will not\n" >&2
+    printf "  exist later, and every subsequent 'claude plugin list' reports\n" >&2
+    printf "  'cache-miss' for it.\n" >&2
+    printf "  Re-run with a persistent HOME, or pass --skip-pm-claude-skills.\n" >&2
+    log_fail "pm-claude-skills (pinned): temporary HOME"
   else
     log_step "Installing pm-claude-skills (pinned $PM_CLAUDE_SKILLS_SHA)"
-    PIN_DIR="$HOME/.claude/pinned/pm-claude-skills"
     # \$PIN_DIR is escaped in every string below so it expands INSIDE eval as an
     # ordinary parameter expansion. Interpolating it directly would make the
     # value of $HOME shell source text that eval re-parses — a HOME containing
