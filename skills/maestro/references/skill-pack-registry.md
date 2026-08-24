@@ -31,7 +31,7 @@ These apply to every domain below:
 
 ## Domain packs
 
-### Marketing — `marketing-skills` (47 skills, MIT)
+### Marketing — `marketing-skills` (50 skills, MIT)
 
 Copywriting, seo-audit, ai-seo, programmatic-seo, schema, site-architecture, cro, lead-magnets, launch, pricing, offers, ads, ad-creative, emails, cold-email, sms, referrals, onboarding, paywalls, popups, marketing-psychology, competitors, customer-research, and more.
 

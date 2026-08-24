@@ -32,8 +32,8 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 |-----------|----------|---------|
 | [superpowers plugin](https://github.com/obra/superpowers) | Yes | `claude plugin install superpowers@claude-plugins-official` |
 | [Context7 MCP](https://github.com/upstash/context7) | Yes | `npx ctx7 setup --claude` |
-| [Vercel plugin](https://github.com/vercel-labs/agent-skills) | Recommended | Provides shadcn + react-best-practices skills |
-| [Security Guidance](https://github.com/anthropics/claude-code) | Recommended | `claude plugin install security-guidance@claude-plugins-official` — real-time pre-edit security scanning |
+| [Vercel plugin](https://github.com/vercel-labs/agent-skills) | Recommended | Optional platform tooling; ships no maestro-consumed Step 5 skills |
+| [Security Guidance](https://github.com/anthropics/claude-code) | Recommended | `claude plugin install security-guidance@claude-plugins-official` — post-edit security scanning |
 | [PR Review Toolkit](https://github.com/anthropics/claude-code) | Recommended | `claude plugin install pr-review-toolkit@claude-plugins-official` — 6 specialist review agents |
 | [Playwright MCP](https://github.com/microsoft/playwright-mcp) | Recommended | `npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright` |
 | [claude-mem](https://github.com/thedotmack/claude-mem) | Recommended | `npx claude-mem install` — persistent memory across sessions via 5 lifecycle hooks + 3 MCP tools (`search`, `timeline`, `get_observations`) |
@@ -41,7 +41,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 | [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | Recommended | `claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill && claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill` — 84 styles, 192 colour palettes, 74 font pairings, 98 UX guidelines (auto-activates on UI/UX prompts; Step 5e checklist remains canonical). **The `uipro-cli` npm package was renamed `ui-ux-pro-max-cli`** — the old name still installs a stale version, so prefer the plugin route |
 | [Anthropic example-skills](https://github.com/anthropics/skills) | Recommended | `claude plugin marketplace add anthropics/skills && claude plugin install example-skills@anthropic-agent-skills` — one plugin covering `skill-creator`, `mcp-builder`, `webapp-testing`, `brand-guidelines`, `web-artifacts-builder`, `frontend-design`, `canvas-design`, `theme-factory` and more. The sibling `document-skills` plugin (docx/pdf/pptx/xlsx) is **source-available, not open source** — install separately only if needed |
 | [finance / small-business / legal](https://github.com/anthropics/knowledge-work-plugins) | Recommended | `claude plugin marketplace add anthropics/knowledge-work-plugins` then `claude plugin install <name>@knowledge-work-plugins` — Anthropic first-party domain packs (8 / 31 / 9 skills, Apache-2.0). These live in `knowledge-work-plugins`, **not** `claude-plugins-official`. Each ships a `.mcp.json` pre-wiring hosted connectors (Snowflake, QuickBooks, DocuSign, Slack…) — dormant until OAuth-approved, but review before org rollout |
-| [marketing-skills](https://github.com/coreyhaines31/marketingskills) | Recommended | `claude plugin marketplace add coreyhaines31/marketingskills && claude plugin install marketing-skills@marketingskills` — 47 MIT skills (copywriting, seo-audit, lead-magnets, launch, pricing, cro, ads…). Install only from the canonical `coreyhaines31` slug — copycat forks circulate |
+| [marketing-skills](https://github.com/coreyhaines31/marketingskills) | Recommended | `claude plugin marketplace add coreyhaines31/marketingskills && claude plugin install marketing-skills@marketingskills` — 50 MIT skills (copywriting, seo-audit, lead-magnets, launch, pricing, cro, ads…). Install only from the canonical `coreyhaines31` slug — copycat forks circulate |
 | [leadership-skills](https://github.com/PierrickMartos/Leadership-Skills) | Recommended | `claude plugin marketplace add PierrickMartos/Leadership-Skills` then install `performance-management`, `communication`, `decision-making` — 11 of its 13 MIT skills (write-performance-review, calibrate-talent, difficult-conversations, reframe-for-execs, bluf-communication, decision-memo, adversarial-review). The `hiring` and `learning` plugins are left to taste. Task-and-artefact shaped: each ends in a deliverable with a fixed output contract |
 | [pm-product-discovery](https://github.com/phuryn/pm-skills) + [c-level-skills](https://github.com/alirezarezvani/claude-skills) | Recommended | `claude plugin marketplace add phuryn/pm-skills && claude plugin install pm-product-discovery@pm-skills`, then `claude plugin marketplace add alirezarezvani/claude-skills && claude plugin install c-level-skills@claude-code-skills` (that marketplace registers under `claude-code-skills`, not its repo name) — MIT. Opportunity scanning (Torres opportunity-solution-tree) and engineering-org leverage (vpe-advisor, org-health-diagnostic, decision-logger). [pm-claude-skills](https://github.com/mohitagw15856/pm-claude-skills) ships **pinned to a reviewed commit** — `pm-delivery`, `pm-people`, `pm-career`, `pm-comms` (1:1 prep, delegation briefs, SBI feedback, brag-doc). Its README claims an official-directory listing that does not exist and it lands ~12 commits a day, so `install.sh` clones the reviewed commit rather than tracking `main`, and fails closed on a wrong commit, a modified worktree, or a pin directory under a temporary root |
 | [social-media-skills](https://github.com/charlie947/social-media-skills) | Recommended | `claude plugin marketplace add charlie947/social-media-skills && claude plugin install social-media-skills@social-media-skills` — 17 MIT skills (voice-builder, post-writer, hook-generator, reels-scripting, youtube-thumbnail…). **Run `voice-builder` first** or output carries the author's branding; `reels-scripting` and `post-scorer` call paid third-party APIs |
@@ -75,7 +75,7 @@ cd my-claude-maestro
 ./install.sh
 ```
 
-The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, leadership-skills, pm-product-discovery, c-level-skills, Taste, and Transitions. `pm-claude-skills` is the one pack installed from a **pinned commit** rather than a default branch, cloned to `~/.claude/pinned/pm-claude-skills`; skip it with `--skip-pm-claude-skills`.
+The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, leadership-skills, pm-product-discovery, c-level-skills (installer component name: `c-level-advisor`), Taste, and Transitions. `pm-claude-skills` is the one pack installed from a **pinned commit** rather than a default branch, cloned to `~/.claude/pinned/pm-claude-skills`; skip it with `--skip-pm-claude-skills`.
 
 Heavy/specialised dependencies (VoiceMode, n8n-MCP, LightRAG) are **excluded by default** — install manually from the [Prerequisites](#prerequisites) table if you need them.
 
@@ -123,7 +123,7 @@ Every task follows one flow. Steps are skipped when not applicable:
  3. BRAINSTORM   → superpowers:brainstorming (or systematic-debugging for bugs)
  4. PLAN         → superpowers:writing-plans
  5. UI/UX GATE   → Generate approved design mockup → full design system checklist (frontend only)
- 6. SECURITY     → OWASP + LLM security checklist + real-time edit scanning
+ 6. SECURITY     → OWASP + LLM security checklist + post-edit scanning
  7. IMPLEMENT    → superpowers:test-driven-development
  8. VERIFY       → superpowers:verification + quality gates + Playwright visual checks
 8.5 LOCAL REVIEW → code-reviewer on the local diff (+ SkillSpector for skill artefacts)
@@ -135,7 +135,7 @@ Every task follows one flow. Steps are skipped when not applicable:
 
 | Condition | Steps Skipped |
 |-----------|---------------|
-| Trivial config/docs change | 3–6 and 8.5 — but a `SKILL.md`, plugin-manifest or MCP-config edit is never trivial, and always runs 8.5 |
+| Trivial config/docs change | 3–6 and 8.5 — but a `SKILL.md`, plugin-manifest or MCP-config edit is never trivial, and always runs Step 6 and Step 8.5 |
 | No frontend touched | 5, visual verification in 8 |
 | Component-level frontend tweak (className, copy edit, prop rename) | 5a–5c (mockup) and 5d — 5e checklist still runs |
 | Bug fix | 3 → systematic-debugging |

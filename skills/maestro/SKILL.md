@@ -326,7 +326,7 @@ Maestro provides **two layers** of security enforcement:
 
 When a vulnerability is detected, the hook shows a warning with remediation advice after the edit lands: re-read the flagged file and remediate before continuing the TDD loop. This catches issues that pass checklist review but appear during implementation.
 
-**If the Security Guidance plugin is not installed:** This step still functions via the checklist alone. Note the missing plugin in your response so the user can install it for real-time protection.
+**If the Security Guidance plugin is not installed:** This step still functions via the checklist alone. Note the missing plugin in your response so the user can install it for automated post-edit protection.
 
 ---
 
