@@ -33,16 +33,20 @@ jobs:
           persist-credentials: false
 
       - name: Load state from upstream-state branch
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           # State migrated off main (2026-08-24): the branch is the source of
           # truth. Fall back to the legacy in-tree copy during migration, then
           # to an empty object (first-seen repos seed silently by design).
+          # A branch that exists but cannot be read is a hard failure: silently
+          # resetting to {} would suppress every report while the heartbeat
+          # kept advancing, the exact failure mode this design removes.
           if git fetch --quiet --depth 1 origin upstream-state 2>/dev/null \
             && git show FETCH_HEAD:upstream-state.json > /tmp/upstream-state.json 2>/dev/null; then
             echo "Loaded state from upstream-state branch"
+          elif [ -n "$(git ls-remote --heads origin upstream-state 2>/dev/null)" ]; then
+            echo "::error::upstream-state branch exists but could not be read; refusing to reset state"
+            exit 1
           elif [ -f .github/upstream-state.json ]; then
             cp .github/upstream-state.json /tmp/upstream-state.json
             echo "Loaded legacy state from .github/upstream-state.json"
@@ -115,16 +119,16 @@ jobs:
             echo "Checking $REPO..."
 
             # Get latest release tag (handle 404 for repos with no releases)
-            LATEST_RELEASE=$(safe_api "repos/$REPO/releases/latest" '{"tag_name":"none"}' | jq -r '.tag_name // "none"' 2>/dev/null || echo "none")
+            LATEST_RELEASE=$(safe_api "repos/$REPO/releases/latest" '{"tag_name":"none"}' | jq -r '.tag_name // "none"' 2>/dev/null | tr -d '\140' || echo "none")
 
             # Get latest commit on default branch (single fetch)
             RAW_COMMITS_1=$(safe_api "repos/$REPO/commits?per_page=1" '[]')
             LATEST_COMMIT=$(echo "$RAW_COMMITS_1" | jq -r '.[0].sha // "unknown"' 2>/dev/null || echo "unknown")
-            LATEST_COMMIT_MSG=$(echo "$RAW_COMMITS_1" | jq -r '.[0].commit.message // ""' 2>/dev/null | head -1 || echo "")
+            LATEST_COMMIT_MSG=$(echo "$RAW_COMMITS_1" | jq -r '.[0].commit.message // ""' 2>/dev/null | head -1 | tr -d '\140' || echo "")
 
             # Get previous state for this repo
-            PREV_RELEASE=$(echo "$PREV_STATE" | jq -r ".\"$KEY\".release // \"\"")
-            PREV_COMMIT=$(echo "$PREV_STATE" | jq -r ".\"$KEY\".commit // \"\"")
+            PREV_RELEASE=$(echo "$PREV_STATE" | jq -r --arg k "$KEY" '.[$k].release // ""')
+            PREV_COMMIT=$(echo "$PREV_STATE" | jq -r --arg k "$KEY" '.[$k].commit // ""')
 
             # Check for changes
             CHANGED=false
@@ -213,7 +217,7 @@ jobs:
                 | .[0:5]
                 | map("  - `\(.sha)` [\(.type)] \(.msg)")
                 | join("\n")
-              ' 2>/dev/null || echo "")
+              ' 2>/dev/null | tr -d '\140' || echo "")
               if [ -n "$RECENT_COMMITS" ]; then
                 CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - Recent commits:"$'\n'"${RECENT_COMMITS}"
               fi
@@ -224,12 +228,23 @@ jobs:
               ISSUE_BODY="${ISSUE_BODY}"$'\n'"### [$KEY](https://github.com/$REPO)"$'\n'"${CHANGE_DETAILS}"$'\n'
             fi
 
-            # Build new state JSON
-            NEW_STATE=$(printf '%s' "$NEW_STATE" | jq \
-              --arg key "$KEY" \
-              --arg release "$LATEST_RELEASE" \
-              --arg commit "$LATEST_COMMIT" \
-              '.[$key] = {release: $release, commit: $commit}')
+            # Build new state JSON. A failed commit fetch ("unknown") must not
+            # overwrite good state: persisting it would trip a bogus CHANGED on
+            # the next run and 404 the compare call. Keep the previous entry.
+            if [ "$LATEST_COMMIT" = "unknown" ] && [ -n "$PREV_COMMIT" ]; then
+              echo "::warning::$REPO fetch failed; keeping previous state entry"
+              NEW_STATE=$(printf '%s' "$NEW_STATE" | jq \
+                --arg key "$KEY" \
+                --arg release "$PREV_RELEASE" \
+                --arg commit "$PREV_COMMIT" \
+                '.[$key] = {release: $release, commit: $commit}')
+            else
+              NEW_STATE=$(printf '%s' "$NEW_STATE" | jq \
+                --arg key "$KEY" \
+                --arg release "$LATEST_RELEASE" \
+                --arg commit "$LATEST_COMMIT" \
+                '.[$key] = {release: $release, commit: $commit}')
+            fi
           done
 
           # Pinned-drift check: pm-claude-skills installs from an exact SHA
@@ -238,12 +253,20 @@ jobs:
           # the re-review has a trigger; nothing auto-bumps.
           PINNED_SHA=$(sed -n 's/^PM_CLAUDE_SKILLS_SHA="\([0-9a-f]\{40\}\)"$/\1/p' install.sh | head -1)
           if [ -n "$PINNED_SHA" ]; then
+            # Fail closed: an API failure (or the pinned commit vanishing
+            # upstream via history rewrite) must be reported, not read as
+            # "pin is current". total_commits is only trusted when present.
             PIN_CMP=$(safe_api "repos/mohitagw15856/pm-claude-skills/compare/$PINNED_SHA...HEAD" '{}')
-            PIN_BEHIND=$(echo "$PIN_CMP" | jq -r '.total_commits // 0' 2>/dev/null || echo 0)
-            if [ "${PIN_BEHIND:-0}" -gt 0 ]; then
+            PIN_BEHIND=$(echo "$PIN_CMP" | jq -r 'if has("total_commits") then .total_commits else "check-failed" end' 2>/dev/null || echo "check-failed")
+            if [ "$PIN_BEHIND" = "check-failed" ]; then
+              UPDATES_FOUND=true
+              ISSUE_BODY="${ISSUE_BODY}"$'\n'"### Pinned pack drift"$'\n'"  - **pm-claude-skills:** drift check FAILED (compare API unreachable, or pinned \`${PINNED_SHA:0:7}\` no longer exists upstream). Verify manually: a vanished pin is itself a supply-chain signal."$'\n'
+            elif [ "${PIN_BEHIND:-0}" -gt 0 ] 2>/dev/null; then
               UPDATES_FOUND=true
               ISSUE_BODY="${ISSUE_BODY}"$'\n'"### Pinned pack drift"$'\n'"  - **pm-claude-skills:** pinned \`${PINNED_SHA:0:7}\` is **$PIN_BEHIND commit(s) behind** upstream HEAD. Bumping \`PM_CLAUDE_SKILLS_SHA\` is a re-review, not a version bump (see install.sh)."$'\n'
             fi
+          else
+            echo "::warning::PM_CLAUDE_SKILLS_SHA not found in install.sh; pin-drift check skipped"
           fi
 
           # Heartbeat: last_sync advances on every successful run, so a green
@@ -283,18 +306,18 @@ jobs:
               '*This issue was automatically created by the upstream tracker workflow.*')
 
             # Check for existing open issue to avoid duplicates
-            EXISTING=$(gh issue list --repo "${{ github.repository }}" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
+            EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
 
             if [ -n "$EXISTING" ]; then
               # Comment on existing issue. State advances every run now, so
               # each comment carries only the delta since the previous run,
               # never a re-report of the same accumulated diff.
-              gh issue comment "$EXISTING" --repo "${{ github.repository }}" --body "$BODY"
+              gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "$BODY"
               echo "Updated existing issue #$EXISTING"
             else
               # Create new issue
               gh issue create \
-                --repo "${{ github.repository }}" \
+                --repo "$GITHUB_REPOSITORY" \
                 --title "$TITLE" \
                 --body "$BODY" \
                 --label "upstream-update"
