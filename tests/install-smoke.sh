@@ -322,6 +322,85 @@ assert_pin_dir_refused() {
 
 # assert_every_component_is_skippable <description>
 #
+# The default path needs git (pinned pack, Transitions, everything-claude-code
+# clones); --minimal does not. Preflight must catch the missing tool before a
+# single component installs. PATH is restricted to the stub dir alone: the
+# script reaches preflight on bash builtins, so the four stubs are enough to
+# get there and the absence of git is the only failure in scope.
+assert_git_preflight() {
+  local description="$1" out_file rc combined
+  out_file="$(mktemp)" || { echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
+  # log_fail writes to stdout; capture both streams for the message check.
+  PATH="$STUB_DIR" "$BASH" "$INSTALLER" --dry-run >"$out_file" 2>&1
+  rc=$?
+  combined="$(cat "$out_file")"
+  rm -f "$out_file"
+  if [ "$rc" -eq 1 ] && printf '%s' "$combined" | grep -q "Missing required tools:.*git"; then
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $description (rc=$rc, output does not name git: ${combined:0:120})"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_minimal_skips_git_requirement() {
+  local description="$1" rc
+  PATH="$STUB_DIR" "$BASH" "$INSTALLER" --dry-run --minimal >/dev/null 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $description (rc=$rc)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+# Every install_plugin call site's marketplace and plugin spec must appear
+# verbatim in default --dry-run output. This is the generalisation of the
+# reactive per-pack assertions above it: the c-level-advisor incident (wrong
+# marketplace AND wrong plugin name, green CI throughout) becomes structurally
+# impossible to reintroduce for any pack, present or future. Skip-guarded
+# packs are exercised because the default run skips nothing.
+assert_all_plugin_specs_in_dry_run() {
+  local description="$1" output pairs marketplace spec missing=""
+
+  output="$("$BASH" "$INSTALLER" --dry-run 2>/dev/null)"
+  # Call sites span lines; flatten the file so each call is one record.
+  pairs="$(tr '\n' ' ' < "$INSTALLER" | sed 's/install_plugin /\
+install_plugin /g' | sed -n 's/^install_plugin "[^"]*"[[:space:]\\]*"\([^"]*\)"[[:space:]\\]*"\([^"]*\)".*/\1 \2/p')"
+
+  if [ -z "$pairs" ]; then
+    echo "FAIL: $description (extracted no install_plugin call sites)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+
+  while IFS=' ' read -r marketplace spec; do
+    [ -z "$marketplace" ] && continue
+    case "$output" in
+      *"claude plugin marketplace add $marketplace"*) : ;;
+      *) missing="$missing [marketplace:$marketplace]" ;;
+    esac
+    case "$output" in
+      *"claude plugin install $spec"*) : ;;
+      *) missing="$missing [spec:$spec]" ;;
+    esac
+  done <<EOF_PAIRS
+$pairs
+EOF_PAIRS
+
+  if [ -n "$missing" ]; then
+    echo "FAIL: $description"
+    echo "      not found in --dry-run output:$missing"
+    FAIL=$((FAIL + 1))
+  else
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  fi
+}
+
 # Asserts the user-facing invariant directly rather than diffing against the
 # KNOWN_COMPONENTS constant: every name the installer can skip must survive
 # `--skip-<name>` validation. Written this way so adding a pack without adding
@@ -487,6 +566,13 @@ assert_run "unknown --skip-<name> is rejected rather than silently ignored" 2 \
 
 # The allowlist that makes the case above possible must not go stale.
 assert_every_component_is_skippable "every real component survives --skip validation"
+
+# Preflight tool requirements: git on the default path, not on --minimal.
+assert_git_preflight "missing git fails preflight legibly on the default path"
+assert_minimal_skips_git_requirement "--minimal does not require git"
+
+# Every declared marketplace and plugin spec is emitted by a default dry run.
+assert_all_plugin_specs_in_dry_run "every install_plugin spec appears in --dry-run output"
 
 echo ""
 echo "passed: $PASS  failed: $FAIL"

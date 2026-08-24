@@ -48,12 +48,20 @@ jobs:
         run: |
           "$SHELL_BIN" -n install.sh
           "$SHELL_BIN" -n tests/install-smoke.sh
+          "$SHELL_BIN" -n hooks/check-update.sh
+          "$SHELL_BIN" -n tests/hook-smoke.sh
 
       - name: Run smoke suite
         env:
           SHELL_BIN: ${{ matrix.shell_bin }}
         run: |
           "$SHELL_BIN" tests/install-smoke.sh
+
+      - name: Run hook smoke suite
+        env:
+          SHELL_BIN: ${{ matrix.shell_bin }}
+        run: |
+          "$SHELL_BIN" tests/hook-smoke.sh
 
   shellcheck:
     name: shellcheck
@@ -70,6 +78,8 @@ jobs:
         run: |
           shellcheck -S warning -e SC2294 install.sh
           shellcheck -S warning tests/install-smoke.sh
+          shellcheck -S warning hooks/check-update.sh
+          shellcheck -S warning tests/hook-smoke.sh
 
   manifests:
     name: manifests parse
@@ -116,6 +126,71 @@ jobs:
               bad.append(
                   "plugin.json is missing description or homepage "
                   "(both are user-facing in /plugin)"
+              )
+
+          # --- Skill bundle lint (2026-08-24) -----------------------------
+          # Eleven statically-detectable defects shipped before this job
+          # existed: dead references, cross-file drift, unresolvable names.
+          # Everything below is cheap string checking over the bundle.
+          import re
+
+          skill = open("skills/maestro/SKILL.md", encoding="utf-8").read()
+
+          # Frontmatter: parse the leading --- block by hand (no yaml dep)
+          fm = re.match(r"\A---\n(.*?)\n---\n", skill, re.S)
+          if not fm:
+              bad.append("SKILL.md has no leading frontmatter block")
+          else:
+              fm_name = re.search(r"^name:\s*(\S+)\s*$", fm.group(1), re.M)
+              if not fm_name or fm_name.group(1) != plugin["name"]:
+                  bad.append(
+                      "SKILL.md frontmatter name "
+                      f"{fm_name.group(1) if fm_name else None!r} != plugin.json "
+                      f"name {plugin['name']!r}"
+                  )
+              if not re.search(r"^description:\s*\S", fm.group(1), re.M):
+                  bad.append("SKILL.md frontmatter has no description")
+
+          # Every references/*.md the skill points at must exist in the bundle
+          for ref in sorted(set(re.findall(r"references/[a-z0-9-]+\.md", skill))):
+              if not os.path.isfile(os.path.join("skills/maestro", ref)):
+                  bad.append(f"SKILL.md references missing file {ref}")
+
+          # hooks.json command paths must resolve in-tree
+          hooks = json.load(open("hooks/hooks.json"))
+          for event in hooks.get("hooks", {}).values():
+              for group in event:
+                  for h in group.get("hooks", []):
+                      for m in re.findall(
+                          r"\$\{CLAUDE_PLUGIN_ROOT\}/(\S+?)[\"']",
+                          h.get("command", ""),
+                      ):
+                          if not os.path.isfile(m):
+                              bad.append(
+                                  f"hooks.json references missing script {m}"
+                              )
+
+          # check-update.sh must point at the repo the manifests name
+          hook_src = open("hooks/check-update.sh", encoding="utf-8").read()
+          hook_repo = re.search(r'^REPO="([^"]+)"', hook_src, re.M)
+          manifest_repo = plugin.get("repository", "")
+          if not hook_repo or hook_repo.group(1) not in manifest_repo:
+              bad.append(
+                  "check-update.sh REPO "
+                  f"{hook_repo.group(1) if hook_repo else None!r} does not "
+                  f"match plugin.json repository {manifest_repo!r}"
+              )
+
+          # Hot-path word ceiling. README's token-discipline paragraph
+          # accounts for every overspend; this makes silent drift impossible.
+          # Raising the ceiling is a visible diff needing a justification,
+          # which is exactly the discipline CONTRIBUTING.md asks for.
+          WORD_CEILING = 6500
+          words = len(skill.split())
+          if words > WORD_CEILING:
+              bad.append(
+                  f"SKILL.md is {words} words, over the {WORD_CEILING} "
+                  "ceiling; trim it or raise the ceiling with justification"
               )
 
           if bad:
