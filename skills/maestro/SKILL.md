@@ -91,6 +91,8 @@ Determine the task type and scope before doing anything else.
 **Output:** A one-line classification statement, e.g.:
 > "Feature: full-stack — adding OKR alignment suggestions. Involves: Next.js (frontend), FastAPI + DSPy (backend). Non-trivial. Domain: engineering. Model: opus throughout; fable only if Step 8.5 turns up a security verdict to adjudicate."
 
+**Ledger:** for non-trivial engineering tasks, create `.maestro/evidence-<date>-<task-slug>.md` now, recording the classification, skip row, supply-chain flag, and model tier — later steps re-read these from the file, never from memory. Format, the stable-key rule, and read-back points: `references/evidence-ledger.md`. Skipped on the trivial row and the Deliverable flow.
+
 **Memory-assisted classification (if claude-mem is available):**
 
 Before locking in the classification, query prior observations to avoid re-deriving context that already exists:
@@ -177,6 +179,7 @@ Invoke `superpowers:writing-plans` to create a detailed implementation plan.
 - If frontend work is included, the plan must note which UI/UX checklist items apply
 - If security-sensitive (auth, input handling, LLM calls), the plan must note which security checklist items apply
 - Every plan must include a testing strategy section
+- Every plan task names its verification command and expected success marker; copy these into the evidence ledger as pre-registered gates before Step 7 starts — the oracle is fixed before implementation, not chosen after to fit the result
 - **Plan reuse (if claude-mem available)** — call `search` for prior plans with similar scope (e.g., "pagination endpoint", "OKR checkin migration"). If a close structural match exists, reuse the proven plan skeleton and cite the prior plan in the justification — do not duplicate planning work the user has already approved.
 
 ---
@@ -358,6 +361,7 @@ Before writing "done/fixed/passing/works/verified" or any synonym:
 2. Run it FRESH this message — no cached or prior runs.
 3. Paste the actual output (or line/byte count, response, figures) inline.
 4. No evidence ⇒ state UNVERIFIED + the missing check. Do not claim.
+5. Update the evidence ledger: fill each gate's EVIDENCE from this message's fresh output; demote any gate that no longer passes; the final report names every unmet or abandoned gate with its reason, not only the ones that passed.
 
 Deliberately duplicates `superpowers:verification-before-completion` — the gate must be visible in the workflow, because the sub-skill only fires if invoked.
 

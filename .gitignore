@@ -4,3 +4,5 @@
 
 # Local Claude Code settings & worktrees
 .claude/
+# Maestro evidence ledgers (local by default; see references/evidence-ledger.md)
+.maestro/
