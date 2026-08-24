@@ -6,16 +6,16 @@ Read this **only when** a pack you need is missing, the user asks how to install
 
 | Pack | Install | Provides |
 | --- | --- | --- |
-| superpowers | Ships with Claude Code | brainstorming, writing-plans, TDD, systematic-debugging, verification, finishing-a-development-branch |
+| superpowers | `claude plugin install superpowers@claude-plugins-official` | brainstorming, writing-plans, TDD, systematic-debugging, verification, finishing-a-development-branch |
 | Context7 MCP | `npx ctx7 setup --claude` | Live library docs (Step 2) |
 
 ## Recommended
 
 | Pack | Install | Consumed at |
 | --- | --- | --- |
-| Vercel plugin | `claude plugin install vercel@claude-plugins-official` | Step 5 (shadcn, react-best-practices) |
-| Security Guidance | `claude plugin install security-guidance@claude-plugins-official` | Step 6 (real-time pre-edit scanning) |
-| PR Review Toolkit | Ships with Claude Code | Steps 8.5 + 10 (6 specialist review agents) |
+| Vercel plugin | `claude plugin install vercel@claude-plugins-official` | Optional platform tooling; ships no Step 5 skills (5a uses `frontend-design` alone) |
+| Security Guidance | `claude plugin install security-guidance@claude-plugins-official` | Step 6 (post-edit scanning) |
+| PR Review Toolkit | `claude plugin install pr-review-toolkit@claude-plugins-official` | Steps 8.5 + 10 (6 specialist review agents) |
 | Playwright MCP | `npx @anthropic-ai/claude-code mcp add playwright -- npx @anthropic-ai/mcp-playwright` | Step 8 (visual verification) |
 | claude-mem | `npx claude-mem install` | Steps 1/3/4 (`search`, `timeline`, `get_observations`) |
 | frontend-design | `claude plugin install frontend-design@claude-plugins-official` — **or** get it bundled inside `example-skills` (row below); either source works, no need for both | Step 5a/5b (design direction + mockup) |
@@ -66,7 +66,7 @@ A missing pack **never blocks a task**. Perform the equivalent manually and note
 | Missing | Effect |
 | --- | --- |
 | A superpowers skill | Do the step manually — brainstorming → propose 2–3 approaches and get approval; writing-plans → a numbered plan; TDD → tests first anyway; verification → run the gate commands by hand. **Never skip the step.** |
-| Security Guidance | Step 6 checklist still enforced; no real-time edit scanning |
+| Security Guidance | Step 6 checklist still enforced; no automated post-edit scanning |
 | Playwright MCP | Step 8 skips visual verification; tests, lint, types still apply |
 | PR Review Toolkit | Step 10 skips Phase 1; Phase 2 polling loop still runs. Step 8.5 falls back to manual self-review against CLAUDE.md + the security checklist |
 | claude-mem | Steps 1/3/4 skip memory lookup; proceed from the current request alone |
