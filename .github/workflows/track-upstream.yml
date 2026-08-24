@@ -44,19 +44,31 @@ jobs:
           if git fetch --quiet --depth 1 origin upstream-state 2>/dev/null \
             && git show FETCH_HEAD:upstream-state.json > /tmp/upstream-state.json 2>/dev/null; then
             echo "Loaded state from upstream-state branch"
-          elif [ -n "$(git ls-remote --heads origin upstream-state 2>/dev/null)" ]; then
-            echo "::error::upstream-state branch exists but could not be read; refusing to reset state"
-            exit 1
-          elif [ -f .github/upstream-state.json ]; then
-            cp .github/upstream-state.json /tmp/upstream-state.json
-            echo "Loaded legacy state from .github/upstream-state.json"
           else
-            echo '{}' > /tmp/upstream-state.json
-            echo "No prior state found; starting fresh"
+            # The fetch failed. Distinguish three cases via ls-remote's EXIT
+            # STATUS, not its output: a non-zero exit means the remote could not
+            # be reached (transient), and resetting to {} there would silently
+            # drop that window's deltas while the heartbeat still advanced. Only
+            # a clean "branch genuinely absent" result may fall through to a
+            # fresh start.
+            LS_OUT=$(git ls-remote --heads origin upstream-state 2>/dev/null)
+            LS_RC=$?
+            if [ "$LS_RC" -ne 0 ]; then
+              echo "::error::cannot reach origin to load upstream-state; refusing to reset state"
+              exit 1
+            elif [ -n "$LS_OUT" ]; then
+              echo "::error::upstream-state branch exists but could not be read; refusing to reset state"
+              exit 1
+            elif [ -f .github/upstream-state.json ]; then
+              cp .github/upstream-state.json /tmp/upstream-state.json
+              echo "Loaded legacy state from .github/upstream-state.json"
+            else
+              echo '{}' > /tmp/upstream-state.json
+              echo "No prior state found; starting fresh"
+            fi
           fi
 
       - name: Check upstream repos for updates
-        id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -101,11 +113,27 @@ jobs:
           PREV_STATE=$(cat "$STATE_FILE")
 
           # Helper: fetch GitHub API and strip control chars that break jq.
-          # Preserves newlines (\012) and tabs (\011) needed for valid JSON.
+          # Keeps newline (\012), tab (\011) and CR (\015) so JSON stays valid.
+          # Returns the fallback ($2) on any failure; callers that must tell a
+          # transport failure from a legitimate 404 use api_ok below instead.
           safe_api() {
             local response
             response=$(gh api "$1" 2>/dev/null) || { echo "$2"; return; }
             printf '%s' "$response" | tr -d '\000-\010\013-\014\016-\037'
+          }
+
+          # Fetch that reports success separately from the payload: sets the
+          # global API_OK to 1 on a clean call and 0 on any failure (including a
+          # 404), so a caller can preserve prior state on failure rather than
+          # overwriting it with a fallback that looks like real data.
+          api_fetch() {
+            local response
+            if response=$(gh api "$1" 2>/dev/null); then
+              API_OK=1
+              printf '%s' "$response" | tr -d '\000-\010\013-\014\016-\037'
+            else
+              API_OK=0
+            fi
           }
 
           # Built with jq rather than string concatenation: release tags and
@@ -118,17 +146,28 @@ jobs:
             REPO="${REPOS[$KEY]}"
             echo "Checking $REPO..."
 
-            # Get latest release tag (handle 404 for repos with no releases)
-            LATEST_RELEASE=$(safe_api "repos/$REPO/releases/latest" '{"tag_name":"none"}' | jq -r '.tag_name // "none"' 2>/dev/null | tr -d '\140' || echo "none")
+            # Previous state for this repo (read before the fetches so a failed
+            # fetch can preserve it rather than overwrite it).
+            PREV_RELEASE=$(echo "$PREV_STATE" | jq -r --arg k "$KEY" '.[$k].release // ""')
+            PREV_COMMIT=$(echo "$PREV_STATE" | jq -r --arg k "$KEY" '.[$k].commit // ""')
+
+            # Get latest release tag. A transient releases-API failure must not
+            # clobber a real tag with "none": preserve the previous value and
+            # only write "none" when the call genuinely succeeds (a repo with no
+            # releases) or when nothing was known before.
+            REL_JSON=$(api_fetch "repos/$REPO/releases/latest")
+            if [ "$API_OK" = "1" ]; then
+              LATEST_RELEASE=$(echo "$REL_JSON" | jq -r '.tag_name // "none"' 2>/dev/null | tr -d '\140' || echo "none")
+            elif [ -n "$PREV_RELEASE" ]; then
+              LATEST_RELEASE="$PREV_RELEASE"
+            else
+              LATEST_RELEASE="none"
+            fi
 
             # Get latest commit on default branch (single fetch)
             RAW_COMMITS_1=$(safe_api "repos/$REPO/commits?per_page=1" '[]')
             LATEST_COMMIT=$(echo "$RAW_COMMITS_1" | jq -r '.[0].sha // "unknown"' 2>/dev/null || echo "unknown")
             LATEST_COMMIT_MSG=$(echo "$RAW_COMMITS_1" | jq -r '.[0].commit.message // ""' 2>/dev/null | head -1 | tr -d '\140' || echo "")
-
-            # Get previous state for this repo
-            PREV_RELEASE=$(echo "$PREV_STATE" | jq -r --arg k "$KEY" '.[$k].release // ""')
-            PREV_COMMIT=$(echo "$PREV_STATE" | jq -r --arg k "$KEY" '.[$k].commit // ""')
 
             # Check for changes
             CHANGED=false
@@ -228,6 +267,12 @@ jobs:
               ISSUE_BODY="${ISSUE_BODY}"$'\n'"### [$KEY](https://github.com/$REPO)"$'\n'"${CHANGE_DETAILS}"$'\n'
             fi
 
+            # Remember the pinned pack's upstream HEAD for the drift check below,
+            # so drift is reported per-delta (when HEAD moves) rather than daily.
+            if [ "$KEY" = "pm-claude-skills" ]; then
+              PM_UPSTREAM_HEAD="$LATEST_COMMIT"
+            fi
+
             # Build new state JSON. A failed commit fetch ("unknown") must not
             # overwrite good state: persisting it would trip a bogus CHANGED on
             # the next run and 404 the compare call. Keep the previous entry.
@@ -251,23 +296,62 @@ jobs:
           # (install.sh PM_CLAUDE_SKILLS_SHA), and bumping that constant is a
           # re-review by policy. Report how far the pin has fallen behind so
           # the re-review has a trigger; nothing auto-bumps.
-          PINNED_SHA=$(sed -n 's/^PM_CLAUDE_SKILLS_SHA="\([0-9a-f]\{40\}\)"$/\1/p' install.sh | head -1)
+          #
+          # Drift is a level (the pin stays behind until a human bumps it), but
+          # this reporter is edge-triggered, so it is deduped through a stored
+          # signal: the pin is re-reported only when the signal changes (upstream
+          # HEAD moved, the pin was bumped, or the check's status flipped), never
+          # on a quiet day when the same backlog simply persists.
+          PREV_PIN_SIGNAL=$(echo "$PREV_STATE" | jq -r '.pin_drift // ""')
+          PIN_SIGNAL=""
+          PINNED_SHA=""
+          if [ -f install.sh ]; then
+            PINNED_SHA=$(sed -n 's/^PM_CLAUDE_SKILLS_SHA="\([0-9a-f]\{40\}\)"$/\1/p' install.sh | head -1)
+          else
+            echo "::warning::install.sh not found; pin-drift check skipped"
+          fi
           if [ -n "$PINNED_SHA" ]; then
             # Fail closed: an API failure (or the pinned commit vanishing
             # upstream via history rewrite) must be reported, not read as
             # "pin is current". total_commits is only trusted when present.
             PIN_CMP=$(safe_api "repos/mohitagw15856/pm-claude-skills/compare/$PINNED_SHA...HEAD" '{}')
             PIN_BEHIND=$(echo "$PIN_CMP" | jq -r 'if has("total_commits") then .total_commits else "check-failed" end' 2>/dev/null || echo "check-failed")
-            if [ "$PIN_BEHIND" = "check-failed" ]; then
+
+            PIN_DRIFT_MSG=""
+            case "$PIN_BEHIND" in
+              check-failed)
+                PIN_SIGNAL="failed:${PINNED_SHA:0:7}"
+                PIN_DRIFT_MSG="  - **pm-claude-skills:** drift check FAILED (compare API unreachable, or pinned \`${PINNED_SHA:0:7}\` no longer exists upstream). Verify manually: a vanished pin is itself a supply-chain signal."
+                ;;
+              ''|*[!0-9]*)
+                # Non-numeric but not the sentinel: treat as a failed check
+                # rather than silently passing (the -gt test would error).
+                PIN_SIGNAL="failed:${PINNED_SHA:0:7}"
+                PIN_DRIFT_MSG="  - **pm-claude-skills:** drift check returned an unparseable result; verify manually."
+                ;;
+              0)
+                PIN_SIGNAL="ok:${PINNED_SHA:0:7}"
+                ;;
+              *)
+                PIN_SIGNAL="behind:${PINNED_SHA:0:7}:${PM_UPSTREAM_HEAD:0:7}"
+                PIN_DRIFT_MSG="  - **pm-claude-skills:** pinned \`${PINNED_SHA:0:7}\` is **$PIN_BEHIND commit(s) behind** upstream HEAD. Bumping \`PM_CLAUDE_SKILLS_SHA\` is a re-review, not a version bump (see install.sh)."
+                ;;
+            esac
+
+            # Emit only on a signal change, so a persistent backlog is reported
+            # once (when it grows) rather than every scheduled run.
+            if [ -n "$PIN_DRIFT_MSG" ] && [ "$PIN_SIGNAL" != "$PREV_PIN_SIGNAL" ]; then
               UPDATES_FOUND=true
-              ISSUE_BODY="${ISSUE_BODY}"$'\n'"### Pinned pack drift"$'\n'"  - **pm-claude-skills:** drift check FAILED (compare API unreachable, or pinned \`${PINNED_SHA:0:7}\` no longer exists upstream). Verify manually: a vanished pin is itself a supply-chain signal."$'\n'
-            elif [ "${PIN_BEHIND:-0}" -gt 0 ] 2>/dev/null; then
-              UPDATES_FOUND=true
-              ISSUE_BODY="${ISSUE_BODY}"$'\n'"### Pinned pack drift"$'\n'"  - **pm-claude-skills:** pinned \`${PINNED_SHA:0:7}\` is **$PIN_BEHIND commit(s) behind** upstream HEAD. Bumping \`PM_CLAUDE_SKILLS_SHA\` is a re-review, not a version bump (see install.sh)."$'\n'
+              ISSUE_BODY="${ISSUE_BODY}"$'\n'"### Pinned pack drift"$'\n'"${PIN_DRIFT_MSG}"$'\n'
             fi
-          else
-            echo "::warning::PM_CLAUDE_SKILLS_SHA not found in install.sh; pin-drift check skipped"
           fi
+
+          # Persist the pin-drift signal so the next run can dedupe against it.
+          # Carry the previous signal forward when this run could not compute one
+          # (no pin found, install.sh absent), so a transient miss does not wipe
+          # the memory and re-report on recovery.
+          [ -z "$PIN_SIGNAL" ] && PIN_SIGNAL="$PREV_PIN_SIGNAL"
+          NEW_STATE=$(printf '%s' "$NEW_STATE" | jq --arg sig "$PIN_SIGNAL" '. + {pin_drift: $sig}')
 
           # Heartbeat: last_sync advances on every successful run, so a green
           # run and a stalled tracker can no longer look identical.
