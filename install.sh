@@ -179,8 +179,18 @@ run() {
 
 log_step "Preflight checks"
 
+# git is invoked 13 times on the default path (the pinned pm-claude-skills
+# block, verify_pinned_sha, the Transitions and everything-claude-code
+# clones), all inside the recommended block. Requiring it only when that
+# block will run keeps --minimal honest while making the default path fail
+# early and legibly instead of partway through with raw git errors.
+REQUIRED_TOOLS="claude node npx curl"
+if [ "$MINIMAL" -eq 0 ]; then
+  REQUIRED_TOOLS="$REQUIRED_TOOLS git"
+fi
+
 missing_tools=()
-for tool in claude node npx curl; do
+for tool in $REQUIRED_TOOLS; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     missing_tools+=("$tool")
   fi
@@ -190,6 +200,12 @@ if [ ${#missing_tools[@]} -gt 0 ]; then
   log_fail "Missing required tools: ${missing_tools[*]}"
   echo "Install them first, then re-run this script." >&2
   exit 1
+fi
+
+# jq is optional: only hooks/check-update.sh wants it, and that hook is a
+# silent no-op without it. Worth one line at install time, not a failure.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "NOTE: jq not found — the SessionStart update notice will stay silent until jq is installed."
 fi
 
 # Several components write under $HOME — the Transitions block via an escaped
@@ -209,7 +225,7 @@ if [ -z "${HOME:-}" ]; then
   exit 1
 fi
 
-printf "${GREEN}✔ claude, node, npx, curl available${RESET}\n"
+printf "${GREEN}✔ required tools available: %s${RESET}\n" "$REQUIRED_TOOLS"
 
 # --- Install helpers --------------------------------------------------------
 
