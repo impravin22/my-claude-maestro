@@ -34,21 +34,21 @@ Engineering is the default domain and runs the full flow below. When the task is
 
 | Task is about | Domain | Pack |
 | --- | --- | --- |
-| Copy, SEO, CRO, launches, ads, email, pricing pages | marketing | `marketing-skills` (47) |
+| Copy, SEO, CRO, launches, ads, email, pricing pages | marketing | `marketing-skills` (50) |
 | Posts, threads, reels, thumbnails, content calendars | social | `social-media-skills` (17) |
 | Statements, reconciliation, close, audit, variance | finance | `finance` (8) |
 | Cash flow, payroll, invoicing, CRM and customer ops | small-business | `small-business` (31) |
 | Contracts, NDAs, compliance, legal risk | legal | `legal` (9) |
 | Jira tickets, status roll-ups, exec updates, impact write-ups, 1:1s, performance reviews, opportunity scans | leadership | `atlassian` + `pm-*` (installed) + `leadership-skills`, `pm-product-discovery`, `c-level-skills`, `pm-claude-skills` (pinned) |
-| Artifacts, long-form docs, office files | documents | `example-skills`, `document-skills` |
+| Artefacts, long-form docs, office files | documents | `example-skills`, `document-skills` |
 | Brand compliance, internal announcements | brand | `example-skills` |
 | Code, tests, infra, MCP servers, skill authoring | engineering | superpowers + the flow below |
 
-Routing to a non-engineering domain? **Read `references/skill-pack-registry.md`** — it carries the shortened Deliverable flow, each pack's gates, and its caveats. Engineering tasks skip it entirely.
+Routing to a non-engineering domain? **Read `references/skill-pack-registry.md`** — it carries the shortened Deliverable flow, each pack's gates, and its caveats. Engineering tasks skip it entirely. **Mixed tasks split:** the engineering flow owns the repo diff, the Deliverable flow owns the non-code half, and each half passes its own gates.
 
 ## Model Routing
 
-**`opus` by default; `fable` only to adjudicate.** Tier aliases, not pinned versions.
+**`opus` by default; `fable` for security adjudication, review arbitration, and high-stakes domain judgement.** Tier aliases, not pinned versions.
 
 A blind head-to-head (2026-07-29) could not separate the two on architecture, planning, or root-cause analysis, so those run on `opus`. `fable` is reserved for the three rows that experiment did not measure and whose failure cost is asymmetric: security adjudication, final review arbitration, and high-stakes domain judgement.
 
@@ -85,7 +85,7 @@ Determine the task type and scope before doing anything else.
 - What parts of the codebase are affected? (frontend, backend, full-stack, infrastructure)
 - Is this trivial (one-line config, comment fix) or non-trivial?
 - Are there libraries/frameworks involved that I need current docs for?
-- Which **domain** does this belong to? (engineering by default; design, documents, brand, marketing, social media, finance, small business, legal, or leadership when a domain pack from the Skill Pack Registry applies — non-code deliverables take the Deliverable flow)
+- Which **domain** does this belong to? (engineering by default; documents, brand, marketing, social media, finance, small business, legal, or leadership when a domain pack from the Skill Pack Registry applies — non-code deliverables take the Deliverable flow)
 - Which **model tier** fits each phase? (consult Model Routing: `opus` unless the step is security adjudication, review arbitration, or high-stakes domain judgement)
 
 **Output:** A one-line classification statement, e.g.:
@@ -116,7 +116,7 @@ If claude-mem is unavailable, skip this substep and proceed with the classificat
 | No comments added/modified | Skip `comment-analyzer` in step 10 |
 | Non-code deliverable (marketing, social, finance, small-business, legal, or leadership content/analysis with no repo diff) | Run the **Deliverable flow** (see Skill Pack Registry): skip 5, 7 (TDD), 8.5, 9, 10; Step 6 only if credentials/customer data/PII are handled; Step 7 becomes DRAFT with the domain pack's skills; Step 8 Evidence Gate + domain gate still run |
 
-**Supply-chain trigger:** if the task is *authoring, installing, or updating a skill, plugin, or MCP server* — i.e. the diff will touch a `SKILL.md`, a plugin manifest, or an MCP server config — flag it here. **Step 8.5** then runs the SkillSpector supply-chain scan on the changed artefact before the PR. This is orthogonal to the code-review agents: it vets the *skill supply chain* (malicious instructions, prompt injection, agent-config snooping, MCP rug-pull, excessive agency), a surface ordinary code review does not cover. It does **not** fire on normal app-code diffs. It **overrides** the "Trivial config/docs change → skip 8.5" row above: a `SKILL.md`, plugin-manifest, or MCP-config edit is never "trivial" for gate purposes, however small the diff.
+**Supply-chain trigger:** if the task is *authoring, installing, or updating a skill, plugin, or MCP server* — i.e. the diff will touch a `SKILL.md`, a plugin manifest, or an MCP server config — flag it here. **Step 8.5** then runs the SkillSpector supply-chain scan on the changed artefact before the PR. This is orthogonal to the code-review agents: it vets the *skill supply chain* (malicious instructions, prompt injection, agent-config snooping, MCP rug-pull, excessive agency), a surface ordinary code review does not cover. It does **not** fire on normal app-code diffs. It **overrides** the "Trivial config/docs change" row above for every gate that row skips, Step 6 included: a `SKILL.md`, plugin-manifest, or MCP-config edit is never "trivial" for gate purposes, however small the diff. The security checklist's prompt-injection, excessive-agency and supply-chain rows apply to exactly these diffs, so Step 6 runs too.
 
 ---
 
@@ -145,7 +145,7 @@ Libraries detected: FastAPI, SQLAlchemy, TanStack Query
 
 **If Context7 is unavailable:** Note it and proceed — do not block the workflow. Use your training knowledge but flag that docs were not verified against the latest version.
 
-**Optional supplement for very large codebases — LightRAG (if installed and wired via an MCP bridge):** For repos where Context7's scope is too narrow (e.g., proprietary frameworks, niche internal APIs), a running `lightrag-server` instance can provide a graph+vector RAG layer. As of v1.3.0 no off-the-shelf MCP bridge ships with maestro — the user must run `lightrag-server` and either query its REST API directly (via a scratch MCP shim) or use it outside the Claude Code loop. Treat LightRAG as an optional *external* service, not as a drop-in Context7 replacement.
+**Optional supplement for very large codebases — LightRAG (if installed and wired via an MCP bridge):** For repos where Context7's scope is too narrow (e.g., proprietary frameworks, niche internal APIs), a running `lightrag-server` instance can provide a graph+vector RAG layer. No off-the-shelf MCP bridge ships with maestro: the user must run `lightrag-server` and either query its REST API directly (via a scratch MCP shim) or use it outside the Claude Code loop. Treat LightRAG as an optional *external* service, not as a drop-in Context7 replacement.
 
 ---
 
@@ -206,7 +206,7 @@ If the change type is not in the table or is ambiguous, default to **Yes** (run 
 
 ### 5a. Generate design direction
 
-Invoke the `frontend-design` skill (or `vercel:shadcn` + `vercel:react-best-practices` for **new variants of existing components**) to produce a concrete design direction. Output **must** include all of:
+Invoke the `frontend-design` skill (a light sketch suffices for **new variants of existing components**) to produce a concrete design direction. Output **must** include all of:
 
 - **Style direction** — pick exactly one from a worthwhile list and justify it. Worthwhile: editorial / magazine, neo-brutalism, glassmorphism with real depth, light or dark luxury, bento, scrollytelling, 3D integration, Swiss / international, retro-futurism. **Banned as a "direction":** "clean minimal", "modern", "professional", "simple", "elegant". These are non-directions and produce template output.
 - **Palette** — concrete tokens (oklch / hex), not vague colour names. Reference the project's existing tokens before introducing new ones.
@@ -284,7 +284,7 @@ The maestro checklist in 5e remains the canonical gate (accessibility, responsiv
 
 Read and run through `references/uiux-checklist.md` against the approved mockup (not against your imagination of the final UI).
 
-**This is not optional for frontend work.** Every frontend change — even "just a small tweak" — gets checked against the design system.
+**This is not optional for frontend work.** Every frontend change that alters rendered output, even "just a small tweak", gets checked against the design system; test-only changes are exempt per the trigger matrix.
 
 **Key enforcement areas:**
 - **Visual Design** — Tailwind tokens, spacing scale, typography, colour palette, dark mode
@@ -315,7 +315,7 @@ Flag any checklist violations in the plan and resolve them before proceeding to 
 Maestro provides **two layers** of security enforcement:
 
 1. **Planning-time** (this step) — the security checklist catches architectural and design-level security issues *before* code is written
-2. **Edit-time** (Security Guidance plugin) — a pre-edit hook that automatically scans every code change for common vulnerability patterns in real-time
+2. **Edit-time** (Security Guidance plugin) — a post-edit hook that automatically scans every code change for common vulnerability patterns as it lands
 
 **If the Security Guidance plugin is installed**, it runs automatically on every file edit. It detects:
 - Command injection (`os.system()`, `subprocess` with shell=True, `child_process.exec()`)
@@ -324,9 +324,9 @@ Maestro provides **two layers** of security enforcement:
 - Insecure deserialisation (`pickle.loads()`, `yaml.load()` without SafeLoader)
 - Hardcoded secrets (API keys, tokens, passwords in source code)
 
-When a vulnerability is detected, the hook shows a warning with remediation advice *before* the edit is applied. This catches issues that pass checklist review but appear during implementation.
+When a vulnerability is detected, the hook shows a warning with remediation advice after the edit lands: re-read the flagged file and remediate before continuing the TDD loop. This catches issues that pass checklist review but appear during implementation.
 
-**If the Security Guidance plugin is not installed:** This step still functions via the checklist alone. Note the missing plugin in your response so the user can install it for real-time protection.
+**If the Security Guidance plugin is not installed:** This step still functions via the checklist alone. Note the missing plugin in your response so the user can install it for automated post-edit protection.
 
 ---
 
@@ -414,7 +414,7 @@ Run as **parallel Agent calls** against the local diff (`git diff main...HEAD`, 
 | `security-reviewer` | When the diff touches authentication, authorisation, user input, database queries, file uploads, LLM calls, secrets, or PII handling | OWASP Top 10, injection, XSS, CSRF, broken access control, sensitive data exposure, insecure deserialisation, audit logging gaps |
 | Language-specific reviewer (`typescript-reviewer`, `python-reviewer`, `go-reviewer`, `rust-reviewer`, etc.) | When the diff is concentrated in one language and the corresponding agent is installed | Language-idiomatic issues, type safety, async correctness, language-specific footguns |
 
-For mixed-language diffs, dispatch the relevant per-language reviewers in parallel alongside `code-reviewer`. Do **not** serialise — run them in a single message with multiple Agent tool uses.
+For mixed-language diffs, dispatch the relevant per-language reviewers in parallel alongside `code-reviewer`. Do **not** serialise — run them in a single message with multiple Agent tool uses. Bare names here resolve per the agent precedence rule below; Step 10's `pr-review-toolkit:`-prefixed dispatches are a separate, namespaced set.
 
 **Model routing here:** dispatch the reviewer agents on `opus`; when their findings conflict, or a security-reviewer/SkillSpector verdict needs adjudication, the final judgement call runs on `fable` (generator/judge asymmetry — see Model Routing).
 
@@ -459,7 +459,7 @@ Do **not** rely on SkillSpector's own LLM pass (it needs a provider key). Claude
 
 If `code-reviewer` and language-specific reviewers are not available in the current environment:
 - Perform a **manual self-review** — read every changed file end-to-end against the user's CLAUDE.md, the project's coding-style rules, and the security checklist from Step 6
-- Note the missing agents in your response so the user can install the corresponding plugin (`pr-review-toolkit` ships several of these)
+- Note the missing agents in your response so the user can install the corresponding source (`pr-review-toolkit` ships the `code-reviewer` class; `security-reviewer` and the language reviewers come from user-scope agent packs such as Everything Claude Code)
 - Do **not** skip the step entirely — manual review is the fallback, not skipping
 
 ---
@@ -510,6 +510,8 @@ After specialist analysis is clean, enter the external review loop:
    - Continue polling
 3. Only stop when the review is **fully clean** — approved with zero outstanding comments
 4. Report the final clean status to the user
+
+**Precondition:** first check whether an external reviewer or review bot is configured (`gh pr checks`, a prior PR's timeline). If none exists, Phase 2's terminal state is **CI green**: say no reviewer is configured, stop polling once checks pass, and record that as the clean status. Never poll for an approval that cannot arrive.
 
 ### When PR Review Toolkit Is Unavailable
 
@@ -565,5 +567,6 @@ Two rules that are not negotiable when a pack is missing:
 ### Precedence when many skill sources are installed
 
 - **Plugin-scope skills** (`superpowers:*`, `maestro:*`, registry packs) beat **user-scope skills** (`~/.claude/skills/`, e.g. Everything Claude Code's 150+) on name collisions — the user-scope one is an alternative voice, not a replacement.
+- The same precedence covers **agents**: plugin-scope wins a name collision. Where a step names an agent only user scope provides (`security-reviewer`, the language reviewers), that user-scope agent is the canonical dispatch, not a downgrade.
 - Prefer a **more specialised** skill for domain guidance (e.g. `springboot-tdd` over `superpowers:test-driven-development` for Spring Boot) but keep the maestro workflow skeleton.
 - **Domain packs are voices, not conductors** — they never override a maestro gate (security, accessibility, evidence).

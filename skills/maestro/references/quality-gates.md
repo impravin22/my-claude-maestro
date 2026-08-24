@@ -1,6 +1,6 @@
 # Quality Gates
 
-Every task must pass these gates before claiming completion. Run through this checklist at the VERIFY step.
+Every task must pass these gates before claiming completion. Sections tagged with a step belong to that step; untagged sections run at Step 8 VERIFY. Never tick a tagged item early: a box ticked before its step is evidence-free, which Step 8.0 forbids.
 
 ---
 
@@ -53,7 +53,14 @@ Every task must pass these gates before claiming completion. Run through this ch
 - [ ] **Accessibility tree** — no missing labels, broken focus order, or absent ARIA attributes detected via Playwright
 - [ ] **Screenshots captured** — before/after screenshots taken for visually significant changes
 
-## PR Specialist Review (Requires PR Review Toolkit)
+## Pre-PR Review (Step 8.5)
+
+- [ ] **Reviewers dispatched** — `code-reviewer` always; `security-reviewer` when the diff touches auth, input handling, DB queries, uploads, LLM calls, secrets, or PII; language reviewers for single-language diffs
+- [ ] **CRITICAL/HIGH clear** — both block Step 9; loop reviewers until clear
+- [ ] **MEDIUM handled** — fixed where practical, otherwise deferred with the reason recorded for the PR description
+- [ ] **SkillSpector adjudicated** — skill/plugin-manifest/MCP-config diffs only: static scan run, every HIGH/CRITICAL ruled real-or-false-positive by Claude, confirmed findings fixed or the artefact rejected
+
+## PR Specialist Review (Step 10 Phase 1 — Requires PR Review Toolkit)
 
 - [ ] **Code review clean** — `pr-review-toolkit:code-reviewer` reports no guideline violations
 - [ ] **No silent failures** — `pr-review-toolkit:silent-failure-hunter` reports no swallowed errors or inappropriate fallbacks
@@ -76,7 +83,7 @@ Every task must pass these gates before claiming completion. Run through this ch
 - [ ] **Skill collision review** — if Everything Claude Code is installed, confirm no user-scope skill fired ahead of a maestro/superpowers skill; prefer plugin-scope skills for the canonical workflow
 - [ ] **LightRAG supplement** — if queried, the retrieved context was cross-checked against Context7's current-version docs (Context7 wins on API freshness when they disagree)
 
-## Git Workflow
+## Git Workflow (Steps 9 and 10)
 
 - [ ] **On a branch** — changes are on a feature branch, not `main`
 - [ ] **PR created** — pull request created with clear title and description
