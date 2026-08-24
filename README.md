@@ -213,7 +213,8 @@ my-claude-maestro/
 │   ├── 2026-04-13-multi-plugin-integration-design.md
 │   ├── 2026-07-22-ponytail-integration-design.md
 │   ├── 2026-07-29-fable-opus-head-to-head.md   # evidence behind the v1.12.0 re-tier
-│   └── 2026-08-18-deepseek-harness-evaluation.md   # why DSH is a peer harness, not a pack
+│   ├── 2026-08-18-deepseek-harness-evaluation.md   # why DSH is a peer harness, not a pack
+│   └── 2026-08-24-unlazy-evaluation.md   # right layer, fails on merit; ledger idea adopted first-party
 ├── install.sh          # companion ecosystem installer
 ├── CONTRIBUTING.md     # dev setup + the rules CI enforces
 ├── SECURITY.md         # private vulnerability reporting
