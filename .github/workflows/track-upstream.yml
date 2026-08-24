@@ -1,5 +1,13 @@
 name: Track Upstream Dependencies
 
+# Design (2026-08-24): single job, no PRs. State lives on the dedicated
+# `upstream-state` branch, written by every successful run, so the tracker
+# never depends on a pull request passing CI. Bot-authored PRs made with
+# GITHUB_TOKEN can never trigger the `tests` workflow (GitHub suppresses
+# workflow runs for that token, so required checks sit at action_required
+# forever); that deadlocked the previous design for 21 days. Findings are
+# reported through issues only; humans decide what lands on main.
+
 on:
   schedule:
     # Runs daily at 08:00 UTC
@@ -7,28 +15,66 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 permissions:
-  contents: write
+  contents: write # push to the upstream-state branch only
   issues: write
-  pull-requests: write
+
+concurrency:
+  group: upstream-tracker
+  cancel-in-progress: false
 
 jobs:
   check-upstream:
     runs-on: ubuntu-latest
-    outputs:
-      updates_found: ${{ steps.check.outputs.updates_found }}
-      change_summary: ${{ steps.check.outputs.change_summary }}
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Load state from upstream-state branch
+        run: |
+          set -euo pipefail
+          # State migrated off main (2026-08-24): the branch is the source of
+          # truth. Fall back to the legacy in-tree copy during migration, then
+          # to an empty object (first-seen repos seed silently by design).
+          # A branch that exists but cannot be read is a hard failure: silently
+          # resetting to {} would suppress every report while the heartbeat
+          # kept advancing, the exact failure mode this design removes.
+          if git fetch --quiet --depth 1 origin upstream-state 2>/dev/null \
+            && git show FETCH_HEAD:upstream-state.json > /tmp/upstream-state.json 2>/dev/null; then
+            echo "Loaded state from upstream-state branch"
+          else
+            # The fetch failed. Distinguish three cases via ls-remote's EXIT
+            # STATUS, not its output: a non-zero exit means the remote could not
+            # be reached (transient), and resetting to {} there would silently
+            # drop that window's deltas while the heartbeat still advanced. Only
+            # a clean "branch genuinely absent" result may fall through to a
+            # fresh start.
+            LS_OUT=$(git ls-remote --heads origin upstream-state 2>/dev/null)
+            LS_RC=$?
+            if [ "$LS_RC" -ne 0 ]; then
+              echo "::error::cannot reach origin to load upstream-state; refusing to reset state"
+              exit 1
+            elif [ -n "$LS_OUT" ]; then
+              echo "::error::upstream-state branch exists but could not be read; refusing to reset state"
+              exit 1
+            elif [ -f .github/upstream-state.json ]; then
+              cp .github/upstream-state.json /tmp/upstream-state.json
+              echo "Loaded legacy state from .github/upstream-state.json"
+            else
+              echo '{}' > /tmp/upstream-state.json
+              echo "No prior state found; starting fresh"
+            fi
+          fi
 
       - name: Check upstream repos for updates
-        id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
-          STATE_FILE=".github/upstream-state.json"
+          STATE_FILE="/tmp/upstream-state.json"
           UPDATES_FOUND=false
           ISSUE_BODY=""
 
@@ -53,20 +99,41 @@ jobs:
           REPOS[social-media-skills]="charlie947/social-media-skills"
           REPOS[taste-skill]="Leonxlnx/taste-skill"
           REPOS[transitions]="Jakubantalik/transitions.dev"
+          # Added 2026-08-24: the v1.13.0/v1.14.0 leadership packs and the
+          # marketplace maestro actually installs superpowers, vercel,
+          # security-guidance and pr-review-toolkit from. Tracking the install
+          # source, not only the upstream source, closes the gap where the
+          # marketplace copy moves without an upstream release (or vice versa).
+          REPOS[leadership-skills]="PierrickMartos/Leadership-Skills"
+          REPOS[pm-skills]="phuryn/pm-skills"
+          REPOS[claude-code-skills]="alirezarezvani/claude-skills"
+          REPOS[pm-claude-skills]="mohitagw15856/pm-claude-skills"
+          REPOS[claude-plugins-official]="anthropics/claude-plugins-official"
 
-          # Load previous state (or create empty)
-          if [ -f "$STATE_FILE" ]; then
-            PREV_STATE=$(cat "$STATE_FILE")
-          else
-            PREV_STATE='{}'
-          fi
+          PREV_STATE=$(cat "$STATE_FILE")
 
           # Helper: fetch GitHub API and strip control chars that break jq.
-          # Preserves newlines (\012) and tabs (\011) needed for valid JSON.
+          # Keeps newline (\012), tab (\011) and CR (\015) so JSON stays valid.
+          # Returns the fallback ($2) on any failure; callers that must tell a
+          # transport failure from a legitimate 404 use api_ok below instead.
           safe_api() {
             local response
             response=$(gh api "$1" 2>/dev/null) || { echo "$2"; return; }
             printf '%s' "$response" | tr -d '\000-\010\013-\014\016-\037'
+          }
+
+          # Fetch that reports success separately from the payload: sets the
+          # global API_OK to 1 on a clean call and 0 on any failure (including a
+          # 404), so a caller can preserve prior state on failure rather than
+          # overwriting it with a fallback that looks like real data.
+          api_fetch() {
+            local response
+            if response=$(gh api "$1" 2>/dev/null); then
+              API_OK=1
+              printf '%s' "$response" | tr -d '\000-\010\013-\014\016-\037'
+            else
+              API_OK=0
+            fi
           }
 
           # Built with jq rather than string concatenation: release tags and
@@ -79,18 +146,28 @@ jobs:
             REPO="${REPOS[$KEY]}"
             echo "Checking $REPO..."
 
-            # Get latest release tag (handle 404 for repos with no releases)
-            LATEST_RELEASE=$(safe_api "repos/$REPO/releases/latest" '{"tag_name":"none"}' | jq -r '.tag_name // "none"' 2>/dev/null || echo "none")
+            # Previous state for this repo (read before the fetches so a failed
+            # fetch can preserve it rather than overwrite it).
+            PREV_RELEASE=$(echo "$PREV_STATE" | jq -r --arg k "$KEY" '.[$k].release // ""')
+            PREV_COMMIT=$(echo "$PREV_STATE" | jq -r --arg k "$KEY" '.[$k].commit // ""')
+
+            # Get latest release tag. A transient releases-API failure must not
+            # clobber a real tag with "none": preserve the previous value and
+            # only write "none" when the call genuinely succeeds (a repo with no
+            # releases) or when nothing was known before.
+            REL_JSON=$(api_fetch "repos/$REPO/releases/latest")
+            if [ "$API_OK" = "1" ]; then
+              LATEST_RELEASE=$(echo "$REL_JSON" | jq -r '.tag_name // "none"' 2>/dev/null | tr -d '\140' || echo "none")
+            elif [ -n "$PREV_RELEASE" ]; then
+              LATEST_RELEASE="$PREV_RELEASE"
+            else
+              LATEST_RELEASE="none"
+            fi
 
             # Get latest commit on default branch (single fetch)
             RAW_COMMITS_1=$(safe_api "repos/$REPO/commits?per_page=1" '[]')
             LATEST_COMMIT=$(echo "$RAW_COMMITS_1" | jq -r '.[0].sha // "unknown"' 2>/dev/null || echo "unknown")
-            LATEST_COMMIT_MSG=$(echo "$RAW_COMMITS_1" | jq -r '.[0].commit.message // ""' 2>/dev/null | head -1 || echo "")
-            LATEST_COMMIT_DATE=$(echo "$RAW_COMMITS_1" | jq -r '.[0].commit.committer.date // ""' 2>/dev/null || echo "")
-
-            # Get previous state for this repo
-            PREV_RELEASE=$(echo "$PREV_STATE" | jq -r ".\"$KEY\".release // \"\"")
-            PREV_COMMIT=$(echo "$PREV_STATE" | jq -r ".\"$KEY\".commit // \"\"")
+            LATEST_COMMIT_MSG=$(echo "$RAW_COMMITS_1" | jq -r '.[0].commit.message // ""' 2>/dev/null | head -1 | tr -d '\140' || echo "")
 
             # Check for changes
             CHANGED=false
@@ -100,8 +177,9 @@ jobs:
               CHANGED=true
               CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - **New release:** \`$LATEST_RELEASE\` (was \`$PREV_RELEASE\`)"
 
-              # Get release notes
-              RELEASE_BODY=$(safe_api "repos/$REPO/releases/latest" '{}' | jq -r '.body // ""' 2>/dev/null | head -20 || echo "")
+              # Get release notes. Strip backticks so third-party prose cannot
+              # break out of the fenced block it is embedded in below.
+              RELEASE_BODY=$(safe_api "repos/$REPO/releases/latest" '{}' | jq -r '.body // ""' 2>/dev/null | tr -d '\140' | head -20 || echo "")
               if [ -n "$RELEASE_BODY" ]; then
                 CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - Release notes:"$'\n'"\`\`\`"$'\n'"${RELEASE_BODY}"$'\n'"\`\`\`"
               fi
@@ -178,7 +256,7 @@ jobs:
                 | .[0:5]
                 | map("  - `\(.sha)` [\(.type)] \(.msg)")
                 | join("\n")
-              ' 2>/dev/null || echo "")
+              ' 2>/dev/null | tr -d '\140' || echo "")
               if [ -n "$RECENT_COMMITS" ]; then
                 CHANGE_DETAILS="${CHANGE_DETAILS}"$'\n'"  - Recent commits:"$'\n'"${RECENT_COMMITS}"
               fi
@@ -189,15 +267,95 @@ jobs:
               ISSUE_BODY="${ISSUE_BODY}"$'\n'"### [$KEY](https://github.com/$REPO)"$'\n'"${CHANGE_DETAILS}"$'\n'
             fi
 
-            # Build new state JSON
-            NEW_STATE=$(printf '%s' "$NEW_STATE" | jq \
-              --arg key "$KEY" \
-              --arg release "$LATEST_RELEASE" \
-              --arg commit "$LATEST_COMMIT" \
-              '.[$key] = {release: $release, commit: $commit}')
+            # Remember the pinned pack's upstream HEAD for the drift check below,
+            # so drift is reported per-delta (when HEAD moves) rather than daily.
+            if [ "$KEY" = "pm-claude-skills" ]; then
+              PM_UPSTREAM_HEAD="$LATEST_COMMIT"
+            fi
+
+            # Build new state JSON. A failed commit fetch ("unknown") must not
+            # overwrite good state: persisting it would trip a bogus CHANGED on
+            # the next run and 404 the compare call. Keep the previous entry.
+            if [ "$LATEST_COMMIT" = "unknown" ] && [ -n "$PREV_COMMIT" ]; then
+              echo "::warning::$REPO fetch failed; keeping previous state entry"
+              NEW_STATE=$(printf '%s' "$NEW_STATE" | jq \
+                --arg key "$KEY" \
+                --arg release "$PREV_RELEASE" \
+                --arg commit "$PREV_COMMIT" \
+                '.[$key] = {release: $release, commit: $commit}')
+            else
+              NEW_STATE=$(printf '%s' "$NEW_STATE" | jq \
+                --arg key "$KEY" \
+                --arg release "$LATEST_RELEASE" \
+                --arg commit "$LATEST_COMMIT" \
+                '.[$key] = {release: $release, commit: $commit}')
+            fi
           done
 
-          # Save new state
+          # Pinned-drift check: pm-claude-skills installs from an exact SHA
+          # (install.sh PM_CLAUDE_SKILLS_SHA), and bumping that constant is a
+          # re-review by policy. Report how far the pin has fallen behind so
+          # the re-review has a trigger; nothing auto-bumps.
+          #
+          # Drift is a level (the pin stays behind until a human bumps it), but
+          # this reporter is edge-triggered, so it is deduped through a stored
+          # signal: the pin is re-reported only when the signal changes (upstream
+          # HEAD moved, the pin was bumped, or the check's status flipped), never
+          # on a quiet day when the same backlog simply persists.
+          PREV_PIN_SIGNAL=$(echo "$PREV_STATE" | jq -r '.pin_drift // ""')
+          PIN_SIGNAL=""
+          PINNED_SHA=""
+          if [ -f install.sh ]; then
+            PINNED_SHA=$(sed -n 's/^PM_CLAUDE_SKILLS_SHA="\([0-9a-f]\{40\}\)"$/\1/p' install.sh | head -1)
+          else
+            echo "::warning::install.sh not found; pin-drift check skipped"
+          fi
+          if [ -n "$PINNED_SHA" ]; then
+            # Fail closed: an API failure (or the pinned commit vanishing
+            # upstream via history rewrite) must be reported, not read as
+            # "pin is current". total_commits is only trusted when present.
+            PIN_CMP=$(safe_api "repos/mohitagw15856/pm-claude-skills/compare/$PINNED_SHA...HEAD" '{}')
+            PIN_BEHIND=$(echo "$PIN_CMP" | jq -r 'if has("total_commits") then .total_commits else "check-failed" end' 2>/dev/null || echo "check-failed")
+
+            PIN_DRIFT_MSG=""
+            case "$PIN_BEHIND" in
+              check-failed)
+                PIN_SIGNAL="failed:${PINNED_SHA:0:7}"
+                PIN_DRIFT_MSG="  - **pm-claude-skills:** drift check FAILED (compare API unreachable, or pinned \`${PINNED_SHA:0:7}\` no longer exists upstream). Verify manually: a vanished pin is itself a supply-chain signal."
+                ;;
+              ''|*[!0-9]*)
+                # Non-numeric but not the sentinel: treat as a failed check
+                # rather than silently passing (the -gt test would error).
+                PIN_SIGNAL="failed:${PINNED_SHA:0:7}"
+                PIN_DRIFT_MSG="  - **pm-claude-skills:** drift check returned an unparseable result; verify manually."
+                ;;
+              0)
+                PIN_SIGNAL="ok:${PINNED_SHA:0:7}"
+                ;;
+              *)
+                PIN_SIGNAL="behind:${PINNED_SHA:0:7}:${PM_UPSTREAM_HEAD:0:7}"
+                PIN_DRIFT_MSG="  - **pm-claude-skills:** pinned \`${PINNED_SHA:0:7}\` is **$PIN_BEHIND commit(s) behind** upstream HEAD. Bumping \`PM_CLAUDE_SKILLS_SHA\` is a re-review, not a version bump (see install.sh)."
+                ;;
+            esac
+
+            # Emit only on a signal change, so a persistent backlog is reported
+            # once (when it grows) rather than every scheduled run.
+            if [ -n "$PIN_DRIFT_MSG" ] && [ "$PIN_SIGNAL" != "$PREV_PIN_SIGNAL" ]; then
+              UPDATES_FOUND=true
+              ISSUE_BODY="${ISSUE_BODY}"$'\n'"### Pinned pack drift"$'\n'"${PIN_DRIFT_MSG}"$'\n'
+            fi
+          fi
+
+          # Persist the pin-drift signal so the next run can dedupe against it.
+          # Carry the previous signal forward when this run could not compute one
+          # (no pin found, install.sh absent), so a transient miss does not wipe
+          # the memory and re-report on recovery.
+          [ -z "$PIN_SIGNAL" ] && PIN_SIGNAL="$PREV_PIN_SIGNAL"
+          NEW_STATE=$(printf '%s' "$NEW_STATE" | jq --arg sig "$PIN_SIGNAL" '. + {pin_drift: $sig}')
+
+          # Heartbeat: last_sync advances on every successful run, so a green
+          # run and a stalled tracker can no longer look identical.
+          NEW_STATE=$(printf '%s' "$NEW_STATE" | jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '. + {last_sync: $ts}')
           echo "$NEW_STATE" | jq '.' > "$STATE_FILE"
 
           # Create issue if updates found
@@ -222,6 +380,8 @@ jobs:
               '- [ ] Check if UI UX Pro Max, n8n-MCP, VoiceMode, Everything Claude Code, LightRAG, Karpathy Skills, or Caveman have breaking changes' \
               '- [ ] Check if SkillSpector, anthropics/skills (example-skills), or the knowledge-work plugins (finance / small-business / legal) changed plugin names, skill names, or connector wiring' \
               '- [ ] Check if marketing-skills, social-media-skills, Taste, or Transitions changed skill names, licence terms, or added paid-API / scraping behaviour' \
+              '- [ ] Check if leadership-skills, pm-skills, claude-code-skills, or claude-plugins-official changed plugin names, skill names, or licence terms' \
+              '- [ ] If pm-claude-skills pinned drift is reported: re-review upstream before bumping PM_CLAUDE_SKILLS_SHA (supply-chain assertion, see install.sh)' \
               '- [ ] Update SKILL.md if needed' \
               '- [ ] Update checklists if needed' \
               '- [ ] Update README.md if an install command, tier label, or pack list changed — it is user-facing and drifts silently otherwise' \
@@ -230,16 +390,18 @@ jobs:
               '*This issue was automatically created by the upstream tracker workflow.*')
 
             # Check for existing open issue to avoid duplicates
-            EXISTING=$(gh issue list --repo "${{ github.repository }}" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
+            EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
 
             if [ -n "$EXISTING" ]; then
-              # Comment on existing issue
-              gh issue comment "$EXISTING" --repo "${{ github.repository }}" --body "$BODY"
+              # Comment on existing issue. State advances every run now, so
+              # each comment carries only the delta since the previous run,
+              # never a re-report of the same accumulated diff.
+              gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "$BODY"
               echo "Updated existing issue #$EXISTING"
             else
               # Create new issue
               gh issue create \
-                --repo "${{ github.repository }}" \
+                --repo "$GITHUB_REPOSITORY" \
                 --title "$TITLE" \
                 --body "$BODY" \
                 --label "upstream-update"
@@ -249,110 +411,24 @@ jobs:
             echo "No upstream changes detected"
           fi
 
-          # Set outputs for downstream jobs
-          echo "updates_found=$UPDATES_FOUND" >> "$GITHUB_OUTPUT"
-          if [ "$UPDATES_FOUND" = true ]; then
-            # Use a random delimiter to prevent content collision
-            DELIM="EOF_$(date +%s%N | sha256sum | head -c 16)"
-            {
-              echo "change_summary<<$DELIM"
-              printf '%s\n' "$ISSUE_BODY"
-              echo "$DELIM"
-            } >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Upload computed state
-        uses: actions/upload-artifact@v7
-        with:
-          name: upstream-state
-          path: .github/upstream-state.json
-          retention-days: 1
-
-  create-pr:
-    needs: check-upstream
-    if: needs.check-upstream.outputs.updates_found == 'true'
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Check for existing upstream sync PR
-        id: existing-pr
+      - name: Publish state to upstream-state branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          EXISTING_PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "upstream-update" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
-          echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
-
-      - name: Download computed state
-        if: steps.existing-pr.outputs.pr_number == ''
-        uses: actions/download-artifact@v8
-        with:
-          name: upstream-state
-          path: .github/
-
-      - name: Create sync branch with state + marker
-        if: steps.existing-pr.outputs.pr_number == ''
-        run: |
-          BRANCH="chore/upstream-sync-$(date +%Y-%m-%d)"
+          set -euo pipefail
+          # Single-file branch, force-pushed: state history is disposable and
+          # a fresh orphan commit each run keeps the branch self-healing. The
+          # token is passed in the push URL only; checkout ran with
+          # persist-credentials disabled, so nothing lands in .git/config.
+          PUB_DIR=$(mktemp -d)
+          cp /tmp/upstream-state.json "$PUB_DIR/upstream-state.json"
+          cd "$PUB_DIR"
+          git init --quiet --initial-branch=upstream-state
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-
-          # State file already replaced by download-artifact step; add sync marker
-          jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '. + {last_sync: $ts}' \
-            .github/upstream-state.json > .github/upstream-state.tmp \
-            && mv .github/upstream-state.tmp .github/upstream-state.json
-          git add .github/upstream-state.json
-          git commit -m "chore: upstream sync $(date +%Y-%m-%d)"
-
-          git push -u origin "$BRANCH"
-          echo "SYNC_BRANCH=$BRANCH" >> "$GITHUB_ENV"
-
-      - name: Create PR
-        if: steps.existing-pr.outputs.pr_number == ''
-        env:
-          CHANGE_SUMMARY: ${{ needs.check-upstream.outputs.change_summary }}
-        run: |
-          PR_BODY="## Upstream Dependency Sync
-
-          Upstream changes detected by the daily tracker workflow.
-
-          ### Changes Detected
-
-          ${CHANGE_SUMMARY}
-
-          ---
-
-          ### Review Checklist
-
-          - [ ] Check for breaking API changes in updated dependencies
-          - [ ] Update SKILL.md if upstream capabilities changed
-          - [ ] Update install.sh if install methods changed
-          - [ ] Update checklists if needed
-          - [ ] Update README.md if an install command, tier label, or pack list changed — it is user-facing and drifts silently otherwise
-          - [ ] Bump version in plugin.json if changes made
-          - [ ] Run \`install.sh --dry-run\` to verify
-          - [ ] Run \`bash tests/install-smoke.sh\` to verify the installer still exits cleanly
-
-          *This PR was automatically created by the upstream tracker workflow.*"
-
-          gh pr create \
-            --head "$SYNC_BRANCH" \
-            --title "chore: upstream dependency sync $(date +%Y-%m-%d)" \
-            --body "$PR_BODY" \
-            --label "upstream-update"
-
-      - name: Comment on existing PR
-        if: steps.existing-pr.outputs.pr_number != ''
-        env:
-          CHANGE_SUMMARY: ${{ needs.check-upstream.outputs.change_summary }}
-          PR_NUMBER: ${{ steps.existing-pr.outputs.pr_number }}
-        run: |
-          COMMENT_BODY="## New upstream changes detected ($(date +%Y-%m-%d))
-
-          ${CHANGE_SUMMARY}
-
-          *Updated by the upstream tracker workflow.*"
-
-          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$COMMENT_BODY"
+          git add upstream-state.json
+          git commit --quiet -m "chore: upstream state $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push --force --quiet \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/upstream-state"
+          echo "State published to upstream-state branch"
