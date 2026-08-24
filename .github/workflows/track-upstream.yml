@@ -122,25 +122,16 @@ jobs:
             printf '%s' "$response" | tr -d '\000-\010\013-\014\016-\037'
           }
 
-          # Fetch that reports success separately from the payload: sets the
-          # global API_OK to 1 on a clean call and 0 on any failure (including a
-          # 404), so a caller can preserve prior state on failure rather than
-          # overwriting it with a fallback that looks like real data.
-          api_fetch() {
-            local response
-            if response=$(gh api "$1" 2>/dev/null); then
-              API_OK=1
-              printf '%s' "$response" | tr -d '\000-\010\013-\014\016-\037'
-            else
-              API_OK=0
-            fi
-          }
 
           # Built with jq rather than string concatenation: release tags and
           # commit SHAs come from third-party repos, and a tag name containing a
           # double quote (legal in git refs) would otherwise emit invalid JSON
           # and fail the run.
           NEW_STATE='{}'
+          # Init before the loop so the pin-drift block's ${PM_UPSTREAM_HEAD}
+          # read is safe under set -u even if the pinned pack is ever dropped
+          # from REPOS.
+          PM_UPSTREAM_HEAD=""
 
           for KEY in "${!REPOS[@]}"; do
             REPO="${REPOS[$KEY]}"
@@ -154,9 +145,12 @@ jobs:
             # Get latest release tag. A transient releases-API failure must not
             # clobber a real tag with "none": preserve the previous value and
             # only write "none" when the call genuinely succeeds (a repo with no
-            # releases) or when nothing was known before.
-            REL_JSON=$(api_fetch "repos/$REPO/releases/latest")
-            if [ "$API_OK" = "1" ]; then
+            # releases) or when nothing was known before. The `if VAR=$(cmd)`
+            # form captures the call's exit status in THIS shell — a helper that
+            # set a global would not, since command substitution runs in a
+            # subshell and the global would never reach the parent.
+            if REL_JSON=$(gh api "repos/$REPO/releases/latest" 2>/dev/null); then
+              REL_JSON=$(printf '%s' "$REL_JSON" | tr -d '\000-\010\013-\014\016-\037')
               LATEST_RELEASE=$(echo "$REL_JSON" | jq -r '.tag_name // "none"' 2>/dev/null | tr -d '\140' || echo "none")
             elif [ -n "$PREV_RELEASE" ]; then
               LATEST_RELEASE="$PREV_RELEASE"
