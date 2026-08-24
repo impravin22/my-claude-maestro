@@ -15,7 +15,7 @@ Format adapted from the acceptance-ledger design in [unlazy](https://github.com/
 
 ## Where it lives
 
-`.maestro/evidence-<branch-slug>.md` in the repository being worked on. Add `.maestro/` to the project's `.gitignore` unless the team wants committed audit trails; either mode works, pick one per repo and stay with it. The directory is created at CLASSIFY.
+`.maestro/evidence-<date>-<task-slug>.md` in the repository being worked on, e.g. `.maestro/evidence-2026-08-24-okr-pagination.md`. The key is chosen at CLASSIFY and never changes: date plus a short lowercase hyphenated task name. It is deliberately not the branch name, because no branch exists at Step 1 (branches are cut at Step 9), branch names contain `/`, and two tasks started from `main` must not collide. Record the branch in the header once it exists. Add `.maestro/` to the project's `.gitignore` unless the team wants committed audit trails; either mode works, pick one per repo and stay with it. The directory is created at CLASSIFY.
 
 ## When it is skipped
 
@@ -25,12 +25,13 @@ Format adapted from the acceptance-ledger design in [unlazy](https://github.com/
 ## Format
 
 ```markdown
-# Evidence ledger: <branch>
+# Evidence ledger: <date>-<task-slug>
 
 Classification: <one-line CLASSIFY statement>
 Skip row: <row name, or "none">
 Supply-chain flag: <yes/no>
 Model tier: <recommendation>
+Branch: pending
 
 ## Gates
 
@@ -38,8 +39,16 @@ Model tier: <recommendation>
   CHECK: <command>
   EXPECT: <decisive success marker>
   EVIDENCE: pending
-- [ ] G2: <outcome with no runnable oracle>
+- [x] G2: <a met gate is ticked only when its EVIDENCE is filled>
+  CHECK: <command>
+  EXPECT: <decisive success marker>
+  EVIDENCE: exit 0; <the decisive line of fresh output>
+- [ ] G3: <outcome with no runnable oracle>
   EVIDENCE: pending
+
+## Log
+
+<append-only, one line per event: 5c approval, mockup revision N, escalation attempt N, 8.5 finding raised or resolved, step transitions>
 
 ## Abandoned
 
@@ -52,16 +61,16 @@ ABANDONED: <id> <non-empty reason>
 
 ## Rules
 
-1. **Header at CLASSIFY.** Write the classification, skip row, supply-chain flag, and model tier the moment CLASSIFY closes. Every later step reads these from the file, never from memory.
+1. **Header at CLASSIFY, read back at every consuming step.** Write the classification, skip row, supply-chain flag, and model tier the moment CLASSIFY closes; set `Branch:` when Step 9 cuts the branch. Re-read the header and gates instead of trusting recall at each point that consumes them: the 5c gate, Step 8.5, Step 9, and the first response after any compaction or session resume.
 2. **Gates at PLAN.** Each plan task names its verification command and expected marker (Step 4 requires this); copy them in as gates before Step 7 starts. Seed the rest from the applicable rows of `quality-gates.md`.
-3. **Evidence at Step 8.0 only.** An EVIDENCE line is filled from output run fresh in the same message, per the Evidence Gate. A ticked box with `EVIDENCE: pending` counts as unmet.
+3. **Evidence at Step 8.0 only.** Tick a box only when its EVIDENCE is filled from output run fresh in the same message, per the Evidence Gate. A ticked box with `EVIDENCE: pending` counts as unmet.
 4. **Demotion.** If a re-run shows a previously ticked gate no longer passes, untick it and reset its EVIDENCE to `pending`. A gate that was true an hour ago is not evidence now.
-5. **Abandonment is visible.** An impossible or obsolete gate is never deleted. Move nothing; add an `ABANDONED: <id> <reason>` line and keep the gate. The final report surfaces every abandonment.
+5. **Abandonment is visible.** An impossible or obsolete gate is never deleted. Leave the gate in `## Gates`, unticked, with `EVIDENCE: pending`; add an `ABANDONED: <id> <non-empty reason>` line under `## Abandoned`. The final report surfaces every abandonment.
 6. **The report enumerates the negative space.** The task's final message names every gate not met, with its reason, not only the ones that passed. "All met" is a claim about the ledger, so quote the ledger.
 
 ## What not to ledger
 
-Commands that already fail loudly earn one line at most: `pytest`, `ruff`, `tsc`, `vitest` exit non-zero on their own, and wrapping them in prose adds nothing. The ledger earns its keep on the rows no command proves: British English verified, solution justification documented, imports checked, regressions re-read, the 5c approval, and every cross-step decision in the header.
+Commands that already fail loudly earn one line at most: `pytest`, `ruff`, `tsc`, `vitest` exit non-zero on their own, and wrapping them in prose adds nothing. The ledger earns its keep on the rows no command proves: British English verified, solution justification documented, imports checked, regressions re-read, the 5c approval, and every cross-step decision in the header, with the running counters (mockup revisions, escalation attempts, 8.5 findings and their resolutions, flow position) appended to `## Log` as they happen.
 
 ## Honest limit
 

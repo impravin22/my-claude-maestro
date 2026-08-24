@@ -91,7 +91,7 @@ Determine the task type and scope before doing anything else.
 **Output:** A one-line classification statement, e.g.:
 > "Feature: full-stack — adding OKR alignment suggestions. Involves: Next.js (frontend), FastAPI + DSPy (backend). Non-trivial. Domain: engineering. Model: opus throughout; fable only if Step 8.5 turns up a security verdict to adjudicate."
 
-**Ledger:** for non-trivial engineering tasks, create `.maestro/evidence-<branch>.md` now, recording the classification, skip row, supply-chain flag, and model tier — later steps read these from the file, never from memory. Format and rules: `references/evidence-ledger.md`. Skipped on the trivial row and the Deliverable flow.
+**Ledger:** for non-trivial engineering tasks, create `.maestro/evidence-<date>-<task-slug>.md` now, recording the classification, skip row, supply-chain flag, and model tier — later steps re-read these from the file, never from memory. Format, the stable-key rule, and read-back points: `references/evidence-ledger.md`. Skipped on the trivial row and the Deliverable flow.
 
 **Memory-assisted classification (if claude-mem is available):**
 
