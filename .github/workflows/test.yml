@@ -162,7 +162,7 @@ jobs:
               for group in event:
                   for h in group.get("hooks", []):
                       for m in re.findall(
-                          r"\$\{CLAUDE_PLUGIN_ROOT\}/(\S+?)[\"']",
+                          r"\$\{?CLAUDE_PLUGIN_ROOT\}?/([^\s\"']+)",
                           h.get("command", ""),
                       ):
                           if not os.path.isfile(m):
@@ -174,11 +174,15 @@ jobs:
           hook_src = open("hooks/check-update.sh", encoding="utf-8").read()
           hook_repo = re.search(r'^REPO="([^"]+)"', hook_src, re.M)
           manifest_repo = plugin.get("repository", "")
-          if not hook_repo or hook_repo.group(1) not in manifest_repo:
+          # Exact owner/name match, not a substring: "owner/my" must not
+          # clear the pin for repository ".../owner/my-maestro".
+          manifest_slug = re.sub(r"^https?://github\.com/", "", manifest_repo).rstrip("/")
+          manifest_slug = re.sub(r"\.git$", "", manifest_slug)
+          if not hook_repo or hook_repo.group(1) != manifest_slug:
               bad.append(
                   "check-update.sh REPO "
                   f"{hook_repo.group(1) if hook_repo else None!r} does not "
-                  f"match plugin.json repository {manifest_repo!r}"
+                  f"equal plugin.json repository slug {manifest_slug!r}"
               )
 
           # Hot-path word ceiling. README's token-discipline paragraph

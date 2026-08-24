@@ -320,7 +320,7 @@ assert_pin_dir_refused() {
   esac
 }
 
-# assert_every_component_is_skippable <description>
+# assert_git_preflight <description>
 #
 # The default path needs git (pinned pack, Transitions, everything-claude-code
 # clones); --minimal does not. Preflight must catch the missing tool before a
@@ -358,11 +358,13 @@ assert_minimal_skips_git_requirement() {
 }
 
 # Every install_plugin call site's marketplace and plugin spec must appear
-# verbatim in default --dry-run output. This is the generalisation of the
-# reactive per-pack assertions above it: the c-level-advisor incident (wrong
-# marketplace AND wrong plugin name, green CI throughout) becomes structurally
-# impossible to reintroduce for any pack, present or future. Skip-guarded
-# packs are exercised because the default run skips nothing.
+# verbatim in default --dry-run output. This proves every declared call site
+# executes on the default path (skip-guarded packs included, since the default
+# run skips nothing), catching a pack made unreachable by a bad guard. It does
+# NOT check name correctness: both sides derive from install.sh, so a wrong
+# marketplace or plugin slug matches itself. The per-pack asserts above stay
+# mandatory for new packs to catch that class, as the c-level-advisor incident
+# (wrong marketplace and plugin name, green CI throughout) showed.
 assert_all_plugin_specs_in_dry_run() {
   local description="$1" output pairs marketplace spec missing=""
 
