@@ -1,0 +1,100 @@
+{
+  "social-media-skills": {
+    "release": "none",
+    "commit": "8cefb5b6d03757885faa6918bd8bfaef202a83db"
+  },
+  "context7": {
+    "release": "@upstash/context7-mcp@4.1.1",
+    "commit": "b653c3a07d7936bdc4c23fc1c88903120e0ece77"
+  },
+  "lightrag": {
+    "release": "v1.5.7",
+    "commit": "0edad35089f42f40ed72000f65592512fc7ab27a"
+  },
+  "claude-plugins-official": {
+    "release": "none",
+    "commit": "da823e86c8feef13b73b6712af11eadd38c992f6"
+  },
+  "leadership-skills": {
+    "release": "v0.9.0",
+    "commit": "70833a102144d4cf02f00d47ff5d9061b29e4a79"
+  },
+  "vercel-agent-skills": {
+    "release": "agent-skills-063bee94c3f4df8453406c830b0a7df0f2860278",
+    "commit": "063bee94c3f4df8453406c830b0a7df0f2860278"
+  },
+  "pm-claude-skills": {
+    "release": "v77.0.0",
+    "commit": "f67821d42c8c6db20752030e12ded030a623bee3"
+  },
+  "everything-claude-code": {
+    "release": "v2.2.1",
+    "commit": "8321021c54d670126ce3b2969d5deb880b4b0c2a"
+  },
+  "marketing-skills": {
+    "release": "v2.11.1",
+    "commit": "5b2c0007766c6a1cf1d53fd8fc73e979e0821022"
+  },
+  "ui-ux-pro-max": {
+    "release": "v2.15.0",
+    "commit": "15de38fb70bc80ae9276fa7703b48ae861a672e6"
+  },
+  "superpowers": {
+    "release": "v6.3.0",
+    "commit": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797"
+  },
+  "anthropic-skills": {
+    "release": "none",
+    "commit": "34040c9c568585f6929bedeaad110ad08f079624"
+  },
+  "knowledge-work-plugins": {
+    "release": "none",
+    "commit": "56026c70281ffd504d65c9bb8ca71f5ba6b8fd34"
+  },
+  "karpathy-skills": {
+    "release": "none",
+    "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2"
+  },
+  "claude-code-skills": {
+    "release": "v2.12.0",
+    "commit": "19392f7a08264ed00486a251f5b2098321771f94"
+  },
+  "n8n-mcp": {
+    "release": "v2.85.0",
+    "commit": "aef47e2f5f9dd7ac4ae0dd18cb9d2fddd58b3983"
+  },
+  "skillspector": {
+    "release": "v2.11.2",
+    "commit": "f161b700d83d1e685f501c525d4cf7a8a49bd82e"
+  },
+  "transitions": {
+    "release": "none",
+    "commit": "598d3d6ad89dabb4bdf742fd2e887ca53914a888"
+  },
+  "pm-skills": {
+    "release": "v2.1.0",
+    "commit": "8607e3b077817f89bf4a9b623246219734ac3be0"
+  },
+  "taste-skill": {
+    "release": "none",
+    "commit": "ccbc15639c97057cbfcf32ecebc38ef716e4bb37"
+  },
+  "claude-mem": {
+    "release": "v13.24.23",
+    "commit": "40be934a846cca6d2038f1d9800428a4f4d5136f"
+  },
+  "voicemode": {
+    "release": "v8.12.0",
+    "commit": "126d15e021217983bd353501285859e1195a3cb9"
+  },
+  "caveman": {
+    "release": "v2.7.0",
+    "commit": "4df4b03ba538751131d24415c59a1fad0d8c2c18"
+  },
+  "playwright-mcp": {
+    "release": "v0.0.81",
+    "commit": "e73d72e01f162054a3d0a6b0fe8d4affffb095ee"
+  },
+  "pin_drift": "behind:3d0c4c3:f67821d",
+  "last_sync": "2026-09-15T13:07:56Z"
+}
