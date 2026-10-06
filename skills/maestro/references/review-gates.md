@@ -16,15 +16,15 @@ All in **one message**, in parallel, each with an explicit model and effort:
 
 | Agent | Dispatch when | Model | Effort | Checks |
 | --- | --- | --- | --- | --- |
-| `code-reviewer` | Always | `sonnet` | `medium` | Project conventions, design, dead code, naming, structure, error handling, test gaps |
-| `security-reviewer` | The diff touches authentication, authorisation, user input, database queries, file uploads, LLM calls, secrets or PII | `sonnet` | `medium` | OWASP Top 10, injection, XSS, CSRF, broken access control, sensitive data exposure, insecure deserialisation, audit logging gaps |
-| Language reviewer (`python-reviewer`, `typescript-reviewer`, `go-reviewer`, `rust-reviewer`, …) | The diff is concentrated in one language and the agent is installed | `sonnet` | `medium` | Idioms, type safety, async correctness, language footguns |
+| `code-reviewer` | Always | `sonnet` | `xhigh` | Project conventions, design, dead code, naming, structure, error handling, test gaps |
+| `security-reviewer` | The diff touches authentication, authorisation, user input, database queries, file uploads, LLM calls, secrets or PII | `sonnet` | `xhigh` | OWASP Top 10, injection, XSS, CSRF, broken access control, sensitive data exposure, insecure deserialisation, audit logging gaps |
+| Language reviewer (`python-reviewer`, `typescript-reviewer`, `go-reviewer`, `rust-reviewer`, …) | The diff is concentrated in one language and the agent is installed | `sonnet` | `xhigh` | Idioms, type safety, async correctness, language footguns |
 
 Mixed-language diffs dispatch every relevant language reviewer alongside `code-reviewer`. Never serialise.
 
 **Precedence.** Plugin-scope agents win a name collision. Where only user scope provides an agent (`security-reviewer` and the language reviewers come from packs such as Everything Claude Code), that user-scope agent is the canonical dispatch, not a downgrade. Step 10 uses the namespaced `pr-review-toolkit:` set, which is separate. In a repository you do not control, check `.claude/agents/` for files that shadow these reviewer names before dispatching; a shadowing definition is a finding, not a reviewer.
 
-**Adjudication.** When reviewers conflict, or a `security-reviewer` or SkillSpector verdict needs a ruling, make **one** `opus` call at `high` effort with every finding and the relevant `file:line` excerpts. One judge over N reviewers; never a second fan-out.
+**Adjudication.** When reviewers conflict, or a `security-reviewer` or SkillSpector verdict needs a ruling, make **one** `opus` call at `xhigh` effort (`max` when the task needs it) with every finding and the relevant `file:line` excerpts. One judge over N reviewers; never a second fan-out.
 
 ### Severity
 
@@ -64,7 +64,7 @@ Do a manual self-review instead: read every changed file end to end against the 
 
 ### Phase 1 — specialist agents (PR Review Toolkit)
 
-Dispatch the relevant agents in parallel on `sonnet` at `medium` effort:
+Dispatch the relevant agents in parallel on `sonnet` at `xhigh` effort:
 
 | Agent | Dispatch when | Checks |
 | --- | --- | --- |

@@ -70,6 +70,10 @@ Verdict: **nothing joins the installer.** Each added skill grows a listing alrea
 | alexgreensh/token-optimizer, jgravelle/jcodemunch-mcp | Rejected | Non-commercial licences |
 | SuperClaude token-efficiency mode | Rejected | Same mechanism as caveman, already in the ecosystem |
 
+## Revision (same day)
+
+After the first cut the maintainer set two policies that override the audit's cheaper defaults, and v1.17.0 ships them: effort is `xhigh` by default with `max` when a task needs it (the audit had proposed `high`, `medium` and `low` by role, and never `max`), and maestro may be invoked every turn, provided the call carries no arguments and travels with the turn's first tool call. The argument-free rule keeps the per-turn cost to a short note; the effort default trades output tokens for quality by choice.
+
 ## Review (Step 8.5)
 
 `code-reviewer` and `security-reviewer` ran on `sonnet`, in parallel, against the local diff; SkillSpector ran static-only on the skill bundle.
