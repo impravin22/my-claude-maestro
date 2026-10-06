@@ -7,7 +7,7 @@
 #
 # Usage:
 #   ./install.sh                        # install everything (profile full)
-#   ./install.sh --profile=engineering  # coding packs only, no domain packs
+#   ./install.sh --profile=engineering  # domain packs installed switched off
 #   ./install.sh --minimal              # required only (superpowers + Context7)
 #   ./install.sh --dry-run              # print commands without running
 #   ./install.sh --skip-vercel          # opt out of a specific component
@@ -20,6 +20,9 @@ DRY_RUN=0
 SKIP_LIST=""
 PROFILE=""
 PROFILE_SKIP_LIST=""
+# Installed, then switched off at user scope: maestro loads them from disk on
+# demand, so they cost nothing in the session's skill listing.
+PROFILE_DORMANT_LIST=""
 EXPECT_PROFILE_VALUE=0
 PROFILE_GIVEN_EMPTY=0
 PROFILE_COUNT=0
@@ -45,19 +48,20 @@ Components installed by default:
 Flags:
   --profile=<name>       install a named set (also --profile <name>):
                            full         everything above (the default for now)
-                           engineering  coding packs only: no domain packs, no
-                                        Vercel; Everything Claude Code installs
-                                        with its own developer profile
+                           engineering  coding packs enabled; domain packs
+                                        installed but switched off, for maestro
+                                        to load on demand; no Vercel; Everything
+                                        Claude Code with its developer profile
                            core         engineering minus PR Review Toolkit,
                                         Playwright, UI UX Pro Max, Karpathy,
                                         Taste, Transitions and SkillSpector; ECC
                                         with its core profile. Steps 5a/5d, 8,
                                         8.5 (supply-chain scan) and 10 then fall
                                         back to their manual paths
-                         Domain packs load into every session's skill listing
-                         whether or not a task uses them; enable them per
-                         project instead (see skills/maestro/references/
-                         ecosystem.md, Install profiles).
+                         An enabled domain pack loads into every session's skill
+                         listing whether or not a task uses it; switched off,
+                         it costs nothing and maestro still reaches it (see
+                         skills/maestro/references/skill-pack-registry.md).
                          The default becomes engineering in a later release.
   --minimal              install required components only (not combinable
                          with --profile)
@@ -185,8 +189,8 @@ if [ -n "$PROFILE" ] && [ "$MINIMAL" -eq 1 ]; then
 fi
 case "$PROFILE" in
   ""|full) PROFILE_SKIP_LIST="" ;;
-  engineering) PROFILE_SKIP_LIST="$DOMAIN_PACKS vercel" ;;
-  core) PROFILE_SKIP_LIST="$DOMAIN_PACKS vercel pr-review-toolkit Playwright
+  engineering) PROFILE_SKIP_LIST="vercel"; PROFILE_DORMANT_LIST="$DOMAIN_PACKS" ;;
+  core) PROFILE_DORMANT_LIST="$DOMAIN_PACKS"; PROFILE_SKIP_LIST="vercel pr-review-toolkit Playwright
 ui-ux-pro-max andrej-karpathy-skills taste-skill transitions skillspector" ;;
   *)
     echo "Unknown profile: $PROFILE" >&2
@@ -195,7 +199,7 @@ ui-ux-pro-max andrej-karpathy-skills taste-skill transitions skillspector" ;;
 esac
 # A profile naming a component that no longer exists would install that
 # component silently, the same failure mode the --skip validation prevents.
-for profile_component in $PROFILE_SKIP_LIST; do
+for profile_component in $PROFILE_SKIP_LIST $PROFILE_DORMANT_LIST; do
   if ! is_known_component "$profile_component"; then
     echo "internal error: profile $PROFILE names unknown component $profile_component" >&2
     exit 3
@@ -219,6 +223,10 @@ fi
 INSTALLED=()
 SKIPPED=()
 FAILED=()
+# The specs switch_off could not switch off. Each is also in FAILED, but the
+# fix differs: the pack installed fine, so the summary gives the disable
+# command instead of the install-it-manually advice.
+SWITCH_OFF_FAILED=()
 
 log_step()    { printf "\n${BLUE}==> %s${RESET}\n" "$1"; }
 log_ok()      { printf "${GREEN}✔ %s${RESET}\n" "$1"; INSTALLED+=("$1"); }
@@ -413,6 +421,59 @@ verify_pinned_sha() {
   return 0
 }
 
+# A profile's dormant packs are installed, then switched off. An explicit
+# --skip still wins, because is_skipped is checked first at every call site.
+is_dormant() {
+  local name="$1"
+  for s in $PROFILE_DORMANT_LIST; do
+    [ "$s" = "$name" ] && return 0
+  done
+  return 1
+}
+
+# already_disabled_at_user_scope <spec>
+#
+# `claude plugin disable` exits 1 for a plugin that is already off at user
+# scope (Claude Code 2.1.291: 'Plugin "<spec>" is already disabled at user
+# scope'). That is the state switch_off wants, and without this check a second
+# run of the same profile would report every pack the first run switched off as
+# a failure. Ask again in the CLI's machine-readable form and accept its
+# already-in-goal-state verdict, or an attempt that now succeeds. Anything else,
+# including a CLI too old for --json, stays a failure.
+#
+# Only ever called from switch_off's run() string, after the plain disable has
+# failed, so a dry run never reaches it.
+already_disabled_at_user_scope() {
+  local result
+  result="$(claude plugin disable "$1" --scope user --json 2>/dev/null)" && return 0
+  case "$result" in
+    *'"alreadyInGoalState":true'*|*'"alreadyInGoalState": true'*) return 0 ;;
+  esac
+  return 1
+}
+
+# switch_off <name> <spec...>
+#
+# Switches each installed spec off at user scope. Every spec is attempted on
+# its own, even after one fails: a bundle that cannot be switched off must not
+# leave the bundles after it on as well. Each failure names the exact command
+# to run by hand. Returns non-zero if any spec is still on.
+#
+# The specs are literals from the call sites, as plugin_spec is in
+# install_plugin, so the run() string stays within its invariant.
+switch_off() {
+  local name="$1" spec status=0
+  shift
+  for spec in "$@"; do
+    if ! run "claude plugin disable $spec --scope user || already_disabled_at_user_scope $spec"; then
+      log_fail "$name: installed but could not be switched off; run by hand: claude plugin disable $spec --scope user"
+      SWITCH_OFF_FAILED+=("$spec")
+      status=1
+    fi
+  done
+  return "$status"
+}
+
 install_plugin() {
   local name="$1" marketplace="$2" plugin_spec="$3"
   if is_skipped "$name"; then
@@ -425,10 +486,12 @@ install_plugin() {
       || log_fail "$name: marketplace add failed (continuing)"
     ADDED_MARKETPLACES="$ADDED_MARKETPLACES$marketplace "
   fi
-  if run "claude plugin install $plugin_spec"; then
-    log_ok "$name"
-  else
+  if ! run "claude plugin install $plugin_spec"; then
     log_fail "$name: plugin install failed"
+  elif ! is_dormant "$name"; then
+    log_ok "$name"
+  elif switch_off "$name" "$plugin_spec"; then
+    log_ok "$name (installed, switched off: profile $PROFILE)"
   fi
 }
 
@@ -623,7 +686,13 @@ if [ "$MINIMAL" -eq 0 ]; then
        && run "claude plugin install pm-people@pm-claude-skills" \
        && run "claude plugin install pm-career@pm-claude-skills" \
        && run "claude plugin install pm-comms@pm-claude-skills"; then
-      log_ok "pm-claude-skills (pinned)"
+      if ! is_dormant "pm-claude-skills"; then
+        log_ok "pm-claude-skills (pinned)"
+      elif switch_off "pm-claude-skills" \
+           pm-delivery@pm-claude-skills pm-people@pm-claude-skills \
+           pm-career@pm-claude-skills pm-comms@pm-claude-skills; then
+        log_ok "pm-claude-skills (installed, switched off: profile $PROFILE)"
+      fi
     else
       log_fail "pm-claude-skills (pinned)"
     fi
@@ -712,16 +781,31 @@ fi
 if [ ${#FAILED[@]} -gt 0 ]; then
   printf "\n${RED}Failed (${#FAILED[@]}):${RESET}\n"
   for f in "${FAILED[@]}"; do echo "  ✖ $f"; done
-  echo ""
-  echo "Some components failed. Re-run with --dry-run to inspect commands,"
-  echo "or install the failed components manually (see README.md)."
+  # Installing manually is the wrong fix for a pack that installed and only
+  # failed to switch off, so this advice counts the other failures alone.
+  if [ ${#FAILED[@]} -gt ${#SWITCH_OFF_FAILED[@]} ]; then
+    echo ""
+    echo "Some components failed. Re-run with --dry-run to inspect commands,"
+    echo "or install the failed components manually (see README.md)."
+  fi
 fi
-# A profile only skips installs: packs from an earlier, fuller install stay
-# enabled and keep costing listing tokens until they are disabled.
-if [ -n "$PROFILE_SKIP_LIST" ]; then
+if [ ${#SWITCH_OFF_FAILED[@]} -gt 0 ]; then
   echo ""
-  echo "Profile $PROFILE skips installs only. Packs already installed stay enabled;"
-  echo "remove one from every session with:"
+  echo "Some packs installed but are still switched on, so their skills load into"
+  echo "every session. Switch each one off by hand (maestro still loads it on demand):"
+  for spec in "${SWITCH_OFF_FAILED[@]}"; do
+    echo "  claude plugin disable $spec --scope user"
+  done
+fi
+# A profile switches its dormant packs off at user scope, including any that an
+# earlier, fuller install had enabled: their install step runs again and the
+# switch-off follows it. Skipped components are never touched, so one an
+# earlier install enabled stays enabled and keeps costing listing tokens.
+if [ -n "$PROFILE_SKIP_LIST$PROFILE_DORMANT_LIST" ]; then
+  echo ""
+  echo "Profile $PROFILE switches its domain packs off at user scope, including"
+  echo "any an earlier install had enabled; maestro loads them on demand."
+  echo "Skipped components stay as they were. Switch one off by hand with:"
   echo "  claude plugin disable <plugin>@<marketplace> --scope user"
 fi
 

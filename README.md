@@ -7,7 +7,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 
 ## What It Does
 
-1. **Classifies** your task (feature, bug fix, refactor, config, UI-only) and routes it — to the right **domain pack** and the right **model tier**
+1. **Classifies** your task (feature, bug fix, refactor, config, UI-only) and routes it — to the right **domain pack** and the right **model tier**. A domain pack that is installed but switched off is loaded straight from disk when the task needs it, so domain packs can stay out of every session's skill listing; `~/.claude/maestro-packs.json` can name per-project defaults
 2. **Fetches live docs** via [Context7](https://github.com/upstash/context7) for every library involved — no stale training data
 3. **Orchestrates superpowers skills** in the correct order (brainstorm → plan → TDD → implement → verify → PR)
 4. **Enforces UI/UX design system** — WCAG 2.1 AA accessibility, Tailwind token usage, shadcn/ui patterns, responsive design, loading/error/empty states. Step 5 runs an **anti-template design-mockup gate** that produces an approved visual artefact (HTML prototype, sketch, or Storybook story) **before** any production frontend code is written. The gate enforces an explicit anti-template ban (no centred max-w-md card with icon→headline→CTA, no "clean minimal", no unmodified Tailwind defaults), requires the design to demonstrate at least four of ten quality markers (hierarchy, rhythm, depth, typography, semantic colour, drawn states, grid-breaking, atmosphere, motion, dataviz), and self-audits before the user is asked to approve — eliminating both the post-implementation rework loop and the template-by-default failure mode
@@ -39,7 +39,7 @@ v1.17.0 cut `SKILL.md` from 42,844 to about 12,000 bytes (6,371 to 1,815 words) 
   "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Invoke the maestro:maestro skill once with no arguments, then apply it to every task. Never pass arguments.\"}}'"}]}]}}
 ```
 
-**Settings that compound the saving.** `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` in the settings `env`, so a dispatch that names no model stops inheriting the main loop. Effort per model under `modelSettings` (`xhigh` by default, `/effort max` for a task that needs it) rather than an exported `CLAUDE_CODE_EFFORT_LEVEL`, which overrides every other effort setting. `ultracode` off, opting into a workflow per task by typing `ultracode:` in the prompt. And `./install.sh --profile=engineering`, with domain packs enabled only in the projects that use them. The installer only adds, so on an existing install take packs out of the global set with `claude plugin disable <plugin>@<marketplace> --scope user`.
+**Settings that compound the saving.** `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` in the settings `env`, so a dispatch that names no model stops inheriting the main loop. Effort per model under `modelSettings` (`xhigh` by default, `/effort max` for a task that needs it) rather than an exported `CLAUDE_CODE_EFFORT_LEVEL`, which overrides every other effort setting. `ultracode` off, opting into a workflow per task by typing `ultracode:` in the prompt. Keep domain packs installed but switched off globally: maestro loads a switched-off pack from disk when a task needs it, through `skills/maestro/scripts/find-pack.py`, and `~/.claude/maestro-packs.json` sets per-project defaults. `./install.sh --profile=engineering` installs the domain packs that way. The installer never uninstalls anything, and a pack a profile skips keeps whatever state an earlier install left it in, so on an existing install switch packs off with `claude plugin disable <plugin>@<marketplace> --scope user`.
 
 ## Prerequisites
 
@@ -90,14 +90,14 @@ cd my-claude-maestro
 ./install.sh
 ```
 
-The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, leadership-skills, pm-product-discovery, c-level-skills (installer component name: `c-level-advisor`), Taste, and Transitions. `pm-claude-skills` is the one pack installed from a **pinned commit** rather than a default branch, cloned to `~/.claude/pinned/pm-claude-skills`; skip it with `--skip-pm-claude-skills`. `--profile=engineering` leaves out finance, small-business, legal, marketing-skills, social-media-skills, the three leadership bundles, pm-product-discovery, c-level-skills, pm-claude-skills and Vercel (add those per project, as `references/ecosystem.md` describes), keeps example-skills (it carries frontend-design, mcp-builder and skill-creator), Taste and Transitions, and installs Everything Claude Code with its own `developer` profile instead of `full`. `--profile=core` also drops PR Review Toolkit, Playwright, SkillSpector, UI UX Pro Max, Karpathy, Taste and Transitions, so Steps 5a/5d, 8, 8.5 and 10 run their manual fallbacks.
+The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, leadership-skills, pm-product-discovery, c-level-skills (installer component name: `c-level-advisor`), Taste, and Transitions. `pm-claude-skills` is the one pack installed from a **pinned commit** rather than a default branch, cloned to `~/.claude/pinned/pm-claude-skills`; skip it with `--skip-pm-claude-skills`. `--profile=engineering` installs finance, small-business, legal, marketing-skills, social-media-skills, the three leadership bundles, pm-product-discovery, c-level-skills and pm-claude-skills switched off, so they cost nothing in the skill listing while maestro still loads them from disk when a task needs one; it skips Vercel, keeps example-skills (it carries frontend-design, mcp-builder and skill-creator), Taste and Transitions enabled, and installs Everything Claude Code with its own `developer` profile instead of `full`. `--profile=core` also drops PR Review Toolkit, Playwright, SkillSpector, UI UX Pro Max, Karpathy, Taste and Transitions, so Steps 5a/5d, 8, 8.5 and 10 run their manual fallbacks.
 
 Heavy/specialised dependencies (VoiceMode, n8n-MCP, LightRAG) are **excluded by default** — install manually from the [Prerequisites](#prerequisites) table if you need them.
 
 **Installer flags:**
 
 ```bash
-./install.sh --profile=engineering  # coding packs only; domain packs per project
+./install.sh --profile=engineering  # domain packs installed switched off; maestro loads them on demand
 ./install.sh --profile=core         # engineering minus review, visual and scan tooling
 ./install.sh --minimal              # required components only (superpowers + Context7)
 ./install.sh --dry-run              # preview commands without executing
@@ -172,7 +172,7 @@ Reference files are read **on demand**, never on every task — that is what kee
 - **[Quality Gates](skills/maestro/references/quality-gates.md)** — testing, linting, code quality, visual verification (Playwright), PR specialist review, solution justification, style, git workflow
 - **[Frontend Design Trigger](skills/maestro/references/frontend-design-trigger.md)** — the decision matrix for when Step 5 needs a mockup
 - **[Evidence Ledger](skills/maestro/references/evidence-ledger.md)** — durable per-task gate state: pre-registered oracles at PLAN, fresh evidence at Step 8.0, visible abandonment
-- **[Skill Pack Registry](skills/maestro/references/skill-pack-registry.md)** — the Deliverable flow, each domain pack's skills, gates, and caveats. Read only when routing to a non-engineering domain
+- **[Skill Pack Registry](skills/maestro/references/skill-pack-registry.md)** — the Deliverable flow, each domain pack's skills, gates, and caveats, on-demand loading of switched-off packs, and per-project defaults. Read only when routing to a non-engineering domain
 - **[Model Routing](skills/maestro/references/model-routing.md)** — the role-based table (model and effort per role), dispatch mechanisms, escalation rules, and the evidence behind them
 - **[Review Gates](skills/maestro/references/review-gates.md)** — Step 8.5 dispatch, severity and SkillSpector rules; Step 10 specialists and the background wait for the external review
 - **[Ecosystem](skills/maestro/references/ecosystem.md)** — install commands, per-pack caveats, and the full degradation table. Read only when a pack is missing
@@ -212,6 +212,9 @@ my-claude-maestro/
 ├── skills/
 │   └── maestro/
 │       ├── SKILL.md
+│       ├── scripts/
+│       │   ├── find-pack.py     # finds a switched-off domain pack on disk, safely
+│       │   └── pack_text.py     # its SKILL.md frontmatter reader and safe printing
 │       └── references/          # read on demand, not every task
 │           ├── uiux-checklist.md
 │           ├── security-checklist.md
@@ -229,7 +232,10 @@ my-claude-maestro/
 │   ├── install-smoke.sh            # bash tests/install-smoke.sh — runs in CI
 │   ├── hook-smoke.sh               # update-notice hook tests
 │   ├── skill-bundle-lint.py        # hot-path budget, references, gate phrases
-│   └── skill-bundle-lint-smoke.sh  # proves each lint guard fires
+│   ├── skill-bundle-lint-smoke.sh  # proves each lint guard fires
+│   ├── test_find_pack.py           # find-pack.py: lookup, project defaults, CLI
+│   ├── test_find_pack_frontmatter.py  # pack_text.py: frontmatter, safe text
+│   └── find_pack_support.py        # shared fixtures for those two
 ├── docs/
 │   ├── 2026-04-03-maestro-design.md
 │   ├── 2026-04-07-plugin-integration-design.md
@@ -240,7 +246,8 @@ my-claude-maestro/
 │   ├── 2026-08-18-deepseek-harness-evaluation.md   # why DSH is a peer harness, not a pack
 │   ├── 2026-08-24-unlazy-evaluation.md   # right layer, fails on merit; ledger idea adopted first-party
 │   ├── 2026-08-24-i-have-adhd-evaluation.md   # peer output-mode; nothing to adopt, redundant with caveman + Progress Protocol
-│   └── 2026-10-06-token-efficiency-audit.md   # evidence behind the v1.17.0 lean skill and role-based routing
+│   ├── 2026-10-06-token-efficiency-audit.md   # evidence behind the v1.17.0 lean skill and role-based routing
+│   └── 2026-10-06-on-demand-domain-packs.md   # why v1.18.0 loads switched-off packs from disk
 ├── install.sh          # companion ecosystem installer
 ├── CONTRIBUTING.md     # dev setup + the rules CI enforces
 ├── SECURITY.md         # private vulnerability reporting

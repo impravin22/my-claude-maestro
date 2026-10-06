@@ -150,6 +150,12 @@ jobs:
       - name: Skill bundle lint
         run: python3 tests/skill-bundle-lint.py
 
+      # Unit tests for the Python the bundle ships, such as
+      # skills/maestro/scripts/find-pack.py. Hermetic: each test builds its own
+      # fake ~/.claude, plugin cache and managed settings in a temporary folder.
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+
   # Single stable name for branch protection to require. The matrix job names
   # are prose ("install.sh smoke (bash 3.2 (macOS))") and change with labels;
   # pinning protection to this one aggregator means adding or renaming jobs
