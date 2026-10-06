@@ -28,7 +28,13 @@ macOS ships bash 3.2.57, and under `set -u` it treats an empty array as unset â€
 bash tests/install-smoke.sh
 ```
 
-The suite is hermetic: it stubs `claude`, `node`, `npx` and `curl` onto `PATH`, runs the installer in `--dry-run`, and installs nothing. Lint with:
+The suite is hermetic: it stubs `claude`, `node`, `npx` and `curl` onto `PATH`, runs the installer in `--dry-run`, and installs nothing. The Python the bundle ships (`skills/maestro/scripts/find-pack.py`) has unit tests that are hermetic too, each building its own fake `~/.claude` in a temporary folder:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
+
+Lint with:
 
 ```bash
 shellcheck -S warning -e SC2294 install.sh
@@ -65,6 +71,7 @@ Branch protection requires a status check literally named `ci-ok` (the aggregato
 ## Style
 
 - Bash: `set -euo pipefail`, shellcheck-clean at `-S warning`.
+- Python (`tests/*.py`, `skills/maestro/scripts/*.py`): standard library only, full type hints, `ruff format --check` and `ruff check` clean. Scripts under `skills/` must run on Python 3.9, the macOS system `python3`, because they run from the plugin cache on users' machines.
 - Prose (README, docs, comments): British English â€” "artefact", "licence", "colour".
 - Markdown checklists and references: keep the existing register; comments explain *why*, never *what*.
 

@@ -4,9 +4,11 @@
 #
 # Nothing here installs anything. Every case passes --dry-run — which routes each
 # install command through run() and only prints it — except --help and the
-# unknown-flag case, which exit during argument parsing, before preflight. The
-# only filesystem effect of a dry run is two self-cleaning `mktemp -d` calls in
-# install.sh itself.
+# unknown-flag case, which exit during argument parsing, before preflight, and
+# the two switch-off failure cases, which run for real against recording stubs
+# on a PATH that holds nothing else (see make_stub_bin). The only filesystem
+# effect of a dry run is two self-cleaning `mktemp -d` calls in install.sh
+# itself.
 #
 # install.sh is launched via "$BASH", not a bare `bash`. Those differ whenever a
 # newer bash sits ahead of /bin/bash on PATH, and the version gate below reads
@@ -214,6 +216,30 @@ assert_profile_skip_set() {
   expected="$(printf '%s\n' "$@" | sort -u)"
   actual="$("$BASH" "$INSTALLER" --dry-run "--profile=$profile" 2>/dev/null \
     | sed -n "s/^.* \([^ ][^ ]*\) (profile $profile)\$/\1/p" | sort -u)"
+
+  if [ "$actual" = "$expected" ]; then
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $description"
+    echo "      expected: $(printf '%s ' $expected)"
+    echo "      actual:   $(printf '%s ' $actual)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+# assert_profile_dormant_set <description> <profile> <expected component...>
+# The packs a profile installs and then switches off must equal the expected
+# set exactly, like assert_profile_skip_set does for skips.
+assert_profile_dormant_set() {
+  local description="$1" profile="$2"
+  shift 2
+  local expected actual
+
+  expected="$(printf '%s\n' "$@" | sort -u)"
+  actual="$("$BASH" "$INSTALLER" --dry-run "--profile=$profile" 2>/dev/null \
+    | sed -n "s/^.* \([^ ][^ ]*\) (installed, switched off: profile $profile)\$/\1/p" \
+    | sort -u)"
 
   if [ "$actual" = "$expected" ]; then
     echo "PASS: $description"
@@ -501,6 +527,217 @@ assert_every_component_is_skippable() {
   fi
 }
 
+# assert_install_precedes_disable <description> <flags...>
+#
+# A pack switched off before it is installed is still on once the install
+# lands, so each dormant spec's disable line must follow its install line. A
+# spec missing either line fails too. A match must end at a space or the end of
+# the line, so one spec cannot pass inside a longer one.
+assert_install_precedes_disable() {
+  local description="$1"
+  shift
+  local output spec install_at disable_at problems=""
+
+  output="$("$BASH" "$INSTALLER" --dry-run "$@" 2>/dev/null)"
+  for spec in $DORMANT_SPECS; do
+    install_at="$(printf '%s\n' "$output" \
+      | grep -n -E -m1 "claude plugin install $spec( |\$)" | cut -d: -f1)"
+    disable_at="$(printf '%s\n' "$output" \
+      | grep -n -E -m1 "claude plugin disable $spec --scope user( |\$)" | cut -d: -f1)"
+    if [ -z "$install_at" ] || [ -z "$disable_at" ]; then
+      problems="$problems [missing:$spec]"
+    elif [ "$install_at" -ge "$disable_at" ]; then
+      problems="$problems [disabled-first:$spec]"
+    fi
+  done
+
+  if [ -n "$problems" ]; then
+    echo "FAIL: $description"
+    echo "      $problems"
+    FAIL=$((FAIL + 1))
+  else
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  fi
+}
+
+# make_stub_bin <dir>
+#
+# Builds <dir>/bin for the two cases that run install.sh for real. Used as the
+# WHOLE of PATH, so nothing outside it can run: a command those cases do not
+# expect fails as not found instead of touching the machine. Every stub appends
+# its call to <dir>/calls.log; cat is the one real binary, for the summary.
+#
+# `claude plugin disable <spec> --scope user [--json]` exits 1 for a spec listed
+# in <dir>/fail, and for one listed in <dir>/off answers as Claude Code 2.1.291
+# does for a plugin already disabled at user scope: exit 1, with the
+# alreadyInGoalState verdict under --json. Every other call succeeds.
+make_stub_bin() {
+  local dir="$1" tool
+  mkdir "$dir/bin" || return 1
+  : > "$dir/fail"
+  : > "$dir/off"
+  for tool in node npx curl git; do
+    printf '#!/bin/sh\nprintf "%%s %%s\\n" "${0##*/}" "$*" >> "${0%%/*}/../calls.log"\n' \
+      > "$dir/bin/$tool"
+  done
+  cat > "$dir/bin/claude" <<'EOF_STUB'
+#!/bin/sh
+here="${0%/*}/.."
+printf 'claude %s\n' "$*" >> "$here/calls.log"
+[ "$1 $2" = "plugin disable" ] || exit 0
+while read -r spec; do
+  [ "$spec" = "$3" ] || continue
+  echo "Failed to disable plugin \"$3\": settings could not be written" >&2
+  exit 1
+done < "$here/fail"
+while read -r spec; do
+  [ "$spec" = "$3" ] || continue
+  if [ "${6:-}" = "--json" ]; then
+    printf '{"command":"disable","outcome":"failed","plugin":"%s","failureCode":"already_in_goal_state","alreadyInGoalState":true}\n' "$3"
+  else
+    echo "Failed to disable plugin \"$3\": Plugin \"$3\" is already disabled at user scope" >&2
+  fi
+  exit 1
+done < "$here/off"
+exit 0
+EOF_STUB
+  chmod +x "$dir/bin/"* || return 1
+  ln -s "$(command -v cat)" "$dir/bin/cat"
+}
+
+# assert_switch_off_failures <description>
+#
+# Every dry run gets a zero status from run(), so without a real run the
+# branches for a failed switch-off never execute. This one runs
+# --profile=engineering for real against make_stub_bin, with HOME in a scratch
+# directory and the four components that clone or pip-install skipped (the
+# pinned pack would also refuse the scratch HOME). The stub fails the disable of
+# marketing-skills and reports finance as already off.
+assert_switch_off_failures() {
+  local description="$1"
+  local dir rc out spec problems=""
+
+  dir="$(mktemp -d)" || { echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
+  if ! make_stub_bin "$dir" || ! mkdir "$dir/home"; then
+    rm -rf "$dir"
+    echo "FAIL: $description (could not build the stubs)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+  printf '%s\n' marketing-skills@marketingskills > "$dir/fail"
+  printf '%s\n' finance@knowledge-work-plugins > "$dir/off"
+
+  PATH="$dir/bin" HOME="$dir/home" "$BASH" "$INSTALLER" --profile=engineering \
+    --skip-pm-claude-skills --skip-transitions --skip-skillspector \
+    --skip-everything-claude-code >"$dir/out" 2>/dev/null
+  rc=$?
+  out="$(cat "$dir/out")"
+
+  # A failed switch-off is a failure: the profile's promise is not met.
+  [ "$rc" -eq 1 ] || problems="$problems [exit $rc, expected 1]"
+  case "$out" in
+    *"marketing-skills: installed but could not be switched off; run by hand: claude plugin disable marketing-skills@marketingskills --scope user"*) ;;
+    *) problems="$problems [no failure line naming the command]" ;;
+  esac
+  # Already off is the goal state, not a failure.
+  case "$out" in
+    *"finance (installed, switched off: profile engineering)"*) ;;
+    *) problems="$problems [already-off pack not reported as switched off]" ;;
+  esac
+  case "$out" in
+    *"finance: installed but could not be switched off"*) problems="$problems [already-off pack reported as failed]" ;;
+  esac
+  # The advice for an install failure is wrong for a pack that installed.
+  case "$out" in
+    *"install the failed components manually"*) problems="$problems [install advice given for a switch-off failure]" ;;
+  esac
+  case "$out" in
+    *"Some packs installed but are still switched on"*) ;;
+    *) problems="$problems [no switch-off advice block]" ;;
+  esac
+  printf '%s\n' "$out" \
+    | grep -q -x -F "  claude plugin disable marketing-skills@marketingskills --scope user" \
+    || problems="$problems [advice block does not list the command]"
+  # Every pack after the failure was still attempted.
+  for spec in $DORMANT_SPECS; do
+    case "$spec" in *@pm-claude-skills) continue ;; esac
+    grep -q -x -F "claude plugin disable $spec --scope user" "$dir/calls.log" \
+      || problems="$problems [never attempted:$spec]"
+  done
+  # The stubs prove the run stayed inside the scratch PATH.
+  if grep -q '^git ' "$dir/calls.log"; then
+    problems="$problems [git was called]"
+  fi
+  rm -rf "$dir"
+
+  if [ -n "$problems" ]; then
+    echo "FAIL: $description"
+    echo "      $problems"
+    FAIL=$((FAIL + 1))
+  else
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  fi
+}
+
+# assert_pinned_bundles_switch_off_alone <description>
+#
+# The pinned pack cannot run for real here (it clones, and refuses a scratch
+# HOME), so lift switch_off and the helpers it calls out of install.sh, as
+# assert_pin_guard does for verify_pinned_sha, and switch the four bundles off
+# against make_stub_bin with the first and third failing. All four must be
+# attempted, and exactly the two that failed recorded.
+assert_pinned_bundles_switch_off_alone() {
+  local description="$1"
+  local dir rc problems="" bundle
+
+  dir="$(mktemp -d)" || { echo "FAIL: $description (mktemp failed)"; FAIL=$((FAIL + 1)); return; }
+  if ! make_stub_bin "$dir"; then
+    rm -rf "$dir"
+    echo "FAIL: $description (could not build the stubs)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+  printf '%s\n' pm-delivery@pm-claude-skills pm-career@pm-claude-skills > "$dir/fail"
+
+  (
+    eval "$(sed -n -e '/^log_fail() /p' -e '/^run() {/,/^}/p' \
+      -e '/^already_disabled_at_user_scope() {/,/^}/p' \
+      -e '/^switch_off() {/,/^}/p' "$INSTALLER")"
+    # Read by the eval'd functions above, which shellcheck cannot follow.
+    # shellcheck disable=SC2034
+    { DRY_RUN=0; RED=''; YELLOW=''; RESET=''; FAILED=(); SWITCH_OFF_FAILED=(); }
+    PATH="$dir/bin"
+    switch_off pm-claude-skills pm-delivery@pm-claude-skills pm-people@pm-claude-skills \
+      pm-career@pm-claude-skills pm-comms@pm-claude-skills >/dev/null 2>&1
+    rc=$?
+    # The +-guard keeps an empty array from aborting under set -u on bash 3.2.
+    printf '%s\n' ${SWITCH_OFF_FAILED[@]+"${SWITCH_OFF_FAILED[@]}"} > "$dir/recorded"
+    exit "$rc"
+  )
+  rc=$?
+
+  [ "$rc" -ne 0 ] || problems="$problems [returned 0 with two bundles still on]"
+  for bundle in pm-delivery pm-people pm-career pm-comms; do
+    grep -q -x -F "claude plugin disable $bundle@pm-claude-skills --scope user" "$dir/calls.log" \
+      || problems="$problems [never attempted:$bundle]"
+  done
+  if [ "$(cat "$dir/recorded")" != "$(printf '%s\n' pm-delivery@pm-claude-skills pm-career@pm-claude-skills)" ]; then
+    problems="$problems [recorded: $(tr '\n' ' ' < "$dir/recorded")]"
+  fi
+  rm -rf "$dir"
+
+  if [ -n "$problems" ]; then
+    echo "FAIL: $description"
+    echo "      $problems"
+    FAIL=$((FAIL + 1))
+  else
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  fi
+}
+
 echo "install.sh smoke tests — bash $BASH_VERSION"
 if [ "$GUARD_REPRODUCES" -eq 0 ]; then
   echo "NOTE: bash >= 4.4 does not reproduce the empty-array 'set -u' abort."
@@ -635,14 +872,24 @@ assert_minimal_skips_git_requirement "--minimal does not require git"
 # Every declared marketplace and plugin spec is emitted by a default dry run.
 assert_all_plugin_specs_in_dry_run "every install_plugin spec appears in --dry-run output"
 
-# --- Profiles (v1.17.0) ----------------------------------------------------
-# A profile is a named skip list. These cases pin what each profile installs,
-# that every skip line says why, and that bad profile input fails at parse
-# time, with its own message, rather than falling back to a full install.
-ENGINEERING_SKIPS="finance small-business legal marketing-skills social-media-skills
+# --- Profiles (v1.17.0; dormant packs v1.18.0) ------------------------------
+# A profile is a named skip list plus a dormant list: dormant packs are
+# installed, then switched off, so maestro can load them from disk on demand.
+# These cases pin both sets exactly, that every line says why, and that bad
+# profile input fails at parse time rather than falling back to full.
+DORMANT_PACKS="finance small-business legal marketing-skills social-media-skills
 leadership-performance-management leadership-communication
 leadership-decision-making pm-product-discovery c-level-advisor
-pm-claude-skills vercel"
+pm-claude-skills"
+# The plugin specs those packs install and switch off: the pinned pack is four.
+DORMANT_SPECS="finance@knowledge-work-plugins small-business@knowledge-work-plugins
+legal@knowledge-work-plugins marketing-skills@marketingskills
+social-media-skills@social-media-skills performance-management@leadership-skills
+communication@leadership-skills decision-making@leadership-skills
+pm-product-discovery@pm-skills c-level-skills@claude-code-skills
+pm-delivery@pm-claude-skills pm-people@pm-claude-skills
+pm-career@pm-claude-skills pm-comms@pm-claude-skills"
+ENGINEERING_SKIPS="vercel"
 CORE_ONLY_SKIPS="pr-review-toolkit Playwright ui-ux-pro-max andrej-karpathy-skills
 taste-skill transitions skillspector"
 
@@ -650,11 +897,16 @@ assert_run "--profile=engineering dry-run exits 0" 0 --dry-run --profile=enginee
 assert_run "--profile=full dry-run exits 0" 0 --dry-run --profile=full
 
 # The lists are unquoted on purpose: word splitting turns each into arguments.
-assert_profile_skip_set "engineering skips exactly the domain packs and Vercel" \
+assert_profile_skip_set "engineering skips exactly Vercel" \
   engineering $ENGINEERING_SKIPS
-assert_profile_skip_set "core skips exactly the engineering set plus the optional voices" \
+assert_profile_skip_set "core skips exactly Vercel plus the optional voices" \
   core $ENGINEERING_SKIPS $CORE_ONLY_SKIPS
 assert_profile_skip_set "full skips nothing" full
+assert_profile_dormant_set "engineering installs exactly the domain packs switched off" \
+  engineering $DORMANT_PACKS
+assert_profile_dormant_set "core installs exactly the domain packs switched off" \
+  core $DORMANT_PACKS
+assert_profile_dormant_set "full labels no pack as switched off" full
 for profile in engineering core; do
   assert_stdout_contains "$profile still installs superpowers" \
     "Installing superpowers" --dry-run "--profile=$profile"
@@ -674,9 +926,33 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-assert_stdout_lacks "engineering never installs a domain pack" \
-  "claude plugin install marketing-skills@" "Maestro ecosystem install summary" \
+assert_stdout_contains "engineering installs a domain pack" \
+  "claude plugin install marketing-skills@marketingskills" --dry-run --profile=engineering
+assert_stdout_contains "engineering then switches that pack off at user scope" \
+  "claude plugin disable marketing-skills@marketingskills --scope user" \
   --dry-run --profile=engineering
+assert_stdout_contains "engineering switches the pinned bundles off too" \
+  "claude plugin disable pm-comms@pm-claude-skills --scope user" --dry-run --profile=engineering
+assert_stdout_lacks "full emits no disable command" \
+  "claude plugin disable" "Maestro ecosystem install summary" --dry-run --profile=full
+for profile in engineering core; do
+  assert_install_precedes_disable "$profile installs each dormant spec before switching it off" \
+    "--profile=$profile"
+done
+assert_stdout_contains "the note says the profile switches its domain packs off at user scope" \
+  "Profile engineering switches its domain packs off at user scope, including" \
+  --dry-run --profile=engineering
+assert_stdout_contains "the note says that covers packs an earlier install enabled" \
+  "any an earlier install had enabled; maestro loads them on demand." \
+  --dry-run --profile=engineering
+assert_stdout_contains "the note says skipped components stay as they were" \
+  "Skipped components stay as they were." --dry-run --profile=engineering
+assert_stdout_lacks "full prints no profile note" \
+  "switches its domain packs off" "Maestro ecosystem install summary" --dry-run --profile=full
+assert_switch_off_failures \
+  "a failed switch-off names its command and gets its own advice; already off is success"
+assert_pinned_bundles_switch_off_alone \
+  "each pinned bundle is switched off on its own, past a failure"
 assert_stdout_contains "engineering keeps the review toolkit" \
   "claude plugin install pr-review-toolkit@claude-plugins-official" \
   --dry-run --profile=engineering
@@ -688,8 +964,18 @@ assert_stdout_contains "an explicit --profile=full installs ECC's full profile" 
   "--profile full)" --dry-run --profile=full
 assert_stdout_contains "the default still installs ECC's full profile" \
   "--profile full)" --dry-run
-assert_stdout_contains "an explicit skip of a pack the profile also skips keeps its own label" \
+assert_stdout_contains "an explicit skip beats the dormant list" \
   "marketing-skills (explicit --skip)" --dry-run --profile=engineering --skip-marketing-skills
+assert_stdout_lacks "an explicitly skipped dormant pack is never installed" \
+  "claude plugin install marketing-skills@" "Maestro ecosystem install summary" \
+  --dry-run --profile=engineering --skip-marketing-skills
+# The pinned pack goes through its own block rather than install_plugin, so the
+# explicit-skip precedence is pinned for it separately.
+assert_stdout_contains "an explicit skip beats the dormant list for the pinned pack" \
+  "pm-claude-skills (explicit --skip)" --dry-run --profile=engineering --skip-pm-claude-skills
+assert_stdout_lacks "an explicitly skipped pinned pack is neither installed nor switched off" \
+  "@pm-claude-skills" "Maestro ecosystem install summary" \
+  --dry-run --profile=engineering --skip-pm-claude-skills
 
 assert_stderr_contains "an unknown profile is rejected by name" 2 "Unknown profile: lean" \
   --dry-run --profile=lean

@@ -1,6 +1,6 @@
 # Skill Pack Registry — Domain Packs & the Deliverable Flow
 
-Read this **only when CLASSIFY routes to a non-engineering domain**. Engineering tasks never need it — the standard 10-step flow in `SKILL.md` covers them.
+Read this **only when CLASSIFY routes to a non-engineering domain, or the task is mixed or unclear**. Pure engineering tasks never need it — the standard 10-step flow in `SKILL.md` covers them.
 
 Install commands and degradation rules for every pack live in `ecosystem.md`.
 
@@ -21,7 +21,7 @@ Steps 5 (UI mockup), 7 (TDD), 8.5, 9 and 10 (git/PR) apply only when the deliver
 
 **Model tier on this flow:** drafting on `opus`; the domain gate's final judgement (legal risk, financial variance interpretation, pricing strategy) as one `opus` call at `xhigh` effort (`max` when the task needs it); figure and fact tracing on `sonnet`. Details in `model-routing.md`.
 
-**Where the packs live.** Domain packs belong in the projects that use them, not in the global set: every enabled pack adds to every session's skill listing. A pack that is not enabled here degrades as `ecosystem.md` describes; to add it for the current project, propose the commands under Install profiles in `ecosystem.md` and let the user run or approve them.
+**Where the packs live.** Domain packs stay out of the global set: every enabled pack adds to every session's skill listing. When CLASSIFY names a domain, load its pack as Loading a pack describes, whether or not the pack is enabled here.
 
 ## Universal gates for deliverables
 
@@ -30,6 +30,65 @@ These apply to every domain below:
 - **Publishing needs approval.** Anything that posts, sends, schedules, or files needs explicit human approval immediately before the side-effectful step. Drafting is free; publishing is not.
 - **Evidence Gate still applies** (Step 8.0). No "done" without the artefact.
 - **Brand check.** If `brand-guidelines` is installed, check any outward-facing draft against it.
+
+## Loading a pack
+
+Run this once CLASSIFY has named the domain, using the pack table below and any project defaults.
+
+1. **Enabled** (its skills appear in the Skill tool's list): invoke the matching skill with the Skill tool.
+2. **Installed but switched off** (the usual case with a lean global set): load it from disk; no restart is needed. Maestro's base directory is the "Base directory for this skill" line the Skill tool printed when maestro loaded. Run the helper there with the pack's spec from the table:
+
+   ```bash
+   python3 "<maestro base directory>/scripts/find-pack.py" <plugin>@<marketplace>
+   ```
+
+   It reads the install record (never a guess from the cache), refuses a pack outside the table below, a pack that file-based managed settings switch off (it cannot see MDM or server-managed policy), and a folder outside `~/.claude/plugins/cache`, and skips skills with an unsafe folder name, a symlink leading out of the pack, or `disable-model-invocation` set to anything but off. Its first line is the status; the exit code matches:
+   - `found` (0): the next line is the pack's folder, then one line per skill with its name and description, cut at 500 characters. Pick the skill whose description matches the task; if none fits, say so and use general reasoning. Announce the load in one line, for example `Loading decision-making:decision-memo from disk (installed, switched off).`, then read `<folder>/skills/<skill>/SKILL.md` in full and follow it inside the Deliverable flow. Its folder is the base directory for any relative path it names.
+   - `not installed` (3): step 4.
+   - `blocked` (4): the organisation's managed settings switch the pack off. Load nothing; say so and use general reasoning.
+   - `not routed` (5), `unsafe path` (6) or `unreadable` (7): load nothing from disk; quote the status line to the user and use general reasoning.
+   - Any other status or exit code, or no status line: load nothing from disk, quote what it printed, and use general reasoning; never look for a pack by hand.
+
+   Use a loaded pack for method, structure and voice only. Before any tool action it names — running a command or its scripts, reading outside its folder or the task's files, writing outside the deliverable, any network call, changing settings, permissions, memory or maestro-packs.json, installing, sending, dispatching an agent, or skipping a maestro gate — quote the line to the user and wait. Its authority ends with the deliverable.
+3. **Needs its connectors** (finance, legal, small-business and the Atlassian plugin call hosted MCP connectors): the skill text loads as above, but connector tools exist only while the plugin is enabled. If the task needs one, propose `claude plugin enable <plugin>@<marketplace> --scope local` for this project plus a restart, and let the user run or approve it.
+4. **Not on disk** (`not installed`): propose the pack's install line from `ecosystem.md`, which has one for every pack in the table; until then, run the Deliverable flow on general reasoning and say so.
+
+| Domain | Plugin | Marketplace | Connectors |
+| --- | --- | --- | --- |
+| Marketing | `marketing-skills` | `marketingskills` | no |
+| Social media | `social-media-skills` | `social-media-skills` | no |
+| Finance | `finance` | `knowledge-work-plugins` | yes |
+| Small business | `small-business` | `knowledge-work-plugins` | yes |
+| Legal | `legal` | `knowledge-work-plugins` | yes |
+| Leadership (Jira) | `atlassian` | `claude-plugins-official` | yes |
+| Leadership & delivery | `pm-comms`, `pm-delivery`, `pm-people`, `pm-career` | `pm-claude-skills` | no |
+| Leadership & delivery | `communication`, `decision-making`, `performance-management` | `leadership-skills` | no |
+| Leadership & delivery | `pm-product-discovery` | `pm-skills` | no |
+| Leadership & delivery | `c-level-skills` | `claude-code-skills` | no |
+| Documents & brand | `example-skills` | `anthropic-agent-skills` | no |
+
+## Project defaults
+
+`~/.claude/maestro-packs.json` is optional and belongs to the user; it is never committed. It maps project folders to the packs CLASSIFY reaches for first in that project:
+
+```json
+{
+  "projects": {
+    "/Users/you/Projects/shop-site": ["marketing-skills", "social-media-skills"],
+    "/Users/you/Projects/ops-reporting": ["pm-comms", "decision-making"]
+  }
+}
+```
+
+At CLASSIFY, when the task is a non-code deliverable, a mixed task or an unclear one, run once:
+
+```bash
+python3 "<maestro base directory>/scripts/find-pack.py" --project "$PWD"
+```
+
+A key matches when the working directory is that folder or sits inside it, comparing real paths, so `/x/shop` matches `/x/shop/web` but not `/x/shop-site`; the longest matching key wins. Only names in the routing table count, as a plugin name or `plugin@marketplace`; the helper reports any other name and ignores it. `found` lists the packs CLASSIFY reaches for first; the task still decides the domain, and engineering work runs the engineering flow as usual. Any other status means routing by the task alone.
+
+Writing `~/.claude/maestro-packs.json` is ask-first: propose the entry and wait for the user's approval.
 
 ## Domain packs
 
