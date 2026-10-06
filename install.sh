@@ -6,10 +6,11 @@
 # excluded — install those manually if you need them (see README.md).
 #
 # Usage:
-#   ./install.sh                  # install everything
-#   ./install.sh --minimal        # required only (superpowers + Context7)
-#   ./install.sh --dry-run        # print commands without running
-#   ./install.sh --skip-vercel    # opt out of a specific component
+#   ./install.sh                        # install everything (profile full)
+#   ./install.sh --profile=engineering  # coding packs only, no domain packs
+#   ./install.sh --minimal              # required only (superpowers + Context7)
+#   ./install.sh --dry-run              # print commands without running
+#   ./install.sh --skip-vercel          # opt out of a specific component
 #   ./install.sh --help
 
 set -uo pipefail
@@ -17,6 +18,13 @@ set -uo pipefail
 MINIMAL=0
 DRY_RUN=0
 SKIP_LIST=""
+PROFILE=""
+PROFILE_SKIP_LIST=""
+EXPECT_PROFILE_VALUE=0
+PROFILE_GIVEN_EMPTY=0
+PROFILE_COUNT=0
+# Set by is_skipped so every skip line says why: an explicit --skip or a profile.
+SKIP_REASON=""
 
 print_help() {
   cat <<'EOF'
@@ -35,10 +43,28 @@ Components installed by default:
                  Everything Claude Code
 
 Flags:
-  --minimal              install required components only
+  --profile=<name>       install a named set (also --profile <name>):
+                           full         everything above (the default for now)
+                           engineering  coding packs only: no domain packs, no
+                                        Vercel; Everything Claude Code installs
+                                        with its own developer profile
+                           core         engineering minus PR Review Toolkit,
+                                        Playwright, UI UX Pro Max, Karpathy,
+                                        Taste, Transitions and SkillSpector; ECC
+                                        with its core profile. Steps 5a/5d, 8,
+                                        8.5 (supply-chain scan) and 10 then fall
+                                        back to their manual paths
+                         Domain packs load into every session's skill listing
+                         whether or not a task uses them; enable them per
+                         project instead (see skills/maestro/references/
+                         ecosystem.md, Install profiles).
+                         The default becomes engineering in a later release.
+  --minimal              install required components only (not combinable
+                         with --profile)
   --dry-run              print commands without executing
   --skip-<name>          skip a component (e.g. --skip-vercel, --skip-transitions;
-                         --skip-leadership-skills skips all three leadership bundles)
+                         --skip-leadership-skills skips all three leadership bundles);
+                         combines with --profile
   --help                 show this help
 
 Heavy components NOT installed by this script:
@@ -93,7 +119,21 @@ is_known_component() {
 }
 
 for arg in "$@"; do
+  # `--profile <name>` spells the value as the next word; consume it here.
+  # A flag-shaped or empty next word means the value was left out; it is never
+  # taken as the profile name.
+  if [ "$EXPECT_PROFILE_VALUE" -eq 1 ]; then
+    EXPECT_PROFILE_VALUE=0
+    case "$arg" in
+      ""|-*) PROFILE_GIVEN_EMPTY=1 ;;
+      *) PROFILE="$arg" ;;
+    esac
+    continue
+  fi
   case "$arg" in
+    --profile) EXPECT_PROFILE_VALUE=1; PROFILE_COUNT=$((PROFILE_COUNT + 1)) ;;
+    --profile=) PROFILE_GIVEN_EMPTY=1; PROFILE_COUNT=$((PROFILE_COUNT + 1)) ;;
+    --profile=*) PROFILE="${arg#--profile=}"; PROFILE_COUNT=$((PROFILE_COUNT + 1)) ;;
     --minimal) MINIMAL=1 ;;
     --dry-run) DRY_RUN=1 ;;
     --help|-h) print_help; exit 0 ;;
@@ -118,6 +158,48 @@ for arg in "$@"; do
       SKIP_LIST="$SKIP_LIST $skip_component" ;;
     *) echo "Unknown flag: $arg" >&2; print_help; exit 2 ;;
   esac
+done
+
+# --- Profile ---------------------------------------------------------------
+#
+# A profile is a named skip list over KNOWN_COMPONENTS. Every enabled pack puts
+# its skills into each session's skill listing whether or not a task uses them,
+# so the engineering profile leaves the domain packs for per-project enablement.
+DOMAIN_PACKS="finance small-business legal marketing-skills social-media-skills
+leadership-performance-management leadership-communication
+leadership-decision-making pm-product-discovery c-level-advisor
+pm-claude-skills"
+
+if [ "$EXPECT_PROFILE_VALUE" -eq 1 ] || [ "$PROFILE_GIVEN_EMPTY" -eq 1 ]; then
+  echo "--profile needs a value: full, engineering or core" >&2
+  exit 2
+fi
+# Last-one-wins would let a wrapper that appends a default override the user.
+if [ "$PROFILE_COUNT" -gt 1 ]; then
+  echo "--profile was given more than once; pass a single profile" >&2
+  exit 2
+fi
+if [ -n "$PROFILE" ] && [ "$MINIMAL" -eq 1 ]; then
+  echo "--minimal and --profile cannot be combined: --minimal already installs only the required components" >&2
+  exit 2
+fi
+case "$PROFILE" in
+  ""|full) PROFILE_SKIP_LIST="" ;;
+  engineering) PROFILE_SKIP_LIST="$DOMAIN_PACKS vercel" ;;
+  core) PROFILE_SKIP_LIST="$DOMAIN_PACKS vercel pr-review-toolkit Playwright
+ui-ux-pro-max andrej-karpathy-skills taste-skill transitions skillspector" ;;
+  *)
+    echo "Unknown profile: $PROFILE" >&2
+    echo "Valid profiles: full, engineering, core" >&2
+    exit 2 ;;
+esac
+# A profile naming a component that no longer exists would install that
+# component silently, the same failure mode the --skip validation prevents.
+for profile_component in $PROFILE_SKIP_LIST; do
+  if ! is_known_component "$profile_component"; then
+    echo "internal error: profile $PROFILE names unknown component $profile_component" >&2
+    exit 3
+  fi
 done
 
 # --- Reporting -------------------------------------------------------------
@@ -146,7 +228,16 @@ log_fail()    { printf "${RED}✖ %s${RESET}\n" "$1"; FAILED+=("$1"); }
 is_skipped() {
   local name="$1"
   for s in $SKIP_LIST; do
-    [ "$s" = "$name" ] && return 0
+    if [ "$s" = "$name" ]; then
+      SKIP_REASON="explicit --skip"
+      return 0
+    fi
+  done
+  for s in $PROFILE_SKIP_LIST; do
+    if [ "$s" = "$name" ]; then
+      SKIP_REASON="profile $PROFILE"
+      return 0
+    fi
   done
   return 1
 }
@@ -154,8 +245,9 @@ is_skipped() {
 run() {
   # INVARIANT: every string passed to `run` is a compile-time literal defined
   # inside this script, with ONE bounded exception: the two clone-and-copy
-  # blocks (Transitions, Everything Claude Code) interpolate a `$(mktemp -d)`
-  # path, and mktemp honours $TMPDIR. That is an env-derived value reaching
+  # blocks (Transitions, and Everything Claude Code including its
+  # install_ecc_profile helper) interpolate a `$(mktemp -d)` path, and mktemp
+  # honours $TMPDIR. That is an env-derived value reaching
   # `eval` below. It is not a meaningful escalation — a hostile $TMPDIR implies
   # the attacker already runs code as this user — but it means the invariant is
   # "literals plus mktemp paths", not "literals only". Nothing from argv,
@@ -324,7 +416,7 @@ verify_pinned_sha() {
 install_plugin() {
   local name="$1" marketplace="$2" plugin_spec="$3"
   if is_skipped "$name"; then
-    log_skip "$name (explicit --skip)"
+    log_skip "$name ($SKIP_REASON)"
     return
   fi
   log_step "Installing $name"
@@ -340,10 +432,30 @@ install_plugin() {
   fi
 }
 
+# Everything Claude Code ships its own install profiles. Mirror the maestro
+# profile so a lean maestro install does not pull ECC's full module set. Each
+# branch passes a literal apart from $TMPDIR_ECC, the documented mktemp
+# exception in run(); PROFILE itself only selects the branch.
+install_ecc_profile() {
+  case "$PROFILE" in
+    ""|full)
+      run "(cd \"$TMPDIR_ECC/ecc\" && ./install.sh --target claude --profile full)" ;;
+    engineering)
+      run "(cd \"$TMPDIR_ECC/ecc\" && ./install.sh --target claude --profile developer)" ;;
+    core)
+      run "(cd \"$TMPDIR_ECC/ecc\" && ./install.sh --target claude --profile core)" ;;
+    *)
+      # Unreachable while the parse-time check above stays in step with this
+      # case; a profile added there but not here must fail, not install ECC full.
+      echo "internal error: no Everything Claude Code profile mapped for '$PROFILE'" >&2
+      return 1 ;;
+  esac
+}
+
 install_mcp() {
   local name="$1"; shift
   if is_skipped "$name"; then
-    log_skip "$name (explicit --skip)"
+    log_skip "$name ($SKIP_REASON)"
     return
   fi
   log_step "Installing $name MCP"
@@ -476,7 +588,7 @@ if [ "$MINIMAL" -eq 0 ]; then
   # 5.8M rather than the ~101M a plain --depth 1 costs on this repo.
   PIN_DIR="$HOME/.claude/pinned/pm-claude-skills"
   if is_skipped "pm-claude-skills"; then
-    log_skip "pm-claude-skills (explicit --skip)"
+    log_skip "pm-claude-skills ($SKIP_REASON)"
   elif is_ephemeral_path "$PIN_DIR"; then
     # Fail rather than skip: a silent skip exits 0 and reads as success, and the
     # damage this prevents lands in the user's real config, not in this run.
@@ -522,7 +634,7 @@ if [ "$MINIMAL" -eq 0 ]; then
     "taste-skill@taste-skill"
 
   if is_skipped "transitions"; then
-    log_skip "transitions (explicit --skip)"
+    log_skip "transitions ($SKIP_REASON)"
   else
     log_step "Installing Transitions"
     # Ships no .claude-plugin manifest, so it installs as a user-scope skill by
@@ -544,7 +656,7 @@ if [ "$MINIMAL" -eq 0 ]; then
     "caveman@caveman"
 
   if is_skipped "skillspector"; then
-    log_skip "skillspector (explicit --skip)"
+    log_skip "skillspector ($SKIP_REASON)"
   else
     log_step "Installing SkillSpector"
     # SkillSpector is a Python 3.12+ CLI distributed via git (NOT on PyPI), so
@@ -562,14 +674,14 @@ if [ "$MINIMAL" -eq 0 ]; then
   fi
 
   if is_skipped "everything-claude-code"; then
-    log_skip "everything-claude-code (explicit --skip)"
+    log_skip "everything-claude-code ($SKIP_REASON)"
   else
     log_step "Installing Everything Claude Code"
     TMPDIR_ECC="$(mktemp -d)"
     # cd wrapped in a subshell so the parent script's CWD is unaffected,
     # and tmpdir is cleaned up on both success and failure paths.
     if run "git clone --depth 1 https://github.com/affaan-m/everything-claude-code.git \"$TMPDIR_ECC/ecc\"" \
-       && run "(cd \"$TMPDIR_ECC/ecc\" && ./install.sh --target claude --profile full)"; then
+       && install_ecc_profile; then
       log_ok "everything-claude-code"
     else
       log_fail "everything-claude-code"
@@ -603,6 +715,14 @@ if [ ${#FAILED[@]} -gt 0 ]; then
   echo ""
   echo "Some components failed. Re-run with --dry-run to inspect commands,"
   echo "or install the failed components manually (see README.md)."
+fi
+# A profile only skips installs: packs from an earlier, fuller install stay
+# enabled and keep costing listing tokens until they are disabled.
+if [ -n "$PROFILE_SKIP_LIST" ]; then
+  echo ""
+  echo "Profile $PROFILE skips installs only. Packs already installed stay enabled;"
+  echo "remove one from every session with:"
+  echo "  claude plugin disable <plugin>@<marketplace> --scope user"
 fi
 
 cat <<'EOF'

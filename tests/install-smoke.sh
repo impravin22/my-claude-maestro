@@ -172,6 +172,67 @@ assert_stdout_contains() {
   esac
 }
 
+# assert_stderr_contains <description> <expected_exit> <needle> <flags...>
+# Exit status alone cannot tell a profile error from "Unknown flag" (both exit
+# 2), so rejection cases also pin the message that names the actual problem.
+assert_stderr_contains() {
+  local description="$1" expected_exit="$2" needle="$3"
+  shift 3
+  local stderr_output actual_exit
+
+  stderr_output="$("$BASH" "$INSTALLER" "$@" 2>&1 >/dev/null)"
+  actual_exit=$?
+
+  if [ "$actual_exit" -ne "$expected_exit" ]; then
+    echo "FAIL: $description"
+    echo "      expected exit $expected_exit, got $actual_exit"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+  case "$stderr_output" in
+    *"$needle"*)
+      echo "PASS: $description"
+      PASS=$((PASS + 1))
+      ;;
+    *)
+      echo "FAIL: $description"
+      echo "      stderr did not contain: $needle"
+      FAIL=$((FAIL + 1))
+      ;;
+  esac
+}
+
+# assert_profile_skip_set <description> <profile> <expected component...>
+# The components a profile labels as skipped must equal the expected set
+# exactly: an extra skip (say, superpowers under core) is as wrong as a
+# missing one, and a one-way check would let it ship green.
+assert_profile_skip_set() {
+  local description="$1" profile="$2"
+  shift 2
+  local expected actual
+
+  expected="$(printf '%s\n' "$@" | sort -u)"
+  actual="$("$BASH" "$INSTALLER" --dry-run "--profile=$profile" 2>/dev/null \
+    | sed -n "s/^.* \([^ ][^ ]*\) (profile $profile)\$/\1/p" | sort -u)"
+
+  if [ "$actual" = "$expected" ]; then
+    echo "PASS: $description"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $description"
+    echo "      expected: $(printf '%s ' $expected)"
+    echo "      actual:   $(printf '%s ' $actual)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+# normalised_dry_run <flags...>: dry-run stdout with the random mktemp paths
+# replaced, so two runs can be compared byte for byte.
+normalised_dry_run() {
+  "$BASH" "$INSTALLER" --dry-run "$@" 2>/dev/null \
+    | sed -E 's#(/private)?/(var/folders|tmp)/[^ )"]*#TMP#g'
+}
+
 # Absence assertion. Takes an ANCHOR as well as the forbidden needle: proving a
 # string is absent is worthless if the run never got far enough to print it, and
 # a bare absence check is the one assertion shape that passes on empty stdout.
@@ -573,6 +634,92 @@ assert_minimal_skips_git_requirement "--minimal does not require git"
 
 # Every declared marketplace and plugin spec is emitted by a default dry run.
 assert_all_plugin_specs_in_dry_run "every install_plugin spec appears in --dry-run output"
+
+# --- Profiles (v1.17.0) ----------------------------------------------------
+# A profile is a named skip list. These cases pin what each profile installs,
+# that every skip line says why, and that bad profile input fails at parse
+# time, with its own message, rather than falling back to a full install.
+ENGINEERING_SKIPS="finance small-business legal marketing-skills social-media-skills
+leadership-performance-management leadership-communication
+leadership-decision-making pm-product-discovery c-level-advisor
+pm-claude-skills vercel"
+CORE_ONLY_SKIPS="pr-review-toolkit Playwright ui-ux-pro-max andrej-karpathy-skills
+taste-skill transitions skillspector"
+
+assert_run "--profile=engineering dry-run exits 0" 0 --dry-run --profile=engineering
+assert_run "--profile=full dry-run exits 0" 0 --dry-run --profile=full
+
+# The lists are unquoted on purpose: word splitting turns each into arguments.
+assert_profile_skip_set "engineering skips exactly the domain packs and Vercel" \
+  engineering $ENGINEERING_SKIPS
+assert_profile_skip_set "core skips exactly the engineering set plus the optional voices" \
+  core $ENGINEERING_SKIPS $CORE_ONLY_SKIPS
+assert_profile_skip_set "full skips nothing" full
+for profile in engineering core; do
+  assert_stdout_contains "$profile still installs superpowers" \
+    "Installing superpowers" --dry-run "--profile=$profile"
+  assert_stdout_contains "$profile still installs the Context7 MCP" \
+    "Installing Context7 MCP" --dry-run "--profile=$profile"
+done
+# The space form must apply the profile, not just parse: a dropped value would
+# fall back to full and still exit 0.
+assert_run "--profile core (space form) dry-run exits 0" 0 --dry-run --profile core
+assert_stdout_contains "the space form applies the profile" \
+  "Playwright (profile core)" --dry-run --profile core
+if [ "$(normalised_dry_run)" = "$(normalised_dry_run --profile=full)" ]; then
+  echo "PASS: an explicit --profile=full installs exactly what the default does"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL: an explicit --profile=full installs exactly what the default does"
+  FAIL=$((FAIL + 1))
+fi
+
+assert_stdout_lacks "engineering never installs a domain pack" \
+  "claude plugin install marketing-skills@" "Maestro ecosystem install summary" \
+  --dry-run --profile=engineering
+assert_stdout_contains "engineering keeps the review toolkit" \
+  "claude plugin install pr-review-toolkit@claude-plugins-official" \
+  --dry-run --profile=engineering
+assert_stdout_contains "engineering installs ECC with its developer profile" \
+  "--profile developer)" --dry-run --profile=engineering
+assert_stdout_contains "core installs ECC with its core profile" \
+  "--profile core)" --dry-run --profile=core
+assert_stdout_contains "an explicit --profile=full installs ECC's full profile" \
+  "--profile full)" --dry-run --profile=full
+assert_stdout_contains "the default still installs ECC's full profile" \
+  "--profile full)" --dry-run
+assert_stdout_contains "an explicit skip of a pack the profile also skips keeps its own label" \
+  "marketing-skills (explicit --skip)" --dry-run --profile=engineering --skip-marketing-skills
+
+assert_stderr_contains "an unknown profile is rejected by name" 2 "Unknown profile: lean" \
+  --dry-run --profile=lean
+assert_stderr_contains "--profile with no value is rejected" 2 "--profile needs a value" \
+  --dry-run --profile
+assert_stderr_contains "--profile= with an empty value is rejected" 2 "--profile needs a value" \
+  --dry-run --profile=
+assert_stderr_contains "--profile never swallows the next flag as its value" 2 \
+  "--profile needs a value" --profile --dry-run
+assert_stderr_contains "--minimal and --profile together are rejected" 2 "cannot be combined" \
+  --dry-run --minimal --profile=core
+assert_stderr_contains "a second --profile is rejected, not silently last-wins" 2 \
+  "given more than once" --dry-run --profile=lean --profile=core
+assert_stderr_contains "a second --profile in the space form is rejected too" 2 \
+  "given more than once" --dry-run --profile core --profile full
+assert_stderr_contains "--profile followed by an empty word is rejected" 2 \
+  "--profile needs a value" --dry-run --profile ""
+
+# The profile value is data: a command substitution in it must be rejected
+# without ever being evaluated.
+canary="$STUB_DIR/profile-canary"
+assert_stderr_contains "a command-substitution profile is rejected as a profile" 2 \
+  "Unknown profile:" --dry-run "--profile=\$(touch $canary)"
+if [ -e "$canary" ]; then
+  echo "FAIL: the profile value was evaluated"
+  FAIL=$((FAIL + 1))
+else
+  echo "PASS: the profile value was never evaluated"
+  PASS=$((PASS + 1))
+fi
 
 echo ""
 echo "passed: $PASS  failed: $FAIL"

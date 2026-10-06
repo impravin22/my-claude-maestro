@@ -6,3 +6,6 @@
 .claude/
 # Maestro evidence ledgers (local by default; see references/evidence-ledger.md)
 .maestro/
+
+# Tool caches
+.ruff_cache/

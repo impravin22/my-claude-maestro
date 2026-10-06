@@ -47,6 +47,8 @@ Every task must pass these gates before claiming completion. Sections tagged wit
 
 ## Visual Verification (Frontend Changes Only — Requires Playwright MCP)
 
+Skip when no frontend file changed or no dev server is running. If the server is down, suggest the user start it (`npm run dev` or the project's equivalent); never start one silently. If the Playwright MCP is missing, say so once and write any claim about rendered UI as UNVERIFIED; tests, lint and types still apply.
+
 - [ ] **Dev server running** — local dev server confirmed running before visual checks
 - [ ] **Affected routes render** — every changed/added route loads without console errors
 - [ ] **Interactive elements work** — buttons, forms, toggles, and navigation behave as expected
@@ -59,12 +61,12 @@ Every task must pass these gates before claiming completion. Sections tagged wit
 - [ ] **Reviewers dispatched** — `code-reviewer` always; `security-reviewer` when the diff touches auth, input handling, DB queries, uploads, LLM calls, secrets, or PII; language reviewers for single-language diffs
 - [ ] **CRITICAL/HIGH clear** — both block Step 9; loop reviewers until clear
 - [ ] **MEDIUM handled** — fixed where practical, otherwise deferred with the reason recorded for the PR description
-- [ ] **SkillSpector adjudicated** — skill/plugin-manifest/MCP-config diffs only: static scan run, every HIGH/CRITICAL ruled real-or-false-positive by Claude, confirmed findings fixed or the artefact rejected
+- [ ] **SkillSpector adjudicated** — diffs that set the supply-chain flag only (agent instructions or agent config): static scan run, every HIGH/CRITICAL ruled real-or-false-positive by Claude, confirmed findings fixed or the artefact rejected
 
 ## PR Specialist Review (Step 10 Phase 1 — Requires PR Review Toolkit)
 
 - [ ] **Code review clean** — `pr-review-toolkit:code-reviewer` reports no guideline violations
-- [ ] **No silent failures** — `pr-review-toolkit:silent-failure-hunter` reports no swallowed errors or inappropriate fallbacks
+- [ ] **No silent failures** — `pr-review-toolkit:silent-failure-hunter` reports no swallowed errors or inappropriate fallbacks (toolkit absent, as under `--profile=core`: read every changed catch block, fallback and exit path by hand)
 - [ ] **Test coverage adequate** — `pr-review-toolkit:pr-test-analyzer` reports no critical gaps
 - [ ] **Code simplified** — `pr-review-toolkit:code-simplifier` applied where complexity was flagged (if applicable)
 - [ ] **Type design sound** — `pr-review-toolkit:type-design-analyzer` approves new types (if applicable)
