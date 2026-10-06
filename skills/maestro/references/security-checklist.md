@@ -82,3 +82,17 @@ Run this checklist against every change that touches APIs, user input, database 
 - [ ] **Role checks** — `lib/roles.ts` consulted before rendering admin/sensitive UI
 - [ ] **useIMEComposition** — all chat textareas use the IME composition hook (CJK input safety)
 - [ ] **CSP headers** — Content Security Policy configured to prevent inline scripts and untrusted sources
+
+## Edit-Time Layer — Security Guidance (if installed)
+
+This checklist is the planning-time layer. The Security Guidance plugin adds an edit-time layer: a post-edit hook scans each change as it lands and warns about:
+
+- Command injection (`os.system()`, `subprocess` with `shell=True`, `child_process.exec()`)
+- Code injection (`eval()`, the `Function()` constructor, `vm.runInNewContext()`)
+- XSS vectors (`dangerouslySetInnerHTML`, unsanitised template literals)
+- Insecure deserialisation (`pickle.loads()`, `yaml.load()` without `SafeLoader`)
+- Hardcoded secrets (API keys, tokens, passwords in source)
+
+On a warning, re-read the flagged file and remediate before the next TDD cycle. Without the plugin this checklist still applies in full; note the missing plugin once.
+
+Its background reviews run on an Opus model by default. `SECURITY_REVIEW_MODEL` and `SG_AGENTIC_MODEL` (settings `env`) can point them at a Sonnet model to cut that cost, at some loss of precision, and on the trivial row, where Step 8.5 does not run, that hook is the only automated review. Tell the user the option exists and what it trades away; never edit their settings yourself.

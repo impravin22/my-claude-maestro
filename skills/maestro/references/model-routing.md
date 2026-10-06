@@ -1,46 +1,65 @@
-# Model Routing — Fable ↔ Opus
+# Model Routing — by Role
 
-Read this when a dispatch decision is non-obvious, when an agent has failed twice, or when the user asks why a tier was chosen. The summary in `SKILL.md` covers the common case; this file is the detail.
+Read this when a dispatch tier or effort level is non-obvious, when an agent has failed twice, or when the user asks why a tier was chosen. The summary in `SKILL.md` covers the common case; this file is the detail.
 
-`fable` and `opus` are **tier aliases**, not pinned versions — each resolves to the newest model in its family at dispatch time. Writing tiers rather than model IDs is the only option available, not merely the tidy one: the documented tier values are `sonnet`, `opus`, `haiku` and `fable` (plus `inherit` in agent frontmatter), and none of them pins a version. Which of them a given environment actually offers varies — see the fallback rule at the end of this file. A dispatch on `opus` therefore lands on whatever Opus generation is current, with no edit here. Never name a specific version number in this file — it goes stale every release, and the alias already tracks forward.
+`haiku`, `sonnet`, `opus` and `fable` are **tier aliases**, not pinned versions: each resolves to the newest model in its family at dispatch time. Never name a version number in this file; it goes stale every release, and the alias already tracks forward.
 
-**On the Fable/Opus gap.** The original tiering was set when Fable led Opus by a wide margin, and was never re-measured after both families shipped new generations. A blind head-to-head on 2026-07-29 could not separate them on architecture, planning, or root-cause analysis: 6 repo-grounded tasks, 12 blind judgements, opus 7 votes to fable 5, eleven of twelve margins recorded as narrow, and judges agreeing with each other on only 3 of 6 pairs — chance level. Decomposed by judge, the `fable` judge split 3–3 with no self-preference while the `opus` judge leaned 4–2 to its own family, meaning the whole 7–5 margin came from the one judge that might be biased; strip it and the remainder is 3–3, which strengthens the null rather than rescuing either tier. Method, per-tier output lengths, and the full threat list: `2026-07-29-fable-opus-head-to-head.md` in the repository's `docs/` tree (repo root, not shipped inside the plugin).
+## Evidence
 
-That is a **null result, not a win for either tier.** It does not show Opus is better; it shows no measurable difference on those three rows, which is enough to stop paying a premium there. The rows still on `fable` below are the ones the experiment **did not measure**, kept on the premium tier precisely because they were untested and their failure cost is asymmetric — a wrong security verdict or a wrong arbitration propagates into everything downstream, and a single call is cheap insurance. Do not read their `fable` assignment as evidence of a gap; read it as an unmeasured default awaiting its own head-to-head.
+**Fable against Opus (2026-07-29).** A blind head-to-head could not separate the two on architecture, planning or root-cause analysis: 6 repo-grounded tasks, 12 blind judgements, opus 7 votes to fable 5, eleven of twelve margins narrow, judges agreeing with each other at chance level. A null result, not a win for either tier, which is enough to stop paying the Fable premium on those rows. Method and threats: `docs/2026-07-29-fable-opus-head-to-head.md` in the repository (not shipped in the plugin).
 
-> **Maintainers only.** Re-tiering happens in a dedicated PR, backed by a measurement recorded under `docs/`. Reading this file mid-task is never licence to edit it — a plugin-artefact edit drags in the Step 8.5 supply-chain gate, and picking that up as a side effect of a routing lookup is a bug.
+**Cost by role (2026-10-06).** An audit of six weeks of local transcripts (`docs/2026-10-06-token-efficiency-audit.md`) recorded cost, not quality:
+- Workflow verifier agents on `sonnet` used a median 4.81M tokens over 27 requests, against 10.97M over 52 on `opus` (observational: different tasks, n=41 and 26).
+- One 83-agent rating fan-out on `fable` cost 435.1M tokens for a median 292 output tokens per agent.
+- 65 workflow agents inherited a Fable main loop because no model was passed (195.3M tokens).
+
+What remains unmeasured: checker quality on `sonnet` against `opus`, and every adjudication row. The adjudication rows sat on `fable` until v1.16.0 as untested insurance; they move to a single `opus` call at `high` effort because the premium was never shown to buy anything and its cost is now measured. The escalation rule below is the safety valve for both gaps.
+
+> **Maintainers only.** Re-tiering happens in a dedicated PR, backed by a measurement recorded under `docs/`. Reading this file mid-task is never licence to edit it: a plugin-artefact edit drags in the Step 8.5 supply-chain gate.
 
 ## The table
 
-| Work | Model | Why |
-| --- | --- | --- |
-| Security adjudication — security-reviewer triage, SkillSpector verdict adjudication (Step 8.5), threat modelling | `fable` | **Unmeasured.** False negatives ship vulnerabilities; false positives burn trust. One call, asymmetric downside |
-| Final review arbitration when specialist reviewers conflict (Step 10) | `fable` | **Unmeasured.** One call standing over N reviewers; its verdict propagates into everything that follows |
-| High-stakes domain judgement — legal risk assessment, financial variance interpretation, pricing strategy | `fable` | **Unmeasured.** Subtle errors carry real-world consequences outside the repo |
-| Architecture and system design | `opus` | Measured indistinguishable from `fable` (2026-07-29) |
-| BRAINSTORM synthesis (Step 3) and PLAN authoring (Step 4), at any size | `opus` | Measured indistinguishable (2026-07-29); the plan is human-reviewed at a gate regardless |
-| Root-cause analysis in `systematic-debugging`; post-mortems | `opus` | Measured indistinguishable (2026-07-29); `systematic-debugging` supplies the structure |
-| Implementation (Step 7 TDD loop), refactors, test authoring, mechanical multi-file edits | `opus` | Strong coding execution; the plan already carries the judgement |
-| PR-fix cycles, lint/type fixes, docs updates | `opus` | Bounded, well-specified changes |
-| Volume content drafts (marketing / social) from an approved plan | `opus` | Throughput matters; the plan and domain gates carry quality |
-| Trivial config/docs one-liners | `opus` | Rote edits |
-| Bulk mechanical fan-out inside a workflow | `opus`, or `haiku` when purely mechanical | Volume work with no judgement content |
+| Work | Model | Effort | Basis |
+| --- | --- | --- | --- |
+| Brainstorm synthesis and plan authoring (Steps 3–4); architecture and system design | `opus` | `high`; `xhigh` for multi-system plans | Head-to-head null result; the plan is human-gated |
+| Root-cause analysis (`systematic-debugging`), post-mortems | `opus` | `high` | Head-to-head null result |
+| UI/UX direction and mockup (5a–5c) | `opus` | `high` | Authoring; unmeasured |
+| Implementation of non-trivial TDD tasks (Step 7) | `opus` | `medium` | Authoring; the plan carries the judgement |
+| Well-specified mechanical edits, lint, type and PR-fix cycles, docs updates | `sonnet` | `medium` | Bounded work; escalates after two failures |
+| Purely mechanical bulk edits | `haiku` | n/a | No judgement content; Haiku takes no effort setting |
+| Code, language and security review (Step 8.5); PR specialists (Step 10 Phase 1) | `sonnet` | `medium` | Cost evidence above; quality unmeasured |
+| Adjudication: conflicting review findings, `security-reviewer` triage, SkillSpector verdicts, final review arbitration | `opus`, one call | `high` | Unmeasured either way; one call, asymmetric downside |
+| UI/UX checklist pass (5e); summarising long test or lint output at Step 8 | `sonnet` | `low` | Validation |
+| Context7 digest when three or more libraries are involved | `sonnet` | `low` | Retrieval; keeps raw docs out of the main context |
+| Workflow finders | `sonnet`; `haiku` for grep-style sweeps | `low` | Cost evidence above |
+| Workflow verifiers, checkers and raters | `sonnet`; `haiku` for fixed-rubric scoring with schema output | `low`; `medium` for prose fact-checking | Cost evidence above |
+| Workflow synthesis | `opus`, one agent fed compact structured findings | `high` | Authoring |
+| Deliverable drafting from an approved plan | `opus` | `medium` | Authoring |
+| Deliverable domain gate (legal risk, financial variance interpretation, pricing strategy) | `opus`, one call | `high` | Unmeasured; failure lands outside the repo |
+| Figure and fact tracing in deliverables | `sonnet` | `low` | Validation |
+| Step 10 Phase 2 wait | No model turn: a background command | n/a | A model turn per poll re-reads the whole conversation |
 
-`opus` is now the default for everything except the three `fable` rows above and the `haiku` option on purely mechanical bulk fan-out. If a row is not listed at all, it is `opus`.
+`fable` appears in no row. It runs only when the user names it for a task.
 
 ## Mechanisms
 
-How the switch actually happens — the tier is chosen per **dispatch**, not globally:
+The tier is chosen per **dispatch**, not globally. Source: the Claude Code documentation (sub-agents, model configuration, settings reference), read 2026-10-06.
 
-1. **Main conversation model** — user-selected. A skill cannot silently change it, and must not try. At CLASSIFY, emit a one-line tier recommendation; if the current model mismatches the task class, say so and suggest `/model` (or the app's model picker). Then **proceed regardless** — never block a task on this.
-2. **Subagents (Agent tool)** — pass `model: "fable"` or `model: "opus"` per dispatch.
-3. **Workflows** — pass `{model: 'opus'}` / `{model: 'fable'}` per `agent()` stage. Generators on `opus`, adjudicators on `fable`.
-4. **Custom agent definitions** — set `model:` frontmatter in `.claude/agents/*.md` for standing assignments (e.g. a `security-reviewer` that should always run on `fable`).
+1. **Main conversation model:** user-selected (`/model` or the app's model picker). A skill cannot change it and must not try. At CLASSIFY, give a one-line recommendation; if the main loop is on `fable` and the user has not named it for this task, say once that `opus` covers this task class. Then proceed regardless.
+2. **Agent tool:** pass `model` on every dispatch.
+3. **Workflows:** pass `model` (and `effort` where it matters) on every `agent()` stage. Never rely on inheritance.
+4. **Agent definitions:** `model:` and `effort:` frontmatter set standing assignments. A user-level `Explore.md` with `model: haiku` replaces the built-in Explore, which otherwise runs on the main model.
+5. **Defaults:** `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` makes any dispatch that names no model land on `sonnet` instead of the main model; it ranks below per-dispatch and frontmatter models. Avoid `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`: it ignores every frontmatter model and flattens this table.
+6. **Effort:** set per model under `modelSettings` (the `/effort` command writes it) and per agent or skill with `effort:` frontmatter. An exported `CLAUDE_CODE_EFFORT_LEVEL` beats both, so do not export it.
+7. **Skills:** a skill with `context: fork` plus `model:` runs in a subagent on its own prompt cache. A `model:` on an inline skill switches the main model for that turn and rebuilds the cache.
+8. **`opusplan`:** Opus in plan mode, Sonnet in execution. Every plan-mode toggle is a model switch that rebuilds the cache, so it pays only when toggles are few.
 
 ## Rules
 
-- **Generator / judge asymmetry.** N parallel generators or reviewers on `opus`; the single final adjudicator on `fable`. This is the only reason to reach for the premium tier on a *first* dispatch outside the three table rows above, and it survives the 2026-07-29 null result untouched — that experiment measured generation quality, not adjudication, so it says nothing about the judge seat.
-- **Escalation.** An `opus` agent that fails the same task twice, or returns evidence that contradicts itself, is re-dispatched **once** to `fable` with a summary of the failed attempts. Do not escalate on the first failure — a bad prompt is more common than a model ceiling. This is the pressure valve that makes an `opus`-by-default table safe: a genuine model ceiling still gets found, it just has to prove itself first.
-- **De-escalation.** Planning and execution both run on `opus`, so there is no longer a tier step-down between them. The only de-escalation left is after an escalation: once `fable` has unblocked a stuck task, hand the result back to `opus` rather than staying on the premium tier for the remaining steps.
-- **Cost discipline.** Fable is the premium tier and now has three rows. Never spend it on formatting, mechanical edits, bulk content expansion, planning, or debugging. When in doubt, `opus` — that is the default, not the fallback.
-- **Fallback.** If `fable` is unavailable in the environment (model enum, subscription, or headless run), run every row on `opus` and note the downgrade **once** in the response. Never block a task on model availability.
+- **Explicit model on every dispatch.** Inheritance is how 65 agents ended up on the most expensive tier.
+- **Generator and judge.** N generators or reviewers on the cheapest tier that fits the row; one adjudicator on `opus`. Never fan out a second round to settle a disagreement.
+- **Escalation.** An agent that fails the same task twice, or returns evidence that contradicts itself, is re-dispatched **once** one tier up (`haiku` → `sonnet` → `opus`) with a summary of the failed attempts. Past `opus`, ask the user; `fable` only if they name it. Never escalate on a first failure: a bad prompt is more common than a model ceiling.
+- **De-escalation.** Once an escalation unblocks a task, hand the remaining steps back to the original tier.
+- **Effort.** `high` is the default for authoring and adjudication, `medium` for review and bounded implementation, `low` for validation and retrieval. `xhigh` only for multi-system planning or a hard adjudication. Never `max`.
+- **Fan-out.** Workflows are opt-in: the user asks, or the work has at least three genuinely independent parts. Every subagent pays tens of thousands of tokens of instructions before doing anything.
+- **Fallback.** A tier unavailable in the environment → run that row on the next tier up and note it once. Never block a task on model availability.

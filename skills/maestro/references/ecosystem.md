@@ -1,6 +1,6 @@
 # Ecosystem — Install Commands & Degradation Rules
 
-Read this **only when** a pack you need is missing, the user asks how to install one, or you need a pack's caveat. Not on every task — `SKILL.md` carries the summary.
+Read this **only when** a pack you need is missing, the user asks how to install one, or you need a pack's caveat. Not on every task.
 
 ## Required
 
@@ -68,7 +68,8 @@ A missing pack **never blocks a task**. Perform the equivalent manually and note
 | A superpowers skill | Do the step manually — brainstorming → propose 2–3 approaches and get approval; writing-plans → a numbered plan; TDD → tests first anyway; verification → run the gate commands by hand. **Never skip the step.** |
 | Security Guidance | Step 6 checklist still enforced; no automated post-edit scanning |
 | Playwright MCP | Step 8 skips visual verification; tests, lint, types still apply |
-| PR Review Toolkit | Step 10 skips Phase 1; Phase 2 polling loop still runs. Step 8.5 falls back to manual self-review against CLAUDE.md + the security checklist |
+| PR Review Toolkit | Step 10 skips Phase 1; Phase 2 (the background wait) still runs. Step 8.5 falls back to manual self-review against CLAUDE.md + the security checklist |
+| Context7 tools absent from the session (not installed, or the MCP needs authentication) | Step 2 says so prominently once, then proceeds on training knowledge and flags what rests on it. Re-authenticate with `/mcp` |
 | claude-mem | Steps 1/3/4 skip memory lookup; proceed from the current request alone |
 | frontend-design | Step 5a/5b fall back to a manual direction write-up + hand-rolled HTML prototype. **Warn loudly** — the manual path is far more prone to template output. The anti-template ban, required-qualities check, and the 5c approval gate apply **without exception** |
 | UI UX Pro Max | Step 5d skipped; 5a/5b/5c/5e still run |
@@ -83,4 +84,14 @@ A missing pack **never blocks a task**. Perform the equivalent manually and note
 | Everything Claude Code | 150+ user-scope skills unavailable; the 10-step flow is unaffected |
 | LightRAG | Step 2 falls back to Context7 alone |
 | Karpathy Skills | The underlying principles still apply via CLAUDE.md; no behavioural gap |
-| `fable` tier | Run every Model Routing row on `opus`; note the downgrade once |
+| A model tier (`haiku`, `sonnet`) | Run that row on the next tier up; note it once. `fable` is never a default, so its absence changes nothing |
+
+## Install profiles and per-project packs
+
+Every enabled plugin puts its skills into each session's skill listing, and the listing has a fixed character budget: past it, descriptions are dropped from the least-used skills first and those skills get chosen by name alone. Keep the global set lean.
+
+- `./install.sh --profile=engineering` installs the coding packs only: no domain packs, no Vercel, and Everything Claude Code with its own `developer` profile.
+- `--profile=core` also drops PR Review Toolkit, Playwright, UI UX Pro Max, Karpathy, Taste, Transitions and SkillSpector, and installs ECC with its `core` profile. Steps 5a/5d, 8, 8.5 (the supply-chain scan becomes a manual review) and 10 then degrade as the table above describes.
+- `--profile=full` (the default for now) installs everything.
+- Turn a domain pack on only where it is used. Already installed (a `full` install, or added earlier): `claude plugin enable <plugin>@<marketplace> --scope local` inside that project writes `.claude/settings.local.json`, which overrides the user-level setting there only. Not installed (an `engineering` or `core` install skipped it): `claude plugin marketplace add <repo>`, then `claude plugin install <plugin>@<marketplace> --scope local` in that project, using the pack's install line in the tables above. Propose the commands and let the user run or approve them: a pack adds third-party instructions, and sometimes MCP connectors, to every session there.
+- The installer only adds. For an existing install, `claude plugin disable <plugin>@<marketplace> --scope user` takes a pack out of the global set.

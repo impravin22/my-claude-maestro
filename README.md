@@ -13,18 +13,33 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 4. **Enforces UI/UX design system** — WCAG 2.1 AA accessibility, Tailwind token usage, shadcn/ui patterns, responsive design, loading/error/empty states. Step 5 runs an **anti-template design-mockup gate** that produces an approved visual artefact (HTML prototype, sketch, or Storybook story) **before** any production frontend code is written. The gate enforces an explicit anti-template ban (no centred max-w-md card with icon→headline→CTA, no "clean minimal", no unmodified Tailwind defaults), requires the design to demonstrate at least four of ten quality markers (hierarchy, rhythm, depth, typography, semantic colour, drawn states, grid-breaking, atmosphere, motion, dataviz), and self-audits before the user is asked to approve — eliminating both the post-implementation rework loop and the template-by-default failure mode
 5. **Enforces layered security** — OWASP checklists at planning time + post-edit scanning via [Security Guidance](https://github.com/anthropics/claude-code) + [SkillSpector](https://github.com/NVIDIA/SkillSpector) supply-chain vetting of skill/plugin/MCP artefacts before PR (Step 8.5)
 6. **Visual verification** — [Playwright MCP](https://github.com/microsoft/playwright-mcp) verifies frontend changes render correctly, pass accessibility checks, and behave across breakpoints
-7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the polling loop
+7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the external review, which is awaited by a background command rather than a model turn per poll
 8. **Cross-session memory** — [claude-mem](https://github.com/thedotmack/claude-mem) surfaces prior observations (decisions, rejected approaches, failed experiments) during CLASSIFY, BRAINSTORM, and PLAN via the `search`, `timeline`, and `get_observations` MCP tools — no more re-deriving context that already exists
 9. **Composes with an extended plugin ecosystem** — [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) for design styles + palettes, [n8n-MCP](https://github.com/czlonkowski/n8n-mcp) for 400+ n8n integrations, [VoiceMode MCP](https://github.com/mbailey/voicemode) for voice conversations, [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) for 150+ skills across 12 language ecosystems, and [LightRAG](https://github.com/HKUDS/LightRAG) as an optional graph+vector RAG supplement
 10. **Routes to domain skill packs** — maestro is not only a coding orchestrator. CLASSIFY names a domain and routes to its pack: engineering (superpowers), documents and brand ([example-skills](https://github.com/anthropics/skills)), [marketing](https://github.com/coreyhaines31/marketingskills) (50 skills), [social media](https://github.com/charlie947/social-media-skills) (17), and Anthropic's first-party [finance](https://github.com/anthropics/knowledge-work-plugins) (8), [small-business](https://github.com/anthropics/knowledge-work-plugins) (31) and [legal](https://github.com/anthropics/knowledge-work-plugins) (9). v1.13.0 adds **leadership** — Jira tickets, status roll-ups, exec impact write-ups, 1:1s and performance reviews, opportunity scans — which routes to your *installed* [atlassian](https://github.com/anthropics/claude-plugins-official) and `pm-*` skills first and only then to [leadership-skills](https://github.com/PierrickMartos/Leadership-Skills) (11 of 13), [pm-product-discovery](https://github.com/phuryn/pm-skills) (13), [c-level-skills](https://github.com/alirezarezvani/claude-skills). v1.14.0 adds a pinned slice of [pm-claude-skills](https://github.com/mohitagw15856/pm-claude-skills) (40 skills) to that same route. Design is **not** a routing destination — [frontend-design](https://github.com/anthropics/skills), [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill), [Taste](https://github.com/Leonxlnx/taste-skill) and [Transitions](https://github.com/Jakubantalik/transitions.dev) are voices consumed inside Step 5, not domains CLASSIFY can name. Non-code deliverables run a shortened **Deliverable flow** with domain-specific gates (publish approval, voice profile, figures-trace-to-source, drafts-not-advice, impact-claims-trace-to-artefacts)
-11. **Routes to the right model** — **Opus by default; Fable reserved for adjudication.** A [blind head-to-head](docs/2026-07-29-fable-opus-head-to-head.md) (6 tasks, 12 blind judgements, two independent judges) could not separate the tiers on architecture, planning, or root-cause analysis — judges agreed with each other at chance level — so those moved to Opus rather than keep paying a premium for an unmeasurable difference. Fable now holds three rows the experiment deliberately did **not** measure and whose failure cost is asymmetric: security adjudication, final review arbitration, and high-stakes domain judgement. N generators on Opus, the single adjudicator on Fable; escalate to Fable only after two failed attempts on the same task. Both are **tier aliases** that resolve to whatever generation is current in each family at dispatch time — the documented tier values (`sonnet`, `opus`, `haiku`, `fable`) pin no version, so the routing table never names one and never goes stale on release day
+11. **Routes to the right model, by role** — authoring and design on Opus; reviewers, checkers and finders on Sonnet; purely mechanical bulk on Haiku; the single adjudication call over conflicting findings on Opus; **Fable only when you name it**. Every dispatch names its model and an effort level by role (`high` for authoring and adjudication, `medium` for review and implementation, `low` for checks; never `max`): a dispatch that names no model inherits the main loop, and the [2026-10-06 token audit](docs/2026-10-06-token-efficiency-audit.md) found 65 workflow agents that had inherited a premium main loop that way. The Fable/Opus [blind head-to-head](docs/2026-07-29-fable-opus-head-to-head.md) still stands: no measurable difference on architecture, planning or root cause. Tiers are aliases (`haiku`, `sonnet`, `opus`, `fable`) that track each family's newest model, so the routing table never names a version
 12. **Enforces quality gates** — tests mandatory, lint clean, format clean, TypeScript clean, solution justification, British English; non-trivial engineering tasks carry a per-task **evidence ledger** (`.maestro/evidence-<date>-<task-slug>.md`) whose gates are pre-registered at PLAN and filled only from fresh output at Step 8.0, so cross-step state survives compaction and the final report must name every unmet gate
 13. **Reports through a Progress Protocol** — inside a multi-step flow, every response opens with its position ("Step 5 (UI/UX gate) — blocked on your mockup approval"), leaves at most one open ask, puts fresh command output above the justification prose, and quotes no wall-clock estimates. Adapted from cognitive-accessibility formatting practice; it governs reporting order and ask count only, and never truncates a checklist, drops a justification, or suppresses a gate's question
 14. **Tracks upstream dependencies** — daily GitHub Actions workflow detects changes across 24 tracked upstream repos (including the pinned pm-claude-skills SHA, whose drift is reported as a re-review trigger), files issues with per-day deltas, and keeps its state on a dedicated `upstream-state` branch so a stalled run can never masquerade as a green one
 
 ### Token discipline
 
-`SKILL.md` loads on **every** task, so it carries only the router: which domain and model a task maps to, in one line each. Every detail — install commands, per-pack caveats, domain gates, degradation rules, the full model table — lives in `references/` and is read **only when that path actually fires**. Adding the domain packs and model routing in v1.9.0 made `SKILL.md` *smaller* — 5,959 → 5,534 words. v1.10.0 spends ~190 of that saving deliberately: the YAGNI decision ladder is an every-task implementation rule, so it lives on the hot path by design (5,723 words). v1.11.0 spends a further ~260 on the Progress Protocol for the same reason — it governs every response inside a flow, so a `references/` file it never reads would be worthless. v1.12.0 adds ~40 more restating the model-routing default, now that it is `opus` rather than `fable`. That puts `SKILL.md` at 6,022 words, ~60 past the 5,959 pre-registry baseline — a deliberate overspend on three every-task rules, not drift. v1.13.0 adds the leadership domain for **29 words** — a 26-word routing row plus the word `leadership` in three existing enumerations (the frontmatter description, CLASSIFY's domain question, and the Deliverable-flow skip row) — putting `SKILL.md` at 6,051. A routing row nothing consumes is dead weight, so those three enumerations are what make the row reachable. v1.14.0 adds 2 more (6,053) naming the pinned pack in that same row. v1.15.0 spends ~193 correcting every-task behaviour the 2026-08-24 audit caught: a terminal state for Step 10 when no review bot exists, the supply-chain override widened to cover Step 6, agent precedence, the mixed-task split rule, and truthful post-edit wording for Security Guidance (6,247 words). v1.16.0 spends ~120 wiring the evidence ledger: the audit's core structural finding was zero persistent workflow state, eight decisions riding model memory across steps, so the three wiring lines (CLASSIFY header, PLAN pre-registration, Step 8.0 update) are every-task rules by definition; the format and rules live in `references/evidence-ledger.md` (6,371 words). Its five-job map, four gates, and licence exclusions all live in `references/skill-pack-registry.md` and load only when CLASSIFY names the domain. Rare-path detail still never goes in `SKILL.md`.
+`SKILL.md` loads at the start of every session and again after every compaction, so it carries only the router and the gates: which domain and model a task maps to, and each gate's name and when it fires. All gate detail (dispatch tables, checklists, install commands, degradation rules, the model table) lives in `references/` behind a read-when index and loads only when its trigger fires.
+
+v1.17.0 cut `SKILL.md` from 42,844 to about 11,900 bytes (6,371 to 1,794 words) after a [token audit](docs/2026-10-06-token-efficiency-audit.md) of six weeks of local transcripts:
+
+- One load cost about 15.4k tokens in real API usage; the lean body is about 4k.
+- After an auto-compaction, Claude Code re-attaches only the first 5,000 tokens of a skill. The old body kept its first third, so Steps 5 to 10 dropped out of long sessions; the lean body survives whole.
+- CI replaced the word ceiling with a byte budget on the injected body (12,000), a 300-character cap on the description, a duplicate-line guard against the references, a read-when index guard and a gate-phrase inventory. `tests/skill-bundle-lint-smoke.sh` proves each one fires.
+
+**How to load it.** Invoke the skill once per session with no arguments, from a `SessionStart` hook, which fires again on resume, clear and compact. Do not force an invocation on every turn: re-invoking with arguments resends the whole body, and in the audit a per-turn mandate cost 3.9 to 17.7% of a session's input tokens. A minimal hook for `~/.claude/settings.json`:
+
+```json
+{"hooks": {"SessionStart": [{"hooks": [{"type": "command",
+  "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Invoke the maestro:maestro skill once with no arguments, then apply it to every task. Never pass arguments.\"}}'"}]}]}}
+```
+
+**Settings that compound the saving.** `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` in the settings `env`, so a dispatch that names no model stops inheriting the main loop. Effort per model under `modelSettings` rather than an exported `CLAUDE_CODE_EFFORT_LEVEL`, which overrides every agent's own effort level. `ultracode` off, opting into a workflow per task by typing `ultracode:` in the prompt. And `./install.sh --profile=engineering`, with domain packs enabled only in the projects that use them. The installer only adds, so on an existing install take packs out of the global set with `claude plugin disable <plugin>@<marketplace> --scope user`.
 
 ## Prerequisites
 
@@ -75,13 +90,15 @@ cd my-claude-maestro
 ./install.sh
 ```
 
-The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, leadership-skills, pm-product-discovery, c-level-skills (installer component name: `c-level-advisor`), Taste, and Transitions. `pm-claude-skills` is the one pack installed from a **pinned commit** rather than a default branch, cloned to `~/.claude/pinned/pm-claude-skills`; skip it with `--skip-pm-claude-skills`.
+The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, leadership-skills, pm-product-discovery, c-level-skills (installer component name: `c-level-advisor`), Taste, and Transitions. `pm-claude-skills` is the one pack installed from a **pinned commit** rather than a default branch, cloned to `~/.claude/pinned/pm-claude-skills`; skip it with `--skip-pm-claude-skills`. `--profile=engineering` leaves out finance, small-business, legal, marketing-skills, social-media-skills, the three leadership bundles, pm-product-discovery, c-level-skills, pm-claude-skills and Vercel (add those per project, as `references/ecosystem.md` describes), keeps example-skills (it carries frontend-design, mcp-builder and skill-creator), Taste and Transitions, and installs Everything Claude Code with its own `developer` profile instead of `full`.
 
 Heavy/specialised dependencies (VoiceMode, n8n-MCP, LightRAG) are **excluded by default** — install manually from the [Prerequisites](#prerequisites) table if you need them.
 
 **Installer flags:**
 
 ```bash
+./install.sh --profile=engineering  # coding packs only; domain packs per project
+./install.sh --profile=core         # engineering minus the optional voices
 ./install.sh --minimal          # required components only (superpowers + Context7)
 ./install.sh --dry-run          # preview commands without executing
 ./install.sh --skip-vercel      # opt out of individual components
@@ -128,14 +145,14 @@ Every task follows one flow. Steps are skipped when not applicable:
  8. VERIFY       → superpowers:verification + quality gates + Playwright visual checks
 8.5 LOCAL REVIEW → code-reviewer on the local diff (+ SkillSpector for skill artefacts)
  9. FINISH       → superpowers:finishing-a-development-branch → PR
-10. REVIEW       → PR Review Toolkit specialist agents → polling loop
+10. REVIEW       → PR Review Toolkit specialist agents → background wait for review
 ```
 
 ### Skip Logic
 
 | Condition | Steps Skipped |
 |-----------|---------------|
-| Trivial config/docs change | 3–6 and 8.5 — but a `SKILL.md`, plugin-manifest or MCP-config edit is never trivial, and always runs Step 6 and Step 8.5 |
+| Trivial config/docs change | 3–6 and 8.5 — but an edit to agent instructions or agent config (`SKILL.md`, `references/`, agent or command definitions, hooks, a plugin manifest, an MCP-server config, `CLAUDE.md` or rules files, `.claude/settings*.json`) is never trivial, and always runs Step 6 and Step 8.5 |
 | No frontend touched | 5, visual verification in 8 |
 | Component-level frontend tweak (className, copy edit, prop rename) | 5a–5c (mockup) and 5d — 5e checklist still runs |
 | Bug fix | 3 → systematic-debugging |
@@ -156,7 +173,8 @@ Reference files are read **on demand**, never on every task — that is what kee
 - **[Frontend Design Trigger](skills/maestro/references/frontend-design-trigger.md)** — the decision matrix for when Step 5 needs a mockup
 - **[Evidence Ledger](skills/maestro/references/evidence-ledger.md)** — durable per-task gate state: pre-registered oracles at PLAN, fresh evidence at Step 8.0, visible abandonment
 - **[Skill Pack Registry](skills/maestro/references/skill-pack-registry.md)** — the Deliverable flow, each domain pack's skills, gates, and caveats. Read only when routing to a non-engineering domain
-- **[Model Routing](skills/maestro/references/model-routing.md)** — the full Fable/Opus table, dispatch mechanisms, escalation rules, cost discipline
+- **[Model Routing](skills/maestro/references/model-routing.md)** — the role-based table (model and effort per role), dispatch mechanisms, escalation rules, and the evidence behind them
+- **[Review Gates](skills/maestro/references/review-gates.md)** — Step 8.5 dispatch, severity and SkillSpector rules; Step 10 specialists and the background wait for the external review
 - **[Ecosystem](skills/maestro/references/ecosystem.md)** — install commands, per-pack caveats, and the full degradation table. Read only when a pack is missing
 
 ## Customisation
@@ -202,12 +220,16 @@ my-claude-maestro/
 │           ├── evidence-ledger.md
 │           ├── skill-pack-registry.md
 │           ├── model-routing.md
+│           ├── review-gates.md
 │           └── ecosystem.md
 ├── hooks/
 │   ├── hooks.json
 │   └── check-update.sh
 ├── tests/
-│   └── install-smoke.sh        # bash tests/install-smoke.sh — runs in CI
+│   ├── install-smoke.sh            # bash tests/install-smoke.sh — runs in CI
+│   ├── hook-smoke.sh               # update-notice hook tests
+│   ├── skill-bundle-lint.py        # hot-path budget, references, gate phrases
+│   └── skill-bundle-lint-smoke.sh  # proves each lint guard fires
 ├── docs/
 │   ├── 2026-04-03-maestro-design.md
 │   ├── 2026-04-07-plugin-integration-design.md
@@ -217,7 +239,8 @@ my-claude-maestro/
 │   ├── 2026-07-29-fable-opus-head-to-head.md   # evidence behind the v1.12.0 re-tier
 │   ├── 2026-08-18-deepseek-harness-evaluation.md   # why DSH is a peer harness, not a pack
 │   ├── 2026-08-24-unlazy-evaluation.md   # right layer, fails on merit; ledger idea adopted first-party
-│   └── 2026-08-24-i-have-adhd-evaluation.md   # peer output-mode; nothing to adopt, redundant with caveman + Progress Protocol
+│   ├── 2026-08-24-i-have-adhd-evaluation.md   # peer output-mode; nothing to adopt, redundant with caveman + Progress Protocol
+│   └── 2026-10-06-token-efficiency-audit.md   # evidence behind the v1.17.0 lean skill and role-based routing
 ├── install.sh          # companion ecosystem installer
 ├── CONTRIBUTING.md     # dev setup + the rules CI enforces
 ├── SECURITY.md         # private vulnerability reporting

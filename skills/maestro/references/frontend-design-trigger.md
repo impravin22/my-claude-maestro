@@ -68,6 +68,8 @@ A short prose write-up that locks in all of:
 9. Motion that clarifies flow instead of distracting from it
 10. Data visualisation treated as part of the design system, not an afterthought
 
+**Optional direction voices (if installed):** Taste can contribute direction candidates and Transitions the motion language. Both are **additive only**: their output still faces the anti-template ban, the required-qualities check and the 5c gate, and neither replaces `frontend-design` as the direction generator.
+
 **Self-audit before moving to 5b:** open the design direction and ask "could a 2018 admin template ship this?" If yes, re-pick. If no, proceed.
 
 This lives in the plan from Step 4 (or appended during Step 5a) — it must be visible to the user when they approve the mockup.
@@ -135,7 +137,16 @@ If UI UX Pro Max suggests a fundamental direction change, surface it to the user
 
 Always run, regardless of whether 5a–5d ran. Read `uiux-checklist.md` and run through every item against the **approved mockup** (or against the planned change if no mockup was generated).
 
-This catches accessibility, responsive, and state-coverage issues that the mockup alone does not enforce.
+This catches accessibility, responsive, and state-coverage issues that the mockup alone does not enforce. It is not optional for any frontend change that alters rendered output, however small; only test-only changes are exempt (see the matrix).
+
+Key enforcement areas:
+
+- **Visual design:** Tailwind tokens, spacing scale, typography, colour palette, dark mode
+- **Accessibility (WCAG 2.1 AA):** keyboard navigation, focus, contrast, ARIA, semantic HTML, motion, touch targets
+- **Component patterns:** shadcn/ui, composition, loading, error and empty states, responsive behaviour
+- **Performance:** CLS, image optimisation, client component boundaries, bundle impact
+
+Flag every violation against the mockup, fix the mockup, re-confirm with the user, then go to Step 6.
 
 ---
 

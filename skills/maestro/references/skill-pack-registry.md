@@ -19,7 +19,9 @@ Steps 5 (UI mockup), 7 (TDD), 8.5, 9 and 10 (git/PR) apply only when the deliver
 
 **Mixed tasks split.** "Build the landing page and write the launch email" = the engineering flow owns the repo diff, the Deliverable flow owns the email. Each half passes its own gates.
 
-**Model tier on this flow:** `opus` throughout; dispatch the domain gate's final judgement (legal risk, financial variance interpretation, pricing strategy) on `fable` per `model-routing.md`.
+**Model tier on this flow:** drafting on `opus`; the domain gate's final judgement (legal risk, financial variance interpretation, pricing strategy) as one `opus` call at `high` effort; figure and fact tracing on `sonnet`. Details in `model-routing.md`.
+
+**Where the packs live.** Domain packs belong in the projects that use them, not in the global set: every enabled pack adds to every session's skill listing. A pack that is not enabled here degrades as `ecosystem.md` describes; to add it for the current project, propose the commands under Install profiles in `ecosystem.md` and let the user run or approve them.
 
 ## Universal gates for deliverables
 
