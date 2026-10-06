@@ -44,6 +44,8 @@ Read this **only when** a pack you need is missing, the user asks how to install
 | LightRAG | `uv tool install "lightrag-hku[api]"` | Graph+vector RAG; **external service — needs a custom MCP bridge**, not shipped |
 | document-skills | `claude plugin marketplace add anthropics/skills && claude plugin install document-skills@anthropic-agent-skills` | docx/pdf/pptx/xlsx; **source-available, not open source** |
 
+**LightRAG at Step 2.** For a very large repository whose APIs Context7 cannot cover (proprietary frameworks, niche internal APIs), a running `lightrag-server` can supply graph and vector retrieval, through a scratch MCP shim or its REST API. It is an optional external service, never a Context7 replacement; where both answer, Context7 wins on API freshness.
+
 ## Per-pack caveats
 
 - **example-skills** — the artifacts skill is named **`web-artifacts-builder`**; configs referencing "artifacts-builder" will not match. One plugin covers 12 skills: skill-creator, mcp-builder, webapp-testing, brand-guidelines, web-artifacts-builder, frontend-design, canvas-design, theme-factory, doc-coauthoring, internal-comms, algorithmic-art, slack-gif-creator. It bundles `frontend-design`, so installing both it and `frontend-design@claude-plugins-official` is redundant — either source is fine. Note the repo clone also contains `docx`/`pdf`/`pptx`/`xlsx`/`claude-api`, but those belong to the sibling `document-skills` and `claude-api` plugins and are **not** exposed by installing example-skills.
@@ -67,7 +69,7 @@ A missing pack **never blocks a task**. Perform the equivalent manually and note
 | --- | --- |
 | A superpowers skill | Do the step manually — brainstorming → propose 2–3 approaches and get approval; writing-plans → a numbered plan; TDD → tests first anyway; verification → run the gate commands by hand. **Never skip the step.** |
 | Security Guidance | Step 6 checklist still enforced; no automated post-edit scanning |
-| Playwright MCP | Step 8 skips visual verification; tests, lint, types still apply |
+| Playwright MCP | Step 8 skips visual verification and writes any claim about rendered UI as UNVERIFIED; tests, lint, types still apply |
 | PR Review Toolkit | Step 10 skips Phase 1; Phase 2 (the background wait) still runs. Step 8.5 falls back to manual self-review against CLAUDE.md + the security checklist |
 | Context7 tools absent from the session (not installed, or the MCP needs authentication) | Step 2 says so prominently once, then proceeds on training knowledge and flags what rests on it. Re-authenticate with `/mcp` |
 | claude-mem | Steps 1/3/4 skip memory lookup; proceed from the current request alone |

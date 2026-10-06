@@ -56,7 +56,8 @@ Flags:
                                         back to their manual paths
                          Domain packs load into every session's skill listing
                          whether or not a task uses them; enable them per
-                         project instead (see README, Token discipline).
+                         project instead (see skills/maestro/references/
+                         ecosystem.md, Install profiles).
                          The default becomes engineering in a later release.
   --minimal              install required components only (not combinable
                          with --profile)
@@ -714,6 +715,14 @@ if [ ${#FAILED[@]} -gt 0 ]; then
   echo ""
   echo "Some components failed. Re-run with --dry-run to inspect commands,"
   echo "or install the failed components manually (see README.md)."
+fi
+# A profile only skips installs: packs from an earlier, fuller install stay
+# enabled and keep costing listing tokens until they are disabled.
+if [ -n "$PROFILE_SKIP_LIST" ]; then
+  echo ""
+  echo "Profile $PROFILE skips installs only. Packs already installed stay enabled;"
+  echo "remove one from every session with:"
+  echo "  claude plugin disable <plugin>@<marketplace> --scope user"
 fi
 
 cat <<'EOF'

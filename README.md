@@ -24,7 +24,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 
 ### Token discipline
 
-`SKILL.md` loads at the start of every session and again after every compaction, so it carries only the router and the gates: which domain and model a task maps to, and each gate's name and when it fires. All gate detail (dispatch tables, checklists, install commands, degradation rules, the model table) lives in `references/` behind a read-when index and loads only when its trigger fires.
+`SKILL.md` loads once per session when invoked (the `SessionStart` hook below does it, and fires again after a compaction), so it carries only the router and the gates: which domain and model a task maps to, and each gate's name and when it fires. All gate detail (dispatch tables, checklists, install commands, degradation rules, the model table) lives in `references/` behind a read-when index and loads only when its trigger fires.
 
 v1.17.0 cut `SKILL.md` from 42,844 to about 11,900 bytes (6,371 to 1,794 words) after a [token audit](docs/2026-10-06-token-efficiency-audit.md) of six weeks of local transcripts:
 
@@ -90,7 +90,7 @@ cd my-claude-maestro
 ./install.sh
 ```
 
-The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, leadership-skills, pm-product-discovery, c-level-skills (installer component name: `c-level-advisor`), Taste, and Transitions. `pm-claude-skills` is the one pack installed from a **pinned commit** rather than a default branch, cloned to `~/.claude/pinned/pm-claude-skills`; skip it with `--skip-pm-claude-skills`. `--profile=engineering` leaves out finance, small-business, legal, marketing-skills, social-media-skills, the three leadership bundles, pm-product-discovery, c-level-skills, pm-claude-skills and Vercel (add those per project, as `references/ecosystem.md` describes), keeps example-skills (it carries frontend-design, mcp-builder and skill-creator), Taste and Transitions, and installs Everything Claude Code with its own `developer` profile instead of `full`.
+The installer handles: superpowers, Context7 MCP, Vercel plugin, Security Guidance, PR Review Toolkit, Playwright MCP, claude-mem, UI UX Pro Max, Andrej Karpathy Skills, Caveman, SkillSpector, Everything Claude Code, and the domain packs — Anthropic example-skills, finance, small-business, legal, marketing-skills, social-media-skills, leadership-skills, pm-product-discovery, c-level-skills (installer component name: `c-level-advisor`), Taste, and Transitions. `pm-claude-skills` is the one pack installed from a **pinned commit** rather than a default branch, cloned to `~/.claude/pinned/pm-claude-skills`; skip it with `--skip-pm-claude-skills`. `--profile=engineering` leaves out finance, small-business, legal, marketing-skills, social-media-skills, the three leadership bundles, pm-product-discovery, c-level-skills, pm-claude-skills and Vercel (add those per project, as `references/ecosystem.md` describes), keeps example-skills (it carries frontend-design, mcp-builder and skill-creator), Taste and Transitions, and installs Everything Claude Code with its own `developer` profile instead of `full`. `--profile=core` also drops PR Review Toolkit, Playwright, SkillSpector, UI UX Pro Max, Karpathy, Taste and Transitions, so Steps 5a/5d, 8, 8.5 and 10 run their manual fallbacks.
 
 Heavy/specialised dependencies (VoiceMode, n8n-MCP, LightRAG) are **excluded by default** — install manually from the [Prerequisites](#prerequisites) table if you need them.
 
@@ -98,10 +98,10 @@ Heavy/specialised dependencies (VoiceMode, n8n-MCP, LightRAG) are **excluded by 
 
 ```bash
 ./install.sh --profile=engineering  # coding packs only; domain packs per project
-./install.sh --profile=core         # engineering minus the optional voices
-./install.sh --minimal          # required components only (superpowers + Context7)
-./install.sh --dry-run          # preview commands without executing
-./install.sh --skip-vercel      # opt out of individual components
+./install.sh --profile=core         # engineering minus review, visual and scan tooling
+./install.sh --minimal              # required components only (superpowers + Context7)
+./install.sh --dry-run              # preview commands without executing
+./install.sh --skip-vercel          # opt out of individual components
 ./install.sh --help
 ```
 

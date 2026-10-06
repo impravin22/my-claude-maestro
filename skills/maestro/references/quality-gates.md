@@ -47,7 +47,7 @@ Every task must pass these gates before claiming completion. Sections tagged wit
 
 ## Visual Verification (Frontend Changes Only — Requires Playwright MCP)
 
-Skip when no frontend file changed or no dev server is running. If the server is down, suggest the user start it (`npm run dev` or the project's equivalent); never start one silently. If the Playwright MCP is missing, say so once; tests, lint and types still apply.
+Skip when no frontend file changed or no dev server is running. If the server is down, suggest the user start it (`npm run dev` or the project's equivalent); never start one silently. If the Playwright MCP is missing, say so once and write any claim about rendered UI as UNVERIFIED; tests, lint and types still apply.
 
 - [ ] **Dev server running** — local dev server confirmed running before visual checks
 - [ ] **Affected routes render** — every changed/added route loads without console errors
@@ -66,7 +66,7 @@ Skip when no frontend file changed or no dev server is running. If the server is
 ## PR Specialist Review (Step 10 Phase 1 — Requires PR Review Toolkit)
 
 - [ ] **Code review clean** — `pr-review-toolkit:code-reviewer` reports no guideline violations
-- [ ] **No silent failures** — `pr-review-toolkit:silent-failure-hunter` reports no swallowed errors or inappropriate fallbacks
+- [ ] **No silent failures** — `pr-review-toolkit:silent-failure-hunter` reports no swallowed errors or inappropriate fallbacks (toolkit absent, as under `--profile=core`: read every changed catch block, fallback and exit path by hand)
 - [ ] **Test coverage adequate** — `pr-review-toolkit:pr-test-analyzer` reports no critical gaps
 - [ ] **Code simplified** — `pr-review-toolkit:code-simplifier` applied where complexity was flagged (if applicable)
 - [ ] **Type design sound** — `pr-review-toolkit:type-design-analyzer` approves new types (if applicable)

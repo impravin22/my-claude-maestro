@@ -47,6 +47,24 @@ expect_lint() {
     FAIL=$((FAIL + 1))
     return
   fi
+  # A crash is never a finding: a traceback could echo the needle by accident.
+  case "$output" in
+    *Traceback*)
+      echo "FAIL: $description (the lint crashed)"
+      FAIL=$((FAIL + 1))
+      return
+      ;;
+  esac
+  if [ "$expected" -eq 1 ]; then
+    case "$output" in
+      "skill bundle problems:"*) ;;
+      *)
+        echo "FAIL: $description (no findings header)"
+        FAIL=$((FAIL + 1))
+        return
+        ;;
+    esac
+  fi
   case "$output" in
     *"$needle"*) ;;
     *)
@@ -152,6 +170,44 @@ root="$(fresh_copy)" || exit 1
 mutate_file "$root" "hooks/check-update.sh" "import re; text = re.sub(r'^REPO=\"[^\"]+\"', 'REPO=\"someone/else\"', text, count=1, flags=re.M)"
 expect_lint "an update hook pointing at another repository fails" 1 \
   "check-update.sh REPO 'someone/else'" "$root"
+
+root="$(fresh_copy)" || exit 1
+mutate_file "$root" "hooks/hooks.json" "text = text.replace('hooks/check-update.sh', '../x.sh')"
+expect_lint "a hook path climbing out with .. fails" 1 "escapes the plugin root" "$root"
+
+root="$(fresh_copy)" || exit 1
+mutate_file "$root" "hooks/hooks.json" 'import json; d = json.loads(text); d["hooks"]["SessionStart"][0]["hooks"][0]["command"] = "bash ${CLAUDE_PLUGIN_ROOT}/hooks/gone.sh --quiet"; text = json.dumps(d)'
+expect_lint "an unquoted hook path is still checked" 1 \
+  "references missing script hooks/gone.sh" "$root"
+
+root="$(fresh_copy)" || exit 1
+mutate_file "$root" "hooks/hooks.json" 'import json; d = json.loads(text); d["hooks"]["SessionStart"][0]["hooks"][0]["command"] = "bash \"$CLAUDE_PLUGIN_ROOT/hooks/gone.sh\""; text = json.dumps(d)'
+expect_lint "a braceless hook path is still checked" 1 \
+  "references missing script hooks/gone.sh" "$root"
+
+root="$(fresh_copy)" || exit 1
+mutate_file "$root" "hooks/hooks.json" 'import json; d = json.loads(text); d["hooks"]["SessionStart"][0]["hooks"][0]["command"] = "echo $CLAUDE_PLUGIN_ROOT"; text = json.dumps(d)'
+expect_lint "a hook naming the plugin root with no readable path fails" 1 \
+  "no script path could be read" "$root"
+
+root="$(fresh_copy)" || exit 1
+mutate "$root" "import re; text = re.sub(r'^description:.*\n', '', text, count=1, flags=re.M)"
+expect_lint "a skill with no description fails" 1 "has no description" "$root"
+
+root="$(fresh_copy)" || exit 1
+mutate "$root" "text += '\nRun it fresh in this message, again.\n'"
+expect_lint "a gate phrase stated twice fails the uniqueness check" 1 \
+  "'Run it fresh in this message' 2 times" "$root"
+
+root="$(fresh_copy)" || exit 1
+mutate_file "$root" "$REFS_REL/review-gates.md" "text = text.replace('| HIGH | Block. Fix before Step 9. |', '| HIGH | Warn only. |')"
+expect_lint "relaxing the HIGH severity row fails" 1 \
+  "lost gate phrase '| HIGH | Block. Fix before Step 9. |'" "$root"
+
+root="$(fresh_copy)" || exit 1
+mutate_file "$root" ".claude-plugin/plugin.json" "text = text[:-5]"
+expect_lint "a malformed manifest is a lint error, not a finding" 2 \
+  "skill bundle lint error" "$root"
 
 echo ""
 echo "passed: $PASS  failed: $FAIL"

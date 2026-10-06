@@ -42,9 +42,9 @@ shellcheck -S warning tests/skill-bundle-lint-smoke.sh
 
 ### 3. SKILL.md stays lean
 
-`skills/maestro/SKILL.md` loads on **every task** — it is a recurring context tax on every user. Rare-path detail lives in `skills/maestro/references/` and is read only when that path fires. If you add text to `SKILL.md`, the PR description must say why the rule is every-task material and which existing words it displaces. New checklists, tables and install commands go in `references/`, full stop.
+`skills/maestro/SKILL.md` loads into **every session** that uses maestro — it is a recurring context tax on every user. Rare-path detail lives in `skills/maestro/references/` and is read only when that path fires. If you add text to `SKILL.md`, the PR description must say why the rule is every-task material and which existing words it displaces. New checklists, tables and install commands go in `references/`, full stop.
 
-CI enforces it with `tests/skill-bundle-lint.py`: the injected body (everything after the frontmatter) stays within 12,000 bytes, so the whole skill survives the 5,000-token re-attach after an auto-compaction; the description stays within 300 characters; no line of 60 or more characters repeats a reference verbatim; every file in `references/` has a row in the read-when index; and a fixed list of gate phrases must stay present in `SKILL.md` and the references that carry gates. Rewording a gate means updating that list in the same diff. Run it locally with `python3 tests/skill-bundle-lint.py`, and `bash tests/skill-bundle-lint-smoke.sh` after changing the lint itself.
+CI enforces it with `tests/skill-bundle-lint.py`: the injected body (everything after the frontmatter) stays within 12,000 bytes, so the whole skill survives the 5,000-token re-attach after an auto-compaction; the description stays on one line within 300 characters; no line of 60 or more characters repeats a reference verbatim; every file in `references/` has a row in the read-when index; and a fixed list of gate phrases must stay present in `SKILL.md` and the references that carry gates. Rewording a gate means updating that list in the same diff. Run it locally with `python3 tests/skill-bundle-lint.py`, and `bash tests/skill-bundle-lint-smoke.sh` after changing the lint itself.
 
 ### 4. Version bumps land in the PR
 
