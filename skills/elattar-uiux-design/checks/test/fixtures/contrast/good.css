@@ -1,0 +1,23 @@
+@theme static {
+  --color-brand: hsl(224 76% 33%);
+}
+:root,
+.light {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(240 10% 3.9%);
+  --muted: hsl(240 4.8% 95.9%);
+  --muted-foreground: hsl(240 4% 40%);
+  --action-ink: var(--color-brand);
+}
+@media (width >= 768px) {
+  :root {
+    --text-body: 1rem;
+  }
+}
+.dark {
+  --background: hsl(240 10% 3.9%);
+  --foreground: hsl(0 0% 98%);
+  --muted: hsl(240 3.7% 15.9%);
+  --muted-foreground: hsl(240 4.9% 83.9%);
+  --action-ink: color-mix(in srgb, white 80%, hsl(213 94% 60%));
+}

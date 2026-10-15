@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sandbox</title><style>button,input{min-height:44px;min-width:44px}</style></head><body><main><h1>Sandbox</h1>
+<form id="f"><label>Title <input name="title" id="title"></label> <label><input type="checkbox" name="flag" id="flag"> Flag</label> <button type="submit">Save</button></form>
+<button id="nav">Go</button> <button id="pop">Pop</button> <button id="getdel">Clean</button> <button id="beacon">Ping</button> <button id="sock">Live</button>
+</main><script>
+const ws = () => { try { new WebSocket('ws://' + location.host + '/ws'); } catch (e) {} };
+title.oninput = () => { fetch('/save', { method: 'POST', body: title.value }); navigator.sendBeacon('/beacon', 'x'); ws(); fetch('/api/autosave?x=1'); };
+flag.onchange = () => fetch('/save', { method: 'PUT' });
+nav.onclick = () => { location.href = '/api/x'; };
+pop.onclick = () => { window.open('/api/popup'); };
+getdel.onclick = () => fetch('/api/delete?id=1');
+beacon.onclick = () => navigator.sendBeacon('/beacon', 'y');
+sock.onclick = ws;
+f.onsubmit = (e) => { e.preventDefault(); fetch('/save', { method: 'POST' }); };
+</script></body></html>

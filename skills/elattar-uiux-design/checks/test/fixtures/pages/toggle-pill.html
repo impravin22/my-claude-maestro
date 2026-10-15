@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Toggle group</title><style>
+body{margin:0;padding:24px;font:16px sans-serif;background:#fff;color:#111}
+.group{position:relative;display:inline-flex;padding:4px;border-radius:8px;background:#e5e5e5}
+.pill{position:absolute;top:4px;left:4px;width:96px;height:36px;border-radius:6px;background:#111;z-index:0}
+.pill.ptr-none{pointer-events:none}
+.item{position:relative;z-index:1;width:96px;height:36px;border:0;background:transparent;color:#111;font:inherit}
+.item[aria-checked=true]{color:#fff}
+</style></head><body>
+<div class="group" role="radiogroup" aria-label="Density"><span class="pill ptr-none"></span><button class="item" role="radio" aria-checked="true">Compact</button><button class="item" role="radio" aria-checked="false">Roomy</button></div>
+<div class="group" role="radiogroup" aria-label="Theme"><span class="pill"></span><button class="item" role="radio" aria-checked="true">Light</button><button class="item" role="radio" aria-checked="false">Dark</button></div>
+</body></html>

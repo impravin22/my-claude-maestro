@@ -10,7 +10,7 @@ A Claude Code plugin that orchestrates your entire development workflow. Maestro
 1. **Classifies** your task (feature, bug fix, refactor, config, UI-only) and routes it — to the right **domain pack** and the right **model tier**. A domain pack that is installed but switched off is loaded straight from disk when the task needs it, so domain packs can stay out of every session's skill listing; `~/.claude/maestro-packs.json` can name per-project defaults
 2. **Fetches live docs** via [Context7](https://github.com/upstash/context7) for every library involved — no stale training data
 3. **Orchestrates superpowers skills** in the correct order (brainstorm → plan → TDD → implement → verify → PR)
-4. **Enforces UI/UX design system** — WCAG 2.1 AA accessibility, Tailwind token usage, shadcn/ui patterns, responsive design, loading/error/empty states. Step 5 runs an **anti-template design-mockup gate** that produces an approved visual artefact (HTML prototype, sketch, or Storybook story) **before** any production frontend code is written. The gate enforces an explicit anti-template ban (no centred max-w-md card with icon→headline→CTA, no "clean minimal", no unmodified Tailwind defaults), requires the design to demonstrate at least four of ten quality markers (hierarchy, rhythm, depth, typography, semantic colour, drawn states, grid-breaking, atmosphere, motion, dataviz), and self-audits before the user is asked to approve — eliminating both the post-implementation rework loop and the template-by-default failure mode
+4. **Enforces UI/UX design system**: WCAG 2.1 AA accessibility, Tailwind token usage, shadcn/ui patterns, responsive design, loading/error/empty states. Step 5 runs an **anti-template design-mockup gate** that produces an approved visual artefact (HTML prototype, sketch, or Storybook story) **before** any production frontend code is written. The gate enforces an explicit anti-template ban (no centred max-w-md card with icon→headline→CTA, no "clean minimal", no unmodified Tailwind defaults), requires the design to demonstrate at least four of ten quality markers (hierarchy, rhythm, depth, typography, semantic colour, drawn states, grid-breaking, atmosphere, motion, dataviz), and self-audits before the user is asked to approve, eliminating both the post-implementation rework loop and the template-by-default failure mode. v1.19.0 makes the gate **design-system aware**: when a project has its own system, that system owns palette, type and motion, a missing value becomes a question rather than a literal, and the mockup is a local preview route on the system's real components. It also bundles ViewSonic's UI/UX skill, [elattar-uiux-design](#bundled-viewsonic-uiux-skill), for projects on the ViewSonic design system
 5. **Enforces layered security** — OWASP checklists at planning time + post-edit scanning via [Security Guidance](https://github.com/anthropics/claude-code) + [SkillSpector](https://github.com/NVIDIA/SkillSpector) supply-chain vetting of skill/plugin/MCP artefacts before PR (Step 8.5)
 6. **Visual verification** — [Playwright MCP](https://github.com/microsoft/playwright-mcp) verifies frontend changes render correctly, pass accessibility checks, and behave across breakpoints
 7. **Deep PR review** — [PR Review Toolkit](https://github.com/anthropics/claude-code) dispatches specialist agents (code review, silent failure detection, test coverage, type design, code simplification, comment accuracy) before the external review, which is awaited by a background command rather than a model turn per poll
@@ -177,6 +177,21 @@ Reference files are read **on demand**, never on every task — that is what kee
 - **[Review Gates](skills/maestro/references/review-gates.md)** — Step 8.5 dispatch, severity and SkillSpector rules; Step 10 specialists and the background wait for the external review
 - **[Ecosystem](skills/maestro/references/ecosystem.md)** — install commands, per-pack caveats, and the full degradation table. Read only when a pack is missing
 
+## Bundled ViewSonic UI/UX skill
+
+Maestro ships a second skill, `elattar-uiux-design`: ViewSonic's UI/UX skill, with its design rules, page patterns, runnable checks and evals. It is vendored unchanged (apart from two documented edits) from `ViewSonic-Transformation/FDP-design-system`, where it lives as its own plugin; it is MIT licensed, copyright Ayoub Elattar, and its [LICENSE](skills/elattar-uiux-design/LICENSE) stays beside it. Provenance, the local edits and the sync recipe are in [docs/2026-10-15-viewsonic-uiux-bundle.md](docs/2026-10-15-viewsonic-uiux-bundle.md).
+
+Maestro uses it only on projects that are on the ViewSonic design system (a `viewsonic-ui.config.json` or `.viewsonic-ui/` folder, or the foundation's `--color-action-*` and `--color-value-*` tokens), or when you ask for that system. There, its thirteen-line design pass drives Step 5a and its checks run at Steps 5e and 8; maestro's own gates still apply. Elsewhere it stays out of the way.
+
+| Command | Does | Changes files |
+| --- | --- | --- |
+| `/maestro:uiux-setup` | installs the project's commit hook, CI workflow and config; prints the plan first | only on your yes |
+| `/maestro:uiux-check` | fast static checks on the files you changed (`--all` for the whole project) | no |
+| `/maestro:uiux-check-full` | the fast checks plus browser checks on the changed routes; needs the app running | no |
+| `/maestro:uiux-review <route>` | screenshots a page in both themes and sizes and judges it against every rule | no, unless you ask |
+
+An after-edit hook (`hooks/uiux-on-edit.sh`) flags a ui component used with a prop or variant value it does not define, such as `Button size="md"`. It runs after every Edit, Write and MultiEdit, exits silently outside a shadcn project, without Node, or on any internal error, and `MAESTRO_UIUX_HOOK=off` in your environment turns it off. The checks need Node 22 or newer, and Playwright in the project for the browser checks.
+
 ## Customisation
 
 The checklists in `skills/maestro/references/` are plain Markdown. Fork the repo and edit them to match your team's standards:
@@ -209,7 +224,13 @@ my-claude-maestro/
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   ├── dependabot.yml
 │   └── release.yml              # release-notes categories
+├── commands/                    # /maestro:uiux-setup, -check, -check-full, -review
 ├── skills/
+│   ├── elattar-uiux-design/     # bundled ViewSonic UI/UX skill (vendored, MIT, own LICENSE)
+│   │   ├── SKILL.md
+│   │   ├── rules/ system/ patterns/
+│   │   ├── checks/              # run.mjs, the after-edit check, its node:test suite
+│   │   └── evals/
 │   └── maestro/
 │       ├── SKILL.md
 │       ├── scripts/
@@ -227,10 +248,11 @@ my-claude-maestro/
 │           └── ecosystem.md
 ├── hooks/
 │   ├── hooks.json
-│   └── check-update.sh
+│   ├── check-update.sh
+│   └── uiux-on-edit.sh         # after-edit variant check for the bundled skill
 ├── tests/
 │   ├── install-smoke.sh            # bash tests/install-smoke.sh — runs in CI
-│   ├── hook-smoke.sh               # update-notice hook tests
+│   ├── hook-smoke.sh               # update-notice and after-edit hook tests
 │   ├── skill-bundle-lint.py        # hot-path budget, references, gate phrases
 │   ├── skill-bundle-lint-smoke.sh  # proves each lint guard fires
 │   ├── test_find_pack.py           # find-pack.py: lookup, project defaults, CLI
@@ -247,7 +269,8 @@ my-claude-maestro/
 │   ├── 2026-08-24-unlazy-evaluation.md   # right layer, fails on merit; ledger idea adopted first-party
 │   ├── 2026-08-24-i-have-adhd-evaluation.md   # peer output-mode; nothing to adopt, redundant with caveman + Progress Protocol
 │   ├── 2026-10-06-token-efficiency-audit.md   # evidence behind the v1.17.0 lean skill and role-based routing
-│   └── 2026-10-06-on-demand-domain-packs.md   # why v1.18.0 loads switched-off packs from disk
+│   ├── 2026-10-06-on-demand-domain-packs.md   # why v1.18.0 loads switched-off packs from disk
+│   └── 2026-10-15-viewsonic-uiux-bundle.md   # v1.19.0: the bundled ViewSonic skill, its provenance and sync
 ├── install.sh          # companion ecosystem installer
 ├── CONTRIBUTING.md     # dev setup + the rules CI enforces
 ├── SECURITY.md         # private vulnerability reporting
@@ -263,4 +286,4 @@ Contributions are welcome — [CONTRIBUTING.md](CONTRIBUTING.md) covers the dev 
 
 ## Licence
 
-MIT
+MIT. The bundled `skills/elattar-uiux-design/` is MIT too, copyright Ayoub Elattar; see its [LICENSE](skills/elattar-uiux-design/LICENSE).

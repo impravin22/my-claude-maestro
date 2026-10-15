@@ -1,0 +1,6 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Opens well</title><style>button{min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Settings</h1>
+<button id="o" aria-haspopup="dialog">Open settings</button><button data-slot="tooltip-trigger" id="t">Help</button>
+<div id="dlg" role="dialog" aria-label="Settings" hidden><p>Settings</p><button id="c">Close</button></div></main><script>
+o.onclick = () => { dlg.hidden = false; c.focus(); }; c.onclick = () => { dlg.hidden = true; o.focus(); };
+addEventListener("keydown", (e) => { if (e.key === "Escape") dlg.hidden = true; });
+</script></body></html>

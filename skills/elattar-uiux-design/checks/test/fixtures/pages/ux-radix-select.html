@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Select on pointerdown</title><style>button{font:inherit;min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Select on pointerdown</h1>
+<button id="sel" role="combobox" aria-expanded="false" aria-haspopup="listbox" data-state="closed">Choose a plan</button>
+</main><div id="lb" role="listbox" aria-label="Plan" hidden><div role="option" tabindex="0">Free</div><div role="option" tabindex="0">Pro</div></div>
+<script>
+sel.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; e.preventDefault(); lb.hidden = false; sel.setAttribute('aria-expanded', 'true'); sel.dataset.state = 'open'; });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lb.hidden) { lb.hidden = true; sel.setAttribute('aria-expanded', 'false'); sel.dataset.state = 'closed'; sel.focus(); } });
+</script></body></html>

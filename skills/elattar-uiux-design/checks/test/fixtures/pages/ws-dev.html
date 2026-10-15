@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sockets</title></head><body><main><h1>Sockets</h1><button type="button" style="min-height:44px;min-width:44px">Go</button></main>
+<script>
+// a same-origin dev-server channel must be the real WebSocket, an app socket the stub
+const hmr = new WebSocket("ws://" + location.host + "/_next/webpack-hmr");
+const app = new WebSocket("ws://" + location.host + "/app-socket");
+window.__sockets = { hmr: hmr.readyState !== 3 || hmr.url !== undefined, app: app.url !== undefined, appState: app.readyState };
+</script></body></html>

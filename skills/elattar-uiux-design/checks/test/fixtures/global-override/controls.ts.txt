@@ -1,0 +1,15 @@
+// Page-wide rules for every control on the settings page, so each one meets the touch size and shows a clear focus outline.
+// Written as one string so the dialogs, which render outside the page, can wear it too.
+export const CONTROLS = [
+  // At least 44 by 44 for anything pressed or typed into.
+  "[&_[data-slot=button]]:min-h-11!",
+  "[&_[data-slot$=-trigger]]:min-h-11!",
+  "[&_[data-slot=input]]:min-h-11!",
+  "[&_[data-slot=input-group]]:min-h-11!",
+  "[&_[data-slot=select-trigger]]:min-h-11!",
+  "[&_[data-slot=toggle-group-item]]:min-h-11!",
+  // A solid outline in the focus colour, on top of the soft ring the components draw.
+  "[&_:focus-visible]:outline-2!",
+  "[&_:focus-visible]:outline-solid!",
+  "[&_:focus-visible]:outline-ring!",
+].join(" ");

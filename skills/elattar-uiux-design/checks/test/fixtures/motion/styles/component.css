@@ -1,0 +1,3 @@
+.anim-intro {
+  animation: ds-enter var(--duration-fast) ease-out both;
+}

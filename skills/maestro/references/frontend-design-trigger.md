@@ -31,6 +31,34 @@ If the answer is ambiguous, default to **Yes**. The user can always say "skip th
 
 ---
 
+## Design-system projects
+
+Read this before the substeps. When the project has a governing design system, the system owns the visual vocabulary and the substeps change shape. A project has one when its components come from a system the repo installs and enforces: a token stylesheet guarded by the system's own checks, a design-system skill or plugin for it, or a repo rule naming it. Then:
+
+- **5a picks composition, never vocabulary.** Palette, type roles, radius, spacing, shadows and motion come from the system's tokens. The direction names the pattern, the hierarchy, the layout, and the token or component that serves each choice. It never proposes a new hex, `oklch()`, font family or duration. The style-direction list and the "concrete tokens" palette line in 5a apply only to projects without a system.
+- **A missing value is an ask.** When no existing token fits, stop and ask the user: name the closest token, why it does not fit, and the value you would add. Never an arbitrary literal.
+- **5b is a local preview route, not a CDN prototype.** Build it with the system's real components (in Next.js, `app/preview/<ticket>/page.tsx`, outside any auth-wrapped layout, with a state switcher for hero, loading, empty and error, and one breakpoint). Keep `app/preview/` in `.gitignore` and delete the route once it is no longer needed. The Tailwind CDN prototype in the 5b artefact table is for projects without a system.
+- **The anti-template ban reads against composition.** Using the system's restyled components is required, not a template smell. The ban still catches a default layout, flat hierarchy, or a stock component library passed off as the system. Depth, glow and texture come only from the system's sanctioned effects.
+- **Both themes belong to the system.** Themes switch through tokens. A colour that needs a `dark:` variant means a token is missing, which is an ask, not a variant to add.
+
+5c, 5d and 5e run unchanged.
+
+### ViewSonic design system: the bundled skill
+
+Maestro bundles `elattar-uiux-design`, ViewSonic's UI/UX skill (vendored from `ViewSonic-Transformation/FDP-design-system`, MIT, Ayoub Elattar). Use it when the project is on the ViewSonic system: a `viewsonic-ui.config.json` or `.viewsonic-ui/` folder at the root, stylesheets that define the `--color-action-*` and `--color-value-*` ramps, or the user names the ViewSonic design system.
+
+| Maestro step | What runs |
+|---|---|
+| 5a | Load `maestro:elattar-uiux-design`. Its steps 1 to 5 (detect the project, inventory, choose a pattern, ask before a new value, the thirteen-line design pass with its content, accessibility and UX lines) are the direction. The anti-template ban and the required qualities are judged through it. |
+| 5b, 5c | The preview route above, built on the ViewSonic components. Explicit approval as always. |
+| 5e | `uiux-checklist.md`, plus the skill's two hard rules: a description is always set smaller than its title, and every colour pair meets WCAG AA (AAA when configured) in light and dark. |
+| 7 | The skill's step 6: tokens only, the state table, both themes. The after-edit hook flags invalid props and variants; fix each before the next TDD cycle. |
+| 8 | The skill's steps 7 to 9: `run.mjs fast --changed`, the production build, `runtime-errors` on each changed route, then `full`, `shots`, `keyboard`, `ux`, `ux-flow`, `contrast` and `contrast-rendered` on the changed routes. Its honest-report rule feeds the Evidence Gate. |
+
+The skill is a domain voice inside the maestro skeleton. Its steps replace maestro's generic content for these substeps, never maestro's gates: 5c approval, TDD, Step 6, the Evidence Gate and Step 8.5 all hold. Commands: `/maestro:uiux-setup`, `/maestro:uiux-check`, `/maestro:uiux-check-full`, `/maestro:uiux-review <route>`. `MAESTRO_UIUX_HOOK=off` in the environment silences the after-edit hook.
+
+---
+
 ## Substep Definitions
 
 ### 5a — Design direction
@@ -80,7 +108,8 @@ A tangible thing the user can eyeball **before** any production code is written.
 
 | Artefact | Use when | File location |
 |---|---|---|
-| **Single-file HTML prototype** with Tailwind CDN + realistic copy | New surface, significant redesign, style refresh | `proposed-<feature>.html` in repo root or `docs/mockups/<feature>.html` |
+| **Single-file HTML prototype** with Tailwind CDN + realistic copy | New surface, significant redesign, style refresh, in a project **without** a design system | `proposed-<feature>.html` in repo root or `docs/mockups/<feature>.html` |
+| **Local preview route** on the system's real components, with a state switcher | Any mockup in a project **with** a design system (see Design-system projects) | `app/preview/<ticket>/page.tsx` or the framework's equivalent, gitignored |
 | **Annotated component sketch** in markdown (ASCII layout + copy + state list) | Small new components, new variants | Inline in the Step 4 plan |
 | **Existing-page screenshot + redline overlay** | Refreshes of pages where the existing layout is mostly preserved | Attached to the plan, stored in `docs/mockups/<feature>/` |
 | **Storybook story** | Component-level work in a project with Storybook configured | Storybook's tree, not a one-off file |

@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Opens badly</title><style>button{min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Danger zone</h1>
+<button id="del" aria-haspopup="dialog">Delete account</button>
+<div id="dlg" role="alertdialog" aria-label="Delete account" hidden><p>Sure?</p><button id="cancel">Cancel</button></div>
+</main><script>
+// loads clean; the crash only happens when the dialog renders, like a missing provider
+del.onclick = () => { dlg.hidden = false; setTimeout(() => { throw new Error("`Tooltip` must be used within `TooltipProvider`"); }, 0); };
+addEventListener("keydown", (e) => { if (e.key === "Escape") dlg.hidden = true; });
+</script></body></html>

@@ -1,0 +1,1 @@
+@utility anim-enter { animation: fade var(--duration-fast) var(--ease-out); }

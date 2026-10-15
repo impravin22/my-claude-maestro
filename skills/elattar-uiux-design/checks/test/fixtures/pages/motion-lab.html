@@ -1,0 +1,105 @@
+<!doctype html><html><head><meta charset="utf-8"><title>motion lab</title>
+<style>
+body{margin:0;font:16px sans-serif;height:900px;position:relative}
+#before{margin:8px 20px}
+#host{position:static}
+.panel{position:absolute;left:300px;top:60px;width:200px;height:80px;background:#cde;border-radius:8px}
+.panel .c{position:absolute;inset:8px;display:block}
+button{margin:4px}
+/* good: transitions, reversible */
+.panel.t{opacity:0;transform:scale(.96);transition:opacity 200ms ease-out,transform 200ms ease-out}
+.panel.t.open{opacity:1;transform:none}
+.panel.t.closing{opacity:0;transform:scale(.98);transition-duration:150ms}
+.panel.slowout.closing{transition-duration:300ms}
+@media (prefers-reduced-motion:reduce){.panel.t.rm{transform:none!important}}
+/* bad keyframes */
+@keyframes kjump{0%{opacity:0}5%{opacity:1}100%{opacity:1}}
+.kjump{animation:kjump 400ms linear both}
+@keyframes kbreak{from{opacity:0}to{opacity:.5}}
+.kbreak{animation:kbreak 300ms ease-out}
+@keyframes kin{from{opacity:0}to{opacity:1}}
+.kin{animation:kin 400ms linear both}
+.kdelay{animation:kin 300ms ease-out 400ms both}
+.kdelaybad{animation:kin 300ms ease-out 400ms}
+@keyframes kout{from{opacity:1}to{opacity:0}}
+.kout{animation:kout 150ms linear both}
+@keyframes kss{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes kfloat{from{transform:translateY(0)}to{transform:translateY(24px)}}
+.kss{animation:kss 300ms ease-out,kfloat 300ms linear 300ms infinite alternate}
+/* swap */
+.c.fade{opacity:1;transition:opacity 150ms linear}
+.c.fade.off{opacity:0}
+.c.fade.pre{opacity:0}
+/* grow */
+#grow{overflow:hidden;background:#eee}
+#grow.good{height:0;transition:height 250ms ease-out}
+#grow.good.open{height:120px}
+#grow.bad{height:0;opacity:0;transition:opacity 250ms linear}
+#grow.bad.open{height:120px;opacity:1}
+#below{margin:8px 20px}
+</style></head><body>
+<p id="before">Before</p>
+<div id="host"></div>
+<p id="after">After</p>
+<button id="open">Open</button><button id="close">Close</button><button id="swap">Swap</button><button id="toggle">Grow</button>
+<div id="grow"><div style="height:120px">Grown content</div></div>
+<p id="below">Below</p>
+<script>
+const q = new URLSearchParams(location.search);
+let v = q.get("v") || "good"; const defer = /-defer$/.test(v); v = v.replace(/-defer$/, ""); const s = q.get("s") || "good", g = q.get("g") || "good";
+const $ = (x) => document.querySelector(x);
+const host = $("#host");
+let panel = null;
+$("#grow").className = g;
+const mk = (cls) => {
+  const p = document.createElement("div");
+  p.id = "panel"; p.className = "panel " + cls;
+  p.innerHTML = '<span class="c">A</span>';
+  return p;
+};
+const later = (fn) => (v === "late" ? setTimeout(fn, 120) : defer ? Promise.resolve().then(() => requestAnimationFrame(fn)) : fn());
+const openIt = () => later(() => {
+  if (panel) panel.remove();
+  if (v === "pop" || v === "vanish-quick") { panel = mk(""); host.append(panel); return; }
+  if (v === "jump") { panel = mk("kjump"); host.append(panel); return; }
+  if (v === "break") { panel = mk("kbreak"); host.append(panel); return; }
+  if (v === "delay") { panel = mk("kdelay"); host.append(panel); return; }
+  if (v === "delay-bad") { panel = mk("kdelaybad"); host.append(panel); return; }
+  if (v === "interrupt") { panel = mk("kin"); host.append(panel); return; }
+  if (v === "stopstart") { panel = mk("kss"); host.append(panel); return; }
+  panel = mk("t" + (v === "rm-bad" ? "" : " rm") + (v === "slow-exit" ? " slowout" : ""));
+  host.append(panel);
+  panel.offsetWidth;
+  panel.classList.add("open");
+});
+const closeIt = () => later(() => {
+  const p = panel; if (!p) return;
+  if (v === "pop" || v === "vanish-quick" || v === "vanish") { p.remove(); panel = null; return; }
+  if (v === "interrupt") { p.className = "panel kout"; setTimeout(() => p.remove(), 150); return; }
+  if (v === "vanish-mid") { p.classList.remove("open"); p.classList.add("closing"); setTimeout(() => p.remove(), 60); return; }
+  p.classList.remove("open"); p.classList.add("closing");
+  setTimeout(() => p.remove(), v === "slow-exit" ? 300 : 150);
+});
+const swapIt = () => {
+  if (!panel) return;
+  const old = panel.querySelector(".c");
+  if (s === "hard") { panel.innerHTML = '<span class="c">B</span>'; return; }
+  old.classList.add("fade");
+  if (s === "blank") {
+    old.offsetWidth; old.classList.add("off");
+    setTimeout(() => {
+      old.remove();
+      const n = document.createElement("span"); n.className = "c fade pre"; n.textContent = "B";
+      panel.append(n); n.offsetWidth; n.classList.remove("pre");
+    }, 150);
+    return;
+  }
+  const n = document.createElement("span"); n.className = "c fade pre"; n.textContent = "B";
+  panel.append(n); n.offsetWidth; old.classList.add("off"); n.classList.remove("pre");
+  setTimeout(() => old.remove(), 150);
+};
+$("#open").onclick = openIt;
+$("#close").onclick = closeIt;
+$("#swap").onclick = swapIt;
+$("#toggle").onclick = () => $("#grow").classList.toggle("open");
+</script></body></html>

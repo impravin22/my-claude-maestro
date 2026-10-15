@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><title>good</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--bd:#555}
+.dark{--bg:#111;--fg:#f2f2f2;--bd:#aaa}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px sans-serif}
+.card{background:#f4f4f4;padding:16px}.dark .card{background:#222}
+@keyframes settle{from{color:#fff}to{color:var(--fg)}}
+.enter{animation:settle 30s both}
+</style></head><body class="">
+<h1>Good page</h1><p>Plenty of contrast here.</p>
+<div class="card"><p>Inside a card.</p><label>Name <input style="border:1px solid var(--bd);background:transparent"></label><button role="switch" aria-checked="true" aria-label="filled" style="border:1px solid transparent;background:var(--bd);width:40px;height:20px"></button></div>
+<p class="enter">Entrance colour animation settles to dark text</p>
+<div style="opacity:0"><p style="color:#fff">Invisible text, effective opacity 0</p></div>
+<div role="radiogroup" aria-label="view" id="text-toggle"><button role="radio" aria-checked="true" style="border:0;background:none;color:inherit;font-weight:700">List</button><button role="radio" aria-checked="false" style="border:0;background:none;color:inherit">Grid</button></div>
+<div style="border:1px solid var(--bd);padding:4px;width:240px" id="composer"><textarea aria-label="message" style="border:0;background:transparent;color:inherit;width:230px;height:40px;resize:none"></textarea></div>
+</body></html>

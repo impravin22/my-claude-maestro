@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title><style>body{margin:0;font:16px sans-serif;background:#fff;color:#111}.b{min-width:44px;min-height:44px;padding:0 12px}:focus-visible{outline:3px solid #000;outline-offset:2px}</style></head><body><main><h1>Overlays</h1>
+<button class="b" id="t1" type="button" aria-haspopup="dialog">No escape</button>
+<div id="d1" role="dialog" aria-label="Sticky" hidden><button class="b" type="button" id="x1">Inside one</button></div>
+<button class="b" id="t2" type="button" aria-haspopup="dialog">Lost focus</button>
+<div id="d2" role="dialog" aria-label="Lossy" hidden><button class="b" type="button" id="x2">Inside two</button></div>
+<button class="b" id="t3" type="button" aria-haspopup="dialog">Leaky modal</button>
+<div id="d3" role="dialog" aria-modal="true" aria-label="Leaky" hidden><button class="b" type="button" id="x3">Inside three</button></div>
+<button class="b" type="button">After the leaky modal</button>
+<script>
+t1.onclick=()=>{d1.hidden=false;x1.focus()};
+t2.onclick=()=>{d2.hidden=false;x2.focus()};
+d2.addEventListener("keydown",e=>{if(e.key==="Escape"){d2.hidden=true;document.activeElement.blur()}});
+t3.onclick=()=>{d3.hidden=false;x3.focus()};
+d3.addEventListener("keydown",e=>{if(e.key==="Escape"){d3.hidden=true;t3.focus()}});
+</script></main></body></html>

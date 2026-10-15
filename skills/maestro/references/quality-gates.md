@@ -55,6 +55,7 @@ Skip when no frontend file changed or no dev server is running. If the server is
 - [ ] **Responsive behaviour** — verified at 375px (mobile), 768px (tablet), 1280px (desktop) if layout changed
 - [ ] **Accessibility tree** — no missing labels, broken focus order, or absent ARIA attributes detected via Playwright
 - [ ] **Screenshots captured** — before/after screenshots taken for visually significant changes
+- [ ] **ViewSonic projects: the bundled checks ran**: on the ViewSonic design system, the `elattar-uiux-design` checks for Step 8 (listed in `frontend-design-trigger.md`) ran on every changed route, each BAD fixed and each SKIPPED reported as skipped
 
 ## Pre-PR Review (Step 8.5)
 

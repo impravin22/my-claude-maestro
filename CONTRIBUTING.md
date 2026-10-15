@@ -34,12 +34,26 @@ The suite is hermetic: it stubs `claude`, `node`, `npx` and `curl` onto `PATH`, 
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
+The bundled `skills/elattar-uiux-design/` skill has its own `node:test` suite (Node 22 or newer). It needs `typescript` resolvable from the repo root, which the ignored `node_modules/` holds; the CI `uiux` job runs exactly this:
+
+```bash
+npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3
+node --test \
+  --test-skip-pattern="^patterns: skeleton code passes the static checks$" \
+  --test-skip-pattern="^on-edit hook \(with the project's TypeScript\)$" \
+  --test-skip-pattern="^probe with only --fg is a usage error$" \
+  "skills/elattar-uiux-design/checks/test/*.test.mjs"
+```
+
+The three skipped suites need the upstream design-system repo's own source tree; see `docs/2026-10-15-viewsonic-uiux-bundle.md` before editing anything under `skills/elattar-uiux-design/`, which is vendored.
+
 Lint with:
 
 ```bash
 shellcheck -S warning -e SC2294 install.sh
 shellcheck -S warning tests/install-smoke.sh
 shellcheck -S warning hooks/check-update.sh
+shellcheck -S warning hooks/uiux-on-edit.sh
 shellcheck -S warning tests/hook-smoke.sh
 shellcheck -S warning tests/skill-bundle-lint-smoke.sh
 ```

@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><title>bad</title>
+<style>
+:root{--bg:#fff}
+.dark{--bg:#111}
+body{margin:0;background:var(--bg);font:16px sans-serif;color:#111}
+.dark body{color:#eee}
+.faint{color:#aaa}
+.dark .faint{color:#333}
+.wrap{background:#111;padding:16px}
+.overlay{background:rgba(255,255,255,.5);padding:8px;color:#ddd}
+.dim{opacity:.35}
+.off{color:#bbb}
+</style></head><body>
+<p class="faint">Low contrast text</p>
+<div class="wrap"><div class="overlay">Text on a translucent overlay</div></div>
+<p class="dim">Dimmed by opacity</p>
+<button class="off" disabled>Disabled is exempt</button>
+<p class="faint" aria-hidden="true">Hidden from assistive tech is exempt</p>
+<button role="switch" aria-checked="false" aria-label="ghost" style="border:1px solid transparent;background:transparent;width:40px;height:20px"></button>
+<input style="border:1px solid #ddd;background:#fff" aria-label="x">
+<div role="radiogroup" aria-label="mode" style="position:relative;display:inline-flex;margin:8px"><span style="position:absolute;left:0;top:0;width:60px;height:30px;background:#eee;z-index:0"></span><button role="radio" aria-checked="true" style="position:relative;z-index:1;border:0;background:none;color:inherit;width:60px;height:30px">Pill</button><button role="radio" aria-checked="false" style="position:relative;z-index:1;border:0;background:none;color:inherit;width:60px;height:30px">Other</button></div>
+<textarea aria-label="bare" style="border:0;background:transparent;width:200px;height:40px"></textarea>
+</body></html>

@@ -1,0 +1,13 @@
+:root {
+  --background: #ffffff;
+  --foreground: #111111;
+  --muted-foreground: #aaaaaa;
+  --muted-foreground-ink: #333333;
+  --odd: lch(50% 10 10);
+}
+.dark {
+  --background: #101010;
+  --foreground: #eeeeee;
+  --muted-foreground: #222222;
+  --muted-foreground-ink: #dddddd;
+}
