@@ -9,7 +9,7 @@
 //
 // Same judge as the ESLint rule (../props.mjs). The type table is cached in the OS temp folder, so an edit costs a parse
 // of one file plus one TypeScript pass over that file's JSX. Without the project's `typescript` only the cva check runs,
-// and the agent is told so once.
+// and the agent is told so once, except at MAESTRO_UIUX_HOOK=on (maestro patch below).
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
@@ -50,6 +50,7 @@ async function main() {
   // maestro patch (not upstream): resolving `typescript` loads it from the project, which is code
   // from that repository. Run through maestro's hooks/uiux-on-edit.sh, MAESTRO_UIUX_HOOK=on keeps
   // to the cva-only path and never loads it; only "full" does. Unset (run directly) is upstream's.
+  // At "on" the "no typescript" notice is skipped too: typescript was left out on purpose.
   const projectCodeAllowed = process.env.MAESTRO_UIUX_HOOK !== "on";
   const ts = projectCodeAllowed ? resolveTs(root) : null;
   const tables = loadTables(root, { types: Boolean(ts) });

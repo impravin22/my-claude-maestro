@@ -26,6 +26,8 @@
 #
 # The hook input arrives on stdin and is inherited by node unchanged.
 
+# No -e: every path ends in an explicit exit 0 or 2, and the check's exit code
+# is read by hand below.
 set -u
 
 # The findings quote names from the project's files (variant keys, prop names,

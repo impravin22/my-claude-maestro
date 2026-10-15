@@ -5,8 +5,9 @@
 #   exit 0 on every other path.
 #   hooks/uiux-on-edit.sh, the opt-in after-edit check (see its section below).
 #
-# Hermetic: curl and node are stubbed via PATH, the cache and plugin root are
-# per-case temp dirs, and no case touches the network.
+# Hermetic: curl is stubbed via PATH, and so is node except in the two
+# real-check cases; the cache and plugin root are per-case temp dirs, and no
+# case touches the network.
 #
 # Usage: bash tests/hook-smoke.sh
 # Exit:  0 all passed, 1 one or more failed.
@@ -376,9 +377,10 @@ if command -v node >/dev/null 2>&1; then
   assert_uiux "real check on a markdown edit does not crash into noise" 0 "" ""
 
   # U12. The real exit-2 path: a minimal shadcn project whose Button defines
-  # its sizes with cva, and a page that uses a size it does not define. With
-  # no typescript resolvable from the temp project, the check's regex path
-  # runs, which is what proves the module, its output format and exit code.
+  # its sizes with cva, and a page that uses a size it does not define. At
+  # MAESTRO_UIUX_HOOK=on the check never loads typescript, so its cva regex
+  # path runs, which is what proves the module, its output format and exit
+  # code.
   PROJ="$WORK_DIR/uiux-project"
   mkdir -p "$PROJ/components/ui" "$PROJ/app"
   printf '{"name":"fixture","private":true}\n' > "$PROJ/package.json"
