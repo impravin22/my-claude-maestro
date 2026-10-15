@@ -76,7 +76,16 @@ export const A = ({ s }) => <>
   });
 });
 
-describe("viewsonic/valid-variant: prop names and union values (needs the project's TypeScript)", { skip: skip || (existsSync(join(here, "..", "..", "..", "..", "..", "..", "node_modules", "typescript")) ? false : "typescript is not installed above the skill") }, () => {
+// maestro patch (not upstream): upstream looks for typescript six folders up, which is its own repo root only in its
+// plugins/<name>/skills/<name>/checks/test layout. Walking up finds it in any layout, as the ESLint lookup above does.
+const typescriptAbove = (() => {
+  for (let d = here; ; d = dirname(d)) {
+    if (existsSync(join(d, "node_modules", "typescript"))) return true;
+    if (dirname(d) === d) return false;
+  }
+})();
+
+describe("viewsonic/valid-variant: prop names and union values (needs the project's TypeScript)", { skip: skip || (typescriptAbove ? false : "typescript is not installed above the skill") }, () => {
   let proj;
   before(() => {
     proj = mkdtempSync(join(here, ".viewsonic-lint-"));

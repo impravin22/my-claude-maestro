@@ -231,6 +231,18 @@ assert_uiux() {
   fi
 }
 
+# skip_case <description>: a case that cannot run here. Locally that is a
+# SKIP; in CI (where CI is set) it is a failure, because a runner that silently
+# skips the only cases guarding a line would leave that line unguarded.
+skip_case() {
+  if [ -n "${CI:-}" ]; then
+    echo "FAIL: $1 (skipped in CI)"
+    FAIL=$((FAIL + 1))
+  else
+    echo "SKIP: $1"
+  fi
+}
+
 # assert_node_not_started <description> <stub_dir>
 assert_node_not_started() {
   if [ -e "$2/stdin" ]; then
@@ -316,7 +328,7 @@ f.tsx:$i bad"; done
 UTF8_LOCALE="$(locale -a 2>/dev/null | grep -i -m 1 -E '^(C|en_US)\.utf-?8$')"
 for LOCALE_UNDER_TEST in C "$UTF8_LOCALE"; do
   if [ -z "$LOCALE_UNDER_TEST" ]; then
-    echo "SKIP: sanitiser under a UTF-8 locale (none installed)"
+    skip_case "sanitiser under a UTF-8 locale (none installed)"
     continue
   fi
   export LC_ALL="$LOCALE_UNDER_TEST"
@@ -368,13 +380,41 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# U10d. A flood of short lines is bounded too: a million lines (about 11 MB)
+# would keep the read loop busy past the timeout; the 64 KiB input bound makes
+# it a few thousand.
+FLOOD_DIR="$WORK_DIR/node-flood"
+mkdir -p "$FLOOD_DIR"
+seq 1 1000000 | sed 's/^/f.tsx:/' > "$FLOOD_DIR/err.txt"
+printf '#!/bin/sh\n/bin/cat > /dev/null\n/bin/cat "%s" >&2\nexit 2\n' "$FLOOD_DIR/err.txt" > "$FLOOD_DIR/node"
+chmod +x "$FLOOD_DIR/node"
+START=$SECONDS
+run_uiux "$(make_uiux_root)" "$FLOOD_DIR" on
+ELAPSED=$((SECONDS - START))
+if [ "$RC" -eq 2 ] && [ "$ELAPSED" -le 5 ] && [ "$(printf '%s\n' "$ERR" | wc -l | tr -d ' ')" -eq 22 ] \
+  && printf '%s\n' "$ERR" | tail -n 1 | grep -q 'more lines omitted)$'; then
+  echo "PASS: a flood of short lines is bounded (${ELAPSED}s)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL: line flood (rc=$RC elapsed=${ELAPSED}s last=$(printf '%s\n' "$ERR" | tail -n 1))"
+  FAIL=$((FAIL + 1))
+fi
+
 # U11 and U12 run the real bundled check through real node. Skipped, not
 # passed, when node is absent.
 if command -v node >/dev/null 2>&1; then
-  # U11. A markdown edit is not a script: the real check reports nothing. This
-  # proves only that the real module loads without printing noise.
-  run_uiux "$REPO_ROOT" "$PATH" on
-  assert_uiux "real check on a markdown edit does not crash into noise" 0 "" ""
+  # U11. The real module loads and parses, run directly (the wrapper would turn
+  # a crash into a silent 0): a markdown edit exits 0 with nothing on stderr.
+  U11_ERR="$WORK_DIR/u11-err"
+  printf '%s' "$EDIT_INPUT" | MAESTRO_UIUX_HOOK=on node "$REPO_ROOT/$UIUX_CHECK_REL" > /dev/null 2> "$U11_ERR"
+  RC=$?
+  if [ "$RC" -eq 0 ] && [ ! -s "$U11_ERR" ]; then
+    echo "PASS: the real check module loads and exits 0 on a markdown edit"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: the real check module did not load cleanly (rc=$RC err=$(head -c 160 "$U11_ERR"))"
+    FAIL=$((FAIL + 1))
+  fi
 
   # U12. The real exit-2 path: a minimal shadcn project whose Button defines
   # its sizes with cva, and a page that uses a size it does not define. At
@@ -405,7 +445,7 @@ TSX_EOF
     FAIL=$((FAIL + 1))
   fi
 else
-  echo "SKIP: real check integration (node not installed)"
+  skip_case "real check integration (node not installed)"
 fi
 
 echo

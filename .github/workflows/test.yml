@@ -182,24 +182,38 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
-      # The checks resolve TypeScript from the project they check, so the
-      # suite's TypeScript passes need one resolvable from the repo root. Exact
-      # version, no lockfile, no install scripts; nothing here ships to users.
-      - name: Install TypeScript for the suite
-        run: npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3
+      # The checks resolve TypeScript and ESLint from the project they check,
+      # so the suite's TypeScript passes and its ESLint rule tests need both
+      # resolvable from the repo root: upstream's own versions, exact, no
+      # lockfile, no install scripts. Nothing here ships to users.
+      - name: Install TypeScript and ESLint for the suite
+        run: npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3 eslint@9.39.5
       # Three patterns need upstream's own source tree (its components, styles
       # and React types) or a shadcn project as the working directory; they
       # run in upstream's CI. Each matches one exact name: one suite whose
       # every test reads that tree, and two single tests. Never a broad
-      # pattern, so a new upstream test still runs here. The browser checks
-      # skip on their own without Playwright.
+      # pattern, so a new upstream test still runs here.
+      #
+      # A green run must also have run the suite (a moved folder or a bad sync
+      # would otherwise pass with zero tests), and the only skips allowed are
+      # the browser checks, which need Playwright.
       - name: Run the bundled skill's tests
         run: |
-          node --test \
+          set -o pipefail
+          node --test --test-reporter=tap \
             --test-skip-pattern="^patterns: skeleton code passes the static checks$" \
             --test-skip-pattern="^an unknown prop name gets a nearest-name suggestion$" \
             --test-skip-pattern="^probe with only --fg is a usage error$" \
-            "skills/elattar-uiux-design/checks/test/*.test.mjs"
+            "skills/elattar-uiux-design/checks/test/*.test.mjs" | tee suite.tap
+          PASSED="$(awk '/^# pass /{print $3}' suite.tap)"
+          if [ "${PASSED:-0}" -lt 1000 ]; then
+            echo "::error::only ${PASSED:-0} tests passed; the suite did not run"
+            exit 1
+          fi
+          if grep '# SKIP' suite.tap | grep -v 'no playwright installed above the skill'; then
+            echo "::error::unexpected skips above: only the browser checks may skip"
+            exit 1
+          fi
 
   # Single stable name for branch protection to require. The matrix job names
   # are prose ("install.sh smoke (bash 3.2 (macOS))") and change with labels;

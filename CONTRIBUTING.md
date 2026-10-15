@@ -34,11 +34,11 @@ The suite is hermetic: it stubs `claude`, `node`, `npx` and `curl` onto `PATH`, 
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-The bundled `skills/elattar-uiux-design/` skill has its own `node:test` suite (Node 22 or newer). It needs `typescript` resolvable from the repo root, which the ignored `node_modules/` holds; the CI `uiux` job runs exactly this:
+The bundled `skills/elattar-uiux-design/` skill has its own `node:test` suite (Node 22 or newer). It needs `typescript` and `eslint` resolvable from the repo root, which the ignored `node_modules/` holds. The CI `uiux` job runs this, then fails unless at least 1,000 tests passed and every skip is a browser check (no Playwright):
 
 ```bash
-npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3
-node --test \
+npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3 eslint@9.39.5
+env -u MAESTRO_UIUX_HOOK node --test \
   --test-skip-pattern="^patterns: skeleton code passes the static checks$" \
   --test-skip-pattern="^an unknown prop name gets a nearest-name suggestion$" \
   --test-skip-pattern="^probe with only --fg is a usage error$" \

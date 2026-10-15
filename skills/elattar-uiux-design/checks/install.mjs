@@ -120,24 +120,32 @@ function listFiles(dir, base = "") {
 // maestro patch (not upstream): never write through a symbolic link. A repository can commit
 // any install target (`.viewsonic-ui/checks` above all) as a link to a folder outside the
 // project, and following it would overwrite files there and delete the rest. These return
-// the first link found, or null.
+// what is wrong with the first such path, or null. Only "it does not exist" counts as safe:
+// any other error is reported, so a path the guard cannot inspect is never written blind.
+const MISSING = new Set(["ENOENT", "ENOTDIR"]);
 function linkOnPath(base, rel) {
   let p = base;
   for (const part of rel.split("/")) {
     if (!part) continue;
     p = join(p, part);
     let st;
-    try { st = lstatSync(p); } catch { return null; } // missing: nothing below it exists yet
-    if (st.isSymbolicLink()) return p;
+    try { st = lstatSync(p); } catch (e) {
+      if (MISSING.has(e?.code)) return null; // missing: nothing below it exists yet
+      return `${p} cannot be inspected (${e?.code ?? "unknown error"})`;
+    }
+    if (st.isSymbolicLink()) return `${p} is a symbolic link`;
   }
   return null;
 }
 function linkUnder(dir) {
   let entries;
-  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return null; }
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch (e) {
+    if (MISSING.has(e?.code)) return null;
+    return `${dir} cannot be inspected (${e?.code ?? "unknown error"})`;
+  }
   for (const e of entries) {
     const p = join(dir, e.name);
-    if (e.isSymbolicLink()) return p;
+    if (e.isSymbolicLink()) return `${p} is a symbolic link`;
     if (e.isDirectory()) { const found = linkUnder(p); if (found) return found; }
   }
   return null;
@@ -274,9 +282,9 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   // maestro patch: refuse before planning or writing anything (see linkOnPath).
   const targets = [[root, VENDOR], [root, HOOK], [root, ".gitattributes"], [root, CONFIG], [top, WORKFLOW]];
   if (eslint.file) targets.push([root, eslint.file]);
-  const link = targets.map(([base, target]) => linkOnPath(base, target)).find(Boolean) ?? linkUnder(join(root, VENDOR));
-  if (link) {
-    log(`Refusing to install: ${link} is a symbolic link, so writing there could change files outside this project. Replace it with a real folder or file, then run setup again.`);
+  const problem = targets.map(([base, target]) => linkOnPath(base, target)).find(Boolean) ?? linkUnder(join(root, VENDOR));
+  if (problem) {
+    log(`Refusing to install: ${problem}, so writing there could change files outside this project. Replace it with a real folder or file you can read, then run setup again.`);
     return { lines: out, exitCode: 1 };
   }
 

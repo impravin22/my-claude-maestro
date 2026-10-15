@@ -51,7 +51,9 @@ async function main() {
   // from that repository. Run through maestro's hooks/uiux-on-edit.sh, MAESTRO_UIUX_HOOK=on keeps
   // to the cva-only path and never loads it; only "full" does. Unset (run directly) is upstream's.
   // At "on" the "no typescript" notice is skipped too: typescript was left out on purpose.
-  const projectCodeAllowed = process.env.MAESTRO_UIUX_HOOK !== "on";
+  // Only unset (upstream's own use) or "full" allows it, so any other value fails safe.
+  const level = process.env.MAESTRO_UIUX_HOOK;
+  const projectCodeAllowed = level === undefined || level === "full";
   const ts = projectCodeAllowed ? resolveTs(root) : null;
   const tables = loadTables(root, { types: Boolean(ts) });
   if (!tables.cva.size) return 0;

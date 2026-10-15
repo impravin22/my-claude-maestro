@@ -3,13 +3,15 @@
 // when syncing from upstream.
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, cpSync, existsSync, readFileSync, writeFileSync, mkdirSync, symlinkSync, readdirSync, lstatSync } from "node:fs";
+import { mkdtempSync, rmSync, cpSync, existsSync, readFileSync, writeFileSync, mkdirSync, symlinkSync, readdirSync, lstatSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const skillDir = resolve(here, "..", "..");
+const pluginDir = resolve(skillDir, "..", "..");
 const runMjs = join(resolve(here, ".."), "run.mjs");
 const onEdit = join(resolve(here, ".."), "eslint", "on-edit.mjs");
 const dirs = [];
@@ -93,6 +95,58 @@ describe("install refuses to write through a symbolic link (maestro patch)", () 
     victimIntact(victim);
   });
 
+  test("in a monorepo, a linked .github at the git top level is refused", () => {
+    const d = mkdtempSync(join(tmpdir(), "maestro-patch-mono-"));
+    dirs.push(d);
+    const top = join(d, "repo");
+    const project = join(top, "packages", "app");
+    cpSync(join(here, "fixtures", "consumer"), project, { recursive: true });
+    spawnSync("git", ["init", "-q"], { cwd: top });
+    const victim = join(d, "victim");
+    mkdirSync(join(victim, "sub"), { recursive: true });
+    writeFileSync(join(victim, "thesis.txt"), "mine\n");
+    writeFileSync(join(victim, "sub", "keys.txt"), "mine too\n");
+    symlinkSync(victim, join(top, ".github"));
+    const r = install(project, "--yes");
+    assert.equal(r.code, 1, r.out + r.err);
+    assert.match(r.out, /repo[\\/]\.github is a symbolic link/);
+    victimIntact(victim);
+  });
+
+  test("a linked eslint.config.mjs is refused", () => {
+    const { project, victim } = sandbox();
+    symlinkSync(join(victim, "thesis.txt"), join(project, "eslint.config.mjs"));
+    const r = install(project, "--yes");
+    assert.equal(r.code, 1, r.out + r.err);
+    assert.match(r.out, /eslint\.config\.mjs is a symbolic link/);
+    victimIntact(victim);
+  });
+
+  test("a file link inside the vendored folder is refused", () => {
+    const { project, victim } = sandbox();
+    mkdirSync(join(project, ".viewsonic-ui", "checks"), { recursive: true });
+    symlinkSync(join(victim, "thesis.txt"), join(project, ".viewsonic-ui", "checks", "run.mjs"));
+    const r = install(project, "--yes");
+    assert.equal(r.code, 1, r.out + r.err);
+    assert.match(r.out, /checks[\\/]run\.mjs is a symbolic link/);
+    victimIntact(victim);
+  });
+
+  test("a folder the guard cannot read is refused, not written blind", { skip: process.getuid?.() === 0 ? "root reads every folder" : false }, () => {
+    const { project, victim } = sandbox();
+    const locked = join(project, ".viewsonic-ui", "checks", "static");
+    mkdirSync(locked, { recursive: true });
+    chmodSync(locked, 0o000);
+    try {
+      const r = install(project, "--yes");
+      assert.equal(r.code, 1, r.out + r.err);
+      assert.match(r.out, /static cannot be inspected \(EACCES\)/);
+      victimIntact(victim);
+    } finally {
+      chmodSync(locked, 0o755);
+    }
+  });
+
   test("a project with no links still installs", () => {
     const { project } = sandbox();
     const r = install(project, "--yes");
@@ -142,9 +196,37 @@ describe("the after-edit check loads project code only at MAESTRO_UIUX_HOOK=full
     assert.ok(existsSync(marker), "full should load the project's typescript");
   });
 
+  test("any value other than unset or full fails safe: the project's typescript is not loaded", () => {
+    for (const toggle of ["ON", "On", "", "on ", "1", "true"]) {
+      const { d, marker } = plantedProject();
+      edit(d, toggle);
+      assert.ok(!existsSync(marker), `project code ran at MAESTRO_UIUX_HOOK=${JSON.stringify(toggle)}`);
+    }
+  });
+
   test("unset (run directly, as upstream's own tests do): upstream behaviour", () => {
     const { d, marker } = plantedProject();
     edit(d, undefined);
     assert.ok(existsSync(marker));
+  });
+});
+
+describe("maestro's edits outside the code stay in place after a sync", () => {
+  test("SKILL.md's description is the narrowed one (patch 1), not upstream's any-project trigger", () => {
+    const text = readFileSync(join(skillDir, "SKILL.md"), "utf8");
+    const description = /^description:\s*(.+)$/m.exec(text)?.[1] ?? "";
+    assert.match(description, /viewsonic-ui\.config\.json/);
+    assert.match(description, /Not for projects on another design system/);
+    assert.doesNotMatch(description, /in any project|even if the user never mentions/);
+  });
+
+  test("no uiux command pre-approves a tool", () => {
+    const dir = join(pluginDir, "commands");
+    const commands = readdirSync(dir).filter((f) => f.startsWith("uiux-"));
+    assert.equal(commands.length, 4);
+    for (const f of commands) {
+      const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(readFileSync(join(dir, f), "utf8"))?.[1] ?? "";
+      assert.doesNotMatch(frontmatter, /^allowed-tools:/m, `${f} pre-approves tools`);
+    }
   });
 });
