@@ -1,0 +1,4 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Hover badly</title></head><body><main><h1>Hover</h1>
+<button data-slot="tooltip-trigger" style="min-height:44px;min-width:44px" id="t">Help</button></main><script>
+t.addEventListener("pointerenter", () => console.error("Tooltip content rendered without TooltipProvider"));
+</script></body></html>

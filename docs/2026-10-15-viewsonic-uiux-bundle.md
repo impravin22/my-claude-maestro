@@ -1,0 +1,110 @@
+# Bundling ViewSonic's UI/UX skill, and a design-system-aware Step 5 (v1.19.0)
+
+## Decision
+
+Maestro bundles `elattar-uiux-design`, ViewSonic's UI/UX skill, as a second skill of the maestro plugin, and its Step 5 gate learns to defer to a project's own design system. Projects on the ViewSonic design system get the skill's design pass, rules and runnable checks inside maestro's flow; every other project gets a gate that no longer asks a token-driven system for a new palette or a Tailwind CDN mockup.
+
+The owner asked for the skill to be copied in (not referenced) and bundled inside maestro (not shipped as a second marketplace plugin), and confirmed that the content may be published in this public repository.
+
+## Provenance
+
+| | |
+| --- | --- |
+| Upstream | `ViewSonic-Transformation/FDP-design-system` (private), path `plugins/elattar-uiux-design/` |
+| Commit | `4e85c1794029c53f80d35fd256044278902f88be` (2026-10-15) |
+| Licence | MIT, copyright 2026 Ayoub Elattar; copied to `skills/elattar-uiux-design/LICENSE` |
+| Upstream plugin version | `elattar-uiux-design` 0.1.0 |
+| Vendored | `skills/elattar-uiux-design/` (204 upstream files, plus `LICENSE` and maestro's own patch tests), and the four commands |
+
+## What changed against upstream
+
+Every vendored file is byte-identical to upstream except these. Re-apply all of them on every sync.
+
+1. **`SKILL.md` description narrowed.** Upstream's description fires on any UI task "in any project, even if the user never mentions design or the design system". Bundled into maestro, that would load ViewSonic's tokens and rules into every maestro user's UI work on other systems. The description now scopes the skill to projects on the ViewSonic system (a `viewsonic-ui.config.json` or `.viewsonic-ui/` folder, or the foundation's `--color-action-*` and `--color-value-*` tokens) or an explicit request. The body is untouched.
+2. **`checks/install.mjs` refuses to write through a symbolic link.** Upstream's installer refreshes `.viewsonic-ui/checks/` by copying its files in and deleting every other file there, and writes the hook, workflow, config, `.gitattributes` and ESLint config with plain writes. A repository that commits any of those paths as a link to a folder outside the project would have the installer overwrite files there and delete the rest. The patch (`linkOnPath`, `linkUnder`) checks every target path component and every entry under the vendored folder before planning or writing, and refuses with exit 1 and a message naming the link; a dangling link is refused too, and so is a path it cannot inspect (any error other than "does not exist"), so nothing is written blind. The dry run refuses as well. It is a hard stop: a monorepo package whose `eslint.config.*` is a link to a shared config is refused, and the user wires the ESLint rule by hand.
+3. **`checks/test/plugin-shape.test.mjs` adapted to maestro's layout.** Upstream asserts its own plugin shape. The adapted test keeps every assertion and points it at the bundle: plugin `maestro`, marketplace at the plugin root with source `./`, commands `uiux-*.md`, and a `PostToolUse` entry whose wrapper assigns `CHECK=` to the vendored `on-edit.mjs`.
+4. **`checks/eslint/on-edit.mjs` loads the project's `typescript` only at `MAESTRO_UIUX_HOOK=full`.** Upstream resolves the edited project's own `typescript` package on every run, before any other gate, so any repository with a `package.json` and a planted `node_modules/typescript` runs its code on an agent edit. At `MAESTRO_UIUX_HOOK=on` the patched check keeps to its existing cva-only path, which reads files and runs nothing from the project, and skips upstream's "this project has no typescript" notice; `full` restores upstream's behaviour, and so does an unset variable, so upstream's own tests (which run the module directly) are unaffected.
+5. **`checks/test/eslint-variants.test.mjs` finds `typescript` by walking up.** Upstream looks six folders above the test, which is its own repo root only in its `plugins/<name>/skills/<name>/` layout; in maestro's layout the "prop names and union values" suite silently skipped. The patch walks up, as the same file's ESLint lookup already does.
+6. **Added:** `LICENSE` beside the skill, so the MIT notice travels with every copy, and `checks/test/maestro-patches.test.mjs`, the tests for patches 1, 2 and 4 and the command edit below.
+
+Outside the skill folder:
+
+- **Commands** `commands/uiux-{setup,check,check-full,review}.md` are upstream's four commands, renamed so they read as `/maestro:uiux-check` rather than an ambiguous `/maestro:check`. Their bodies are upstream's, except that the `allowed-tools: Bash(node:*), Read` line is removed. `Bash(node:*)` pre-approves any `node` command (`node -e ...` included) while a command is active, and for `uiux-setup` it would have made the model's reading of "only after the user says yes" the only gate before `install --yes`; an unscoped `Read` pre-approves reading any file. Without the line, every run goes through the user's normal permission prompt. `uiux-check` and `uiux-check-full` load the project's own `typescript`, and `uiux-check-full` and `uiux-review` its Playwright, so they run repository code as its own test suite would (user-invoked, behind the permission prompt); `uiux-setup` only checks that Playwright resolves.
+- **Hook** `hooks/uiux-on-edit.sh` is new and **opt-in**, at two levels: `MAESTRO_UIUX_HOOK=on` (variant values, no project code, through patch 4) and `full` (upstream's full check, which loads the project's `typescript`). Upstream's hook runs `node .../on-edit.mjs` after every edit for people who chose that plugin. That check loads the edited project's own `typescript` package before any other gate, so in a cloned repository with a planted `node_modules/typescript` it runs that repository's code after an agent edit, with no install or build by the user; and once bundled it would do so for every maestro user. Off by default, the user turns it on knowingly, in their own environment, and `full` only for repositories they trust. The switch is global, so `full` cannot be limited to some repositories. When on, the wrapper stays silent without Node or the script, passes the check's exit 2 through, and turns any other exit into a silent 0 (upstream's own contract for internal errors). The check's findings quote names from the project's files, so the wrapper prefixes them with a line labelling them as project data, keeps only printable ASCII (under the C locale, so control characters and invisible or bidirectional Unicode go in any user locale; upstream's own messages are ASCII), caps each line at 300 characters and keeps the first 20 lines, all with shell builtins. It looks at no more than 64 KiB of the check's output and cuts each line before stripping it, because a pattern replace over one huge hostile line stalls bash into the hook's 30 s timeout, and it discards bash's own warnings so a NUL byte cannot leak one (with the plugin's path) ahead of the header. Upstream's trailing "Fix these now" line still arrives, and a crafted name with an embedded newline still reaches the agent as up to 20 lines of printable text; the header frames them as project data, and both are accepted at an opt-in level the user chose. The variable belongs in the user's shell profile or user settings. A project's own `.claude/settings.json` could set it too, but a project trusted to do that can already run hooks of its own, so it gains nothing it did not have.
+- **Vendored text that assumes the hook is on.** Three upstream sentences describe the after-edit check as always running: `SKILL.md` step 7 ("flagged automatically after every edit"), `checks/map.md` ("Component props: the after-edit hook and the lint rule") and `system/components.md` ("the after-edit hook rejects a variant it does not define"). They hold only when the user has turned the hook on. They are left as upstream wrote them; `frontend-design-trigger.md` tells maestro what to run instead when the hook is off (the project's lint rule and type check), and never to report variant or prop validity from `run.mjs fast`, which does not check them.
+
+## The Step 5 changes
+
+`frontend-design-trigger.md` gains a "Design-system projects" section, read before the substeps. A project counts only when it has its own tokens in the repo and something enforces them; stock shadcn/ui, Tailwind defaults, Material or Bootstrap as shipped do not count, and when unsure the project is treated as having no system. Then:
+
+- 5a picks composition, never vocabulary: palette, type roles, radius, spacing, shadows and motion come from the system's tokens, and 5a's style list, palette, typography-pairing and motion lines apply only to projects without a system.
+- Every voice (5d UI UX Pro Max, Taste, Transitions) stays inside the system; a suggested new token or font pairing is an ask, not a refinement.
+- A missing value is an ask, naming the closest token, never an arbitrary literal.
+- 5b becomes a local preview route on the system's real components, gitignored, for new surfaces, redesigns and style refreshes.
+- The anti-template ban reads against composition: using the system's restyled components is required, not a template smell.
+- Both themes belong to the system: a colour that needs a `dark:` variant means a token is missing.
+
+On the ViewSonic system it routes 5a, 5e, 7 and 8 to the bundled skill's steps while maestro's gates (5c approval, TDD, Step 6, the Evidence Gate, 8.5) keep their authority.
+
+`uiux-checklist.md` drops two items that contradicted token-driven systems (stock Tailwind palette as "tokens", `dark:` variants as the default) and adopts upstream's transferable rules: new values are asked for, a description is set smaller than its title, contrast is measured in both themes (disabled controls exempt but distinct), skeletons match the footprint and swap once, every action gives two signals, and a closing group that runs at Step 8, not 5e (a green build is the floor; both themes seen in a browser; report what was verified, never a skipped check as passing).
+
+`SKILL.md` is unchanged: the hot path had 138 bytes of budget left, and Step 5 already reads `frontend-design-trigger.md` first.
+
+## Alternatives considered
+
+| Option | Why it lost |
+| --- | --- |
+| Reference only: route to the plugin in ViewSonic's private marketplace | The owner asked for a copy. It would also leave every non-ViewSonic maestro user without the runnable checks, and a private marketplace cannot be installed from outside the organisation |
+| Rewrite the rules in maestro's own words | Loses the checks and their 1,100-test suite, and drifts from upstream the day it lands |
+| Ship it as a second plugin in the `impravin22` marketplace | Recommended at planning (its hook and description would reach only people who install it), but the owner chose one install. The narrowed description and the opt-in hook are the mitigation |
+| Keep the hook on by default, gated on a ViewSonic marker in the wrapper | Still runs a repository's own `typescript` on every edit in any repository that carries the marker, which the repository itself controls |
+| Keep upstream's directory layout through a custom skills path in `plugin.json` | Would avoid adapting the plugin-shape test, but rests on harness behaviour this change did not verify |
+
+## Security review
+
+**Before vendoring.** SkillSpector scanned the upstream plugin statically (its LLM pass did not run) and reported risk 81, CRITICAL, `DO_NOT_INSTALL`: 3 HIGH and 29 MEDIUM. All were false positives on reading: a `process.env` spread in a temp-repo git test, the word "override" in a comment about CSS `!important`, the plain `"description"` key in upstream's `plugin.json` (not vendored), rules and evals that tell the agent *not* to act without asking, and the project-scoped loading of Playwright and TypeScript. A rescan of the bundled tree reports three HIGH, all false positive: the same two, and the same `process.env` pattern in maestro's own `checks/test/maestro-patches.test.mjs`.
+
+**Step 8.5 review** (code reviewer and security reviewer) found what the scanner could not:
+
+| Finding | Severity | Outcome |
+| --- | --- | --- |
+| The after-edit check loads the project's own `typescript` before any gate, so a planted `node_modules/typescript` runs on any agent edit | HIGH | Fixed: the hook is opt-in |
+| Once opted in, the check loads `typescript` in every repository with a `package.json`, not only shadcn ones | MEDIUM | Fixed: patch 4; `on` runs no project code, only `full` does |
+| A huge hostile line stalls the sanitiser into the 30 s timeout; a NUL byte leaks a bash warning with the plugin path; invisible Unicode survives in some locales | LOW | Fixed in the wrapper: 64 KiB bound, cut before strip, warnings discarded, C locale |
+| The installer follows committed symlinks, overwriting and deleting files outside the project | HIGH | Fixed: patch 2, with tests |
+| Project-controlled names (variant keys, diagnostics) reach the agent as hook feedback, a prompt-injection channel | MEDIUM | Fixed in the wrapper: labelled as data, cut to printable ASCII, size capped |
+| `allowed-tools: Bash(node:*)` pre-approves arbitrary `node` while a command runs | MEDIUM | Fixed: the commands pre-approve no tools |
+| A repository's `viewsonic-ui.config.json` `uiDir` can point the walk outside the project, and the walks have no file, size or time cap | MEDIUM | Deferred to upstream; reachable only once the user turns the hook on, or through a user-run check |
+| Predictable cache and marker names in the OS temp folder are written without `O_NOFOLLOW` (a shared Linux `/tmp` lets another local user clobber a file the victim can write) | MEDIUM | Deferred to upstream; same reach as above, and macOS temp folders are per user |
+| Installer-generated workflow and hook built from unescaped `baseUrl` and folder names; screenshots not gitignored; browser checks trust repo-supplied routes and base URL; static-check `@import` paths not contained; a Windows separator bug in the `node_modules` skip | LOW | Deferred to upstream, all user-invoked |
+| Installer residuals after patch 2: a project root that is itself reached through a committed link; a same-user race between the check and the write; a pre-planted hard link; reads of the config and ESLint file before the guard (a link to a FIFO hangs the dry run); `.viewsonic-ui` as a plain file ends in a stack trace | LOW | Accepted or deferred: each needs a local, pre-planted or concurrent attacker, or only fails loudly, in a user-invoked command |
+
+What the check does write, at `full` or when run directly: a per-project cache `viewsonic-props-<hash>.json` and a one-time marker `viewsonic-on-edit-no-ts` in the OS temp folder; at `on` it writes nothing. What it does not do: no network access beyond the configured dev server (browser checks only), no credentials, no telemetry, no `eval`; `git` runs through `spawnSync` with an argument array.
+
+## Tests
+
+- **The vendored suite runs in CI** (`uiux` job, Node 22 and 24), with upstream's own TypeScript 5.9.3 and ESLint 9.39.5 installed at the repo root (exact versions, no lockfile, no install scripts), so the ESLint rule `/maestro:uiux-setup` wires is exercised too. In the bundle it reports 1,156 tests: 1,066 pass, 0 fail, 90 skipped, every skip a browser check that needs Playwright. The job fails if fewer than 1,000 tests pass (a moved folder or a bad sync would otherwise run nothing and stay green) or if anything other than a browser check skips.
+- **Three skip patterns**, each an exact name, cover tests that need upstream's own tree: the suite `patterns: skeleton code passes the static checks` (copies upstream's styles and checks snippets against its components), the test `an unknown prop name gets a nearest-name suggestion` (needs upstream's React types), and the test `probe with only --fg is a usage error` (needs a shadcn project as the working directory). Upstream's CI runs them.
+- **`checks/test/maestro-patches.test.mjs`** proves, for patch 4, that at `on` a planted `typescript` never loads while the cva check still flags the variant, and that `full` and an unset variable load it as upstream does; (and that any other value, `ON` or an empty string among them, fails safe); for patch 2, that the installer refuses a linked `.viewsonic-ui/checks`, a linked `.viewsonic-ui` in the dry run, a folder or a file link inside the vendored folder, linked hook, workflow, config and `.gitattributes` targets, a linked `.github` at a monorepo's git top level, a linked `eslint.config.mjs`, a dangling link and a folder it cannot read, comparing a snapshot of the whole outside folder before and after each case, and still installs a clean project; and for patch 1 and the commands, that the narrowed description and the missing `allowed-tools` line survive a sync.
+- **`tests/hook-smoke.sh`** covers the wrapper: node never starts unless `MAESTRO_UIUX_HOOK` is exactly `on` or `full` (eight near misses tried); no plugin root, script or node; violations under the data header; clean output passed through; internal errors silent; stdin forwarded; output cut to printable ASCII and capped, under the C locale and a UTF-8 one; a 2 MB hostile line and a million-line flood each handled in seconds; a NUL byte leaking no warning; and real-node cases proving the module loads, the real exit-2 path on a minimal shadcn project, and that the wrapper passes the level through unchanged (at `on` a planted `typescript` in that project never loads; at `full` it does). In CI a case that cannot run (no node, no UTF-8 locale) fails rather than skips.
+- **`tests/skill-bundle-lint.py`** pins the new gate sentences (the design-system ambiguity default, never setting the hook variable for the user or in a project's settings, never reporting variant validity from `run.mjs fast`, and both "a skipped check is never a pass" rules), so deleting one fails the lint; `plugin-shape.test.mjs` pins `uiux-setup`'s wait for a yes before `--yes`.
+- **The `manifests` job** requires the skill, its LICENSE and the wrapper to exist.
+
+## Syncing from upstream
+
+Upstream is private, so `track-upstream.yml` cannot watch it from public CI. To sync by hand, from a machine with access:
+
+```bash
+gh api repos/ViewSonic-Transformation/FDP-design-system/tarball/main > /tmp/fdp.tgz
+mkdir /tmp/fdp && tar xzf /tmp/fdp.tgz -C /tmp/fdp --strip-components=1
+diff -r /tmp/fdp/plugins/elattar-uiux-design/skills/elattar-uiux-design skills/elattar-uiux-design
+```
+
+Copy the upstream skill over, re-apply patches 1 to 5 above, keep `LICENSE` and `maestro-patches.test.mjs`, copy any changed command bodies into `commands/uiux-*.md` (without an `allowed-tools` line), re-run SkillSpector on the new upstream tree and adjudicate it, run the suite (with `env -u MAESTRO_UIUX_HOOK` in front if your own environment sets it, since upstream's tests run the check directly and expect upstream's behaviour), and update the commit in the provenance table. If upstream adds or renames a command, the plugin-shape test's `COMMANDS` list fails until the bundle matches. If upstream fixes a deferred finding, drop it from the table above.
+
+## Known limits
+
+- The skill's description (548 characters) joins every maestro session's skill listing, ViewSonic project or not. That is the cost of bundling over a separate plugin.
+- The copy goes stale between syncs, and nothing public can detect it.
+- The after-edit hook is off unless the user turns it on. With it off, no `run.mjs` check sees invalid props or variants; they surface only through the project's lint rule (`viewsonic/valid-variant`, which `/maestro:uiux-setup` wires) and its type check. At `on`, only variant values are checked as edits land.
+- Roughly a dozen upstream tests that need upstream's own tree do not run here.

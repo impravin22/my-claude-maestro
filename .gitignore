@@ -10,3 +10,6 @@
 # Tool caches
 .ruff_cache/
 __pycache__/
+
+# Test-only TypeScript for the bundled elattar-uiux-design suite (CI installs it)
+node_modules/

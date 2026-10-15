@@ -9,7 +9,7 @@ git clone https://github.com/impravin22/my-claude-maestro.git
 cd my-claude-maestro
 ```
 
-There is no build step. The plugin payload is `skills/maestro/` + `hooks/` + the two manifests in `.claude-plugin/`. To try your changes locally, add the repo as a local marketplace:
+There is no build step. The plugin payload is `skills/maestro/`, the bundled `skills/elattar-uiux-design/`, `commands/`, `hooks/` and the two manifests in `.claude-plugin/`. To try your changes locally, add the repo as a local marketplace:
 
 ```
 /plugin marketplace add /path/to/my-claude-maestro
@@ -34,12 +34,26 @@ The suite is hermetic: it stubs `claude`, `node`, `npx` and `curl` onto `PATH`, 
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
+The bundled `skills/elattar-uiux-design/` skill has its own `node:test` suite (Node 22 or newer). It needs `typescript` and `eslint` resolvable from the repo root, which the ignored `node_modules/` holds. The CI `uiux` job runs this, then fails unless at least 1,000 tests passed and every skip is a browser check (no Playwright):
+
+```bash
+npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3 eslint@9.39.5
+env -u MAESTRO_UIUX_HOOK node --test \
+  --test-skip-pattern="^patterns: skeleton code passes the static checks$" \
+  --test-skip-pattern="^an unknown prop name gets a nearest-name suggestion$" \
+  --test-skip-pattern="^probe with only --fg is a usage error$" \
+  "skills/elattar-uiux-design/checks/test/*.test.mjs"
+```
+
+The three skip patterns (one suite, two single tests) cover tests that need the upstream design-system repo's own source tree; see `docs/2026-10-15-viewsonic-uiux-bundle.md` before editing anything under `skills/elattar-uiux-design/`, which is vendored.
+
 Lint with:
 
 ```bash
 shellcheck -S warning -e SC2294 install.sh
 shellcheck -S warning tests/install-smoke.sh
 shellcheck -S warning hooks/check-update.sh
+shellcheck -S warning hooks/uiux-on-edit.sh
 shellcheck -S warning tests/hook-smoke.sh
 shellcheck -S warning tests/skill-bundle-lint-smoke.sh
 ```

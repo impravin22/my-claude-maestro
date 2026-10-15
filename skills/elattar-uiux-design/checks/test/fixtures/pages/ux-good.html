@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Good flow</title><style>button,input{font:inherit;min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Good flow</h1>
+<button id="save">Save</button> <span id="out" role="status"></span>
+<button id="openb" aria-haspopup="dialog">Open settings</button>
+<div id="dlg" role="dialog" aria-label="Settings" hidden><p>Settings</p><button id="closeb">Close</button></div>
+<form id="f"><label>Name <input name="name"></label> <label>Email <input name="email" type="email"></label> <label>Password <input name="pw" type="password"></label> <button type="submit">Send</button><p id="err" role="alert"></p></form>
+</main><script>
+save.onclick = async () => { save.disabled = true; save.setAttribute('aria-busy','true'); save.textContent = 'Saving…'; try { await fetch('/ux-api', { method: 'POST' }); } finally { save.disabled = false; save.removeAttribute('aria-busy'); save.textContent = 'Save'; out.textContent = 'Saved'; } };
+openb.onclick = () => { dlg.hidden = false; closeb.focus(); };
+closeb.onclick = () => { dlg.hidden = true; openb.focus(); };
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !dlg.hidden) { dlg.hidden = true; openb.focus(); } });
+f.onsubmit = async (e) => { e.preventDefault(); const r = await fetch('/ux-api', { method: 'POST', body: new FormData(f) }); if (!r.ok) { err.textContent = 'We could not send that. Your answers are still here, try again.'; f.pw.value = ''; } };
+</script></body></html>

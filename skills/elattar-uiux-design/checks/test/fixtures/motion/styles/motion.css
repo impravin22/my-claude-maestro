@@ -1,0 +1,36 @@
+@theme {
+  --duration-fast: 150ms;
+  --duration-slow: 0.4s;
+  --duration-pulse: 2000ms;
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ds-enter {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ds-exit {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(0.98); }
+}
+@keyframes ds-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+@keyframes ds-pulse-low {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+@keyframes ds-half {
+  from { opacity: 0; }
+  to { opacity: 0.5; }
+}
+
+@utility anim-enter { animation: ds-enter var(--duration-slow) var(--ease-enter) both; }
+@utility anim-exit { animation: ds-exit var(--duration-fast) ease-in both; }
+@utility anim-exit-slow { animation: ds-exit var(--duration-slow) ease-in both; }
+@utility anim-pulse { animation: ds-pulse var(--duration-pulse) ease-in-out infinite; }
+@utility anim-pulse-low { animation: ds-pulse-low var(--duration-pulse) ease-in-out infinite; }
+@utility anim-half-enter { animation: ds-half var(--duration-fast) ease-out both; }
+@utility anim-literal { animation: ds-enter 300ms ease-out both; }
+@utility anim-fold { animation: ds-enter var(--duration-fast) ease-in reverse both; }

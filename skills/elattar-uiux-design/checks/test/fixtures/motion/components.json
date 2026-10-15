@@ -1,0 +1,5 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "tailwind": { "css": "app/globals.css" },
+  "aliases": { "components": "@/components", "ui": "@/components/ui", "lib": "@/lib", "hooks": "@/hooks" }
+}

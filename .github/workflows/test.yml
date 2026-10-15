@@ -49,6 +49,7 @@ jobs:
           "$SHELL_BIN" -n install.sh
           "$SHELL_BIN" -n tests/install-smoke.sh
           "$SHELL_BIN" -n hooks/check-update.sh
+          "$SHELL_BIN" -n hooks/uiux-on-edit.sh
           "$SHELL_BIN" -n tests/hook-smoke.sh
           "$SHELL_BIN" -n tests/skill-bundle-lint-smoke.sh
 
@@ -88,6 +89,7 @@ jobs:
           shellcheck -S warning -e SC2294 install.sh
           shellcheck -S warning tests/install-smoke.sh
           shellcheck -S warning hooks/check-update.sh
+          shellcheck -S warning hooks/uiux-on-edit.sh
           shellcheck -S warning tests/hook-smoke.sh
           shellcheck -S warning tests/skill-bundle-lint-smoke.sh
 
@@ -126,7 +128,15 @@ jobs:
                   f'marketplace source is {entry.get("source")!r}; '
                   'this repo ships the plugin in-tree as "./"'
               )
-          for path in ("skills/maestro/SKILL.md", "hooks/check-update.sh", "install.sh"):
+          for path in (
+              "skills/maestro/SKILL.md",
+              "hooks/check-update.sh",
+              "install.sh",
+              # The bundled ViewSonic skill, its MIT notice and its hook wrapper.
+              "skills/elattar-uiux-design/SKILL.md",
+              "skills/elattar-uiux-design/LICENSE",
+              "hooks/uiux-on-edit.sh",
+          ):
               if not os.path.isfile(path):
                   bad.append(
                       f'missing {path} — the manifests reference a payload '
@@ -156,6 +166,55 @@ jobs:
       - name: Unit tests
         run: python3 -m unittest discover -s tests -p 'test_*.py'
 
+  # The bundled elattar-uiux-design skill (vendored from the private
+  # ViewSonic-Transformation/FDP-design-system) ships its own node:test suite.
+  # It runs on the Node floor the skill documents (22) and on 24.
+  uiux:
+    name: uiux checks (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      # The checks resolve TypeScript and ESLint from the project they check,
+      # so the suite's TypeScript passes and its ESLint rule tests need both
+      # resolvable from the repo root: upstream's own versions, exact, no
+      # lockfile, no install scripts. Nothing here ships to users.
+      - name: Install TypeScript and ESLint for the suite
+        run: npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3 eslint@9.39.5
+      # Three patterns need upstream's own source tree (its components, styles
+      # and React types) or a shadcn project as the working directory; they
+      # run in upstream's CI. Each matches one exact name: one suite whose
+      # every test reads that tree, and two single tests. Never a broad
+      # pattern, so a new upstream test still runs here.
+      #
+      # A green run must also have run the suite (a moved folder or a bad sync
+      # would otherwise pass with zero tests), and the only skips allowed are
+      # the browser checks, which need Playwright.
+      - name: Run the bundled skill's tests
+        run: |
+          set -o pipefail
+          node --test --test-reporter=tap \
+            --test-skip-pattern="^patterns: skeleton code passes the static checks$" \
+            --test-skip-pattern="^an unknown prop name gets a nearest-name suggestion$" \
+            --test-skip-pattern="^probe with only --fg is a usage error$" \
+            "skills/elattar-uiux-design/checks/test/*.test.mjs" | tee suite.tap
+          PASSED="$(awk '/^# pass /{print $3}' suite.tap)"
+          if [ "${PASSED:-0}" -lt 1000 ]; then
+            echo "::error::only ${PASSED:-0} tests passed; the suite did not run"
+            exit 1
+          fi
+          if grep '# SKIP' suite.tap | grep -v 'no playwright installed above the skill'; then
+            echo "::error::unexpected skips above: only the browser checks may skip"
+            exit 1
+          fi
+
   # Single stable name for branch protection to require. The matrix job names
   # are prose ("install.sh smoke (bash 3.2 (macOS))") and change with labels;
   # pinning protection to this one aggregator means adding or renaming jobs
@@ -167,7 +226,7 @@ jobs:
     # `!cancelled()` rather than `always()` so a deliberately cancelled run
     # does not also paint a red ci-ok on top of the cancellation.
     if: ${{ !cancelled() }}
-    needs: [smoke, shellcheck, manifests]
+    needs: [smoke, shellcheck, manifests, uiux]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

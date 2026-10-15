@@ -1,0 +1,6 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Tabs on mousedown</title><style>button{font:inherit;min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Tabs on mousedown</h1>
+<div role="tablist" aria-label="Sections"><button role="tab" id="t1" aria-selected="true" data-state="active">Account</button><button role="tab" id="t2" aria-selected="false" data-state="inactive">Billing</button></div>
+<div role="tabpanel" id="p1">Account settings</div><div role="tabpanel" id="p2" hidden>Billing settings</div>
+</main><script>
+for (const [t, p] of [[t1, p1], [t2, p2]]) t.addEventListener('mousedown', (e) => { if (e.button !== 0) return; for (const [a, b] of [[t1, p1], [t2, p2]]) { const on = a === t; a.setAttribute('aria-selected', String(on)); a.dataset.state = on ? 'active' : 'inactive'; b.hidden = !on; } });
+</script></body></html>

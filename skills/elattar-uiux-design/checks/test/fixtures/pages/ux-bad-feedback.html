@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Bad feedback</title><style>button,input{font:inherit;min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Bad feedback</h1>
+<button id="dead">Do nothing</button>
+<button id="slow">Slow save</button>
+<button id="silent">Instant but silent</button>
+<button id="fast">Fast</button> <p id="out" role="status"></p>
+<button id="styled" class="border-transparent aria-invalid:border-destructive/50 focus-visible:ring-destructive/25">Styled</button>
+<button id="cur" role="radio" aria-checked="true">Current choice</button> <button id="tab" role="tab" aria-selected="true">Active tab</button> <button id="nav" data-active="true">Overview</button>
+<button id="gone">Delete everything</button>
+</main><script>
+slow.onclick = async () => { await fetch('/ux-api', { method: 'POST' }); out.textContent = 'Saved'; };
+silent.onclick = async () => { silent.classList.toggle('x'); await fetch('/ux-api', { method: 'POST' }); };
+fast.onclick = () => { out.textContent = 'Done ' + Math.random(); };
+styled.onclick = () => { out.textContent = 'Styled ' + Math.random(); };
+gone.onclick = () => { document.title = 'deleted'; out.textContent = 'CLICKED-DESTRUCTIVE'; };
+</script></body></html>

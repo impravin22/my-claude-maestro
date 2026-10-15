@@ -127,6 +127,17 @@ GATE_PHRASES = {
     os.path.join(REFERENCES_DIR, "frontend-design-trigger.md"): (
         "Wait for explicit approval before proceeding to Step 6",
         "regenerate the mockup before going to 5c",
+        # The design-system carve-out must never waive 5a and 5b on stock
+        # libraries, and the bundled skill's hook and checks keep their limits.
+        "**When unsure, treat the project as having no system**",
+        "Never set it for the user, and never in a project's settings.",
+        "never report variant or prop validity from `run.mjs fast`",
+    ),
+    os.path.join(REFERENCES_DIR, "quality-gates.md"): (
+        "each SKIPPED reported as skipped",
+    ),
+    os.path.join(REFERENCES_DIR, "uiux-checklist.md"): (
+        "A skipped check is never reported as passing",
     ),
     os.path.join(REFERENCES_DIR, "evidence-ledger.md"): (
         "A ticked box with `EVIDENCE: pending` counts as unmet",

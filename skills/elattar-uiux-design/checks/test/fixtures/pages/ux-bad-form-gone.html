@@ -1,0 +1,5 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Form that vanishes</title><style>button,input{font:inherit;min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Form that vanishes</h1>
+<form id="f"><label>Note <textarea name="note"></textarea></label> <button type="submit">Post note</button></form>
+</main><script>
+f.onsubmit = async (e) => { e.preventDefault(); const r = await fetch('/ux-api', { method: 'POST', body: new FormData(f) }); if (!r.ok) f.replaceWith(Object.assign(document.createElement('p'), { textContent: 'Failed' })); };
+</script></body></html>

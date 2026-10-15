@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --color-action: oklch(0.6 0.2 260);
+  --color-value: oklch(0.7 0.15 150);
+}
+.type-body { font-size: 1rem; }

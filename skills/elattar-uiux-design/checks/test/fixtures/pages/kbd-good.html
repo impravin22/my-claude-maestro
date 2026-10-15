@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title><style>body{margin:0;font:16px sans-serif;background:#fff;color:#111}.b{min-width:44px;min-height:44px;padding:0 12px}:focus-visible{outline:3px solid #000;outline-offset:2px}</style></head><body><main><h1>Clean page</h1>
+<p>Read the <a href="#terms">terms of use</a> before you continue.</p>
+<button class="b" type="button">Save changes</button> <a class="b" href="#next" style="display:inline-block;line-height:44px">Next step</a>
+<label>Your name <input class="b" type="text"></label>
+<button class="b" type="button" aria-label="Close dialog" title="Close dialog" style="font-size:0"><svg width="16" height="16" aria-hidden="true"><path d="M0 0L16 16"/></svg></button>
+<img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+<img alt="Company logo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+<button class="b" id="open" type="button" aria-haspopup="dialog">Open settings</button>
+<dialog id="dlg" aria-label="Settings"><p>Settings</p><button class="b" type="button" id="done">Done</button> <button class="b" type="button" id="more">More</button></dialog>
+<button class="b" type="button" aria-expanded="false" id="acc">Details</button><div id="accp" hidden>More details</div>
+<script>
+open.addEventListener("click",()=>dlg.showModal());done.addEventListener("click",()=>dlg.close());
+acc.addEventListener("click",()=>{const o=acc.getAttribute("aria-expanded")==="true";acc.setAttribute("aria-expanded",String(!o));accp.hidden=o});
+</script></main></body></html>

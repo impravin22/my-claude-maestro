@@ -1,0 +1,165 @@
+{
+  "skill_name": "elattar-uiux-design",
+  "evals": [
+    {
+      "id": 1,
+      "name": "settings-page",
+      "prompt": "Build me a settings page for my app: profile name and email, a notifications section with a few toggles, and a danger zone where I can delete my account. Keep it simple.",
+      "expected_output": "A settings page built from system components with grouped sections, one primary Save, toggles that give feedback, and a confirmed, undoable or alert-dialog-guarded delete.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "The delete-account action opens a confirmation (AlertDialog) naming what will be lost, with a visible Cancel and Escape closing it",
+        "Each section has exactly one default Button at most, and the page has one main and one h1",
+        "Save shows visible feedback (busy state then a success message) and keeps the typed values if saving fails"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "form-server-validation",
+      "prompt": "I need a sign-up form (name, email, password). The server sometimes rejects the email as already taken or the password as too weak. Show that properly.",
+      "expected_output": "A form that maps server errors to the field, with human messages, preserved input and focus moved to the first error.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "A server rejection renders next to the field in words a user would say (what is wrong and what to do), never the raw response or status code",
+        "The user's input is still in the fields after a failed submit and focus moves to the first field with an error",
+        "Error text is announced through a live region or linked with aria-describedby, and each field has a visible label"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "list-detail",
+      "prompt": "Make an invoices screen: a list of invoices on the left, and when I click one I see its details (customer, line items, status, total) with a Mark as paid button.",
+      "expected_output": "A list-detail pattern with selection state, keyboard-operable rows, a responsive collapse to one pane on phones, and Mark as paid feedback.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "List rows are real buttons or links reachable and operable by keyboard, with a visible selected state that does not rely on colour alone",
+        "At phone width the detail replaces or follows the list with a way back, and nothing overflows horizontally",
+        "Mark as paid gives feedback and the status change is announced; money amounts use consistent formatting and are never shown red"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "dashboard-data-table",
+      "prompt": "Build a dashboard for our sales team: four KPI cards at the top, a chart of revenue by month, and a table of the latest 20 orders with sorting and a search box.",
+      "expected_output": "A dashboard with KPI cards, one chart, and a data table with sort and search, loading skeletons and a no-results state.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "The table has sortable headers operable by keyboard, with aria-sort or equivalent, and a no-results state when search matches nothing",
+        "A loading state (skeletons) exists for the cards, chart and table, and the layout does not shift when data arrives",
+        "The page shows exactly one emphasised element per region; the chart does not use colour as the only way to tell series apart"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "empty-first-run",
+      "prompt": "Our app has no data on day one. Design the screen a brand new user sees after signing up, for the Projects page.",
+      "expected_output": "An empty first-run screen that teaches the next step with one primary action, not a blank page.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "The empty state says what this page is for and offers one clear primary action that creates the first project",
+        "The copy contains no exclamation marks, no system words, and is in sentence case",
+        "The screen works with keyboard only, and the primary action sits where the eye already is"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "async-action-feedback",
+      "prompt": "Add a Publish button to our editor toolbar. Publishing takes a few seconds and sometimes fails.",
+      "expected_output": "A button component with idle, busy, success and failure states, feedback in under 400ms, a progress indicator past 1s and a retry path.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "Clicking Publish changes something visible within 400ms and shows a busy label or progress indicator while pending",
+        "Failure shows a written message with what happened and a Retry, not the error object, and Success shows a confirmation the user can see",
+        "The button cannot be double-submitted while busy and the busy state is exposed to assistive tech (aria-busy or a live region)"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "animated-disclosure",
+      "prompt": "Make an FAQ section where each question expands to show its answer, with a smooth animation.",
+      "expected_output": "An accordion built from the system component with continuous motion on open and close, honouring reduced motion.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "Open and close use motion tokens only (no literal durations or easings) and `run.mjs motion` reports no jump, pop or snap",
+        "Reduced motion falls back to a crossfade or no motion, and content stays mounted until the exit animation finishes",
+        "Each trigger is a button with aria-expanded, operable by Enter and Space, with a visible focus ring in both themes"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "fix-light-mode",
+      "prompt": "The billing page looks fine in dark mode but in light mode some text is hard to read and a badge disappears. Fix light mode on that page.",
+      "expected_output": "Light-mode contrast fixed with existing tokens, not hex values, with the before and after pairs reported.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "`run.mjs contrast` and `contrast-rendered` report no BAD pair for the page in both themes",
+        "The fix uses existing role tokens (the -ink token for text) and adds no hardcoded colour value",
+        "The transcript shows light and dark screenshots before and after, and the final summary names the pairs that were wrong"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "failed-data-call",
+      "prompt": "The orders page loads its data from /api/orders and right now when that call fails the page just prints the error. Make the failure state good.",
+      "expected_output": "A failure state with a human message and a next step; the raw error is logged, never rendered.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "The screen on failure states what happened in plain words and offers a next step (Retry or another action), and the raw error, status code, stack trace or JSON never appears on screen",
+        "The failure message is announced to screen readers and a Retry button has an accessible name and works by keyboard",
+        "Content already on screen is kept rather than replaced by a blank page when a refresh fails"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "creative-direction",
+      "prompt": "Build the landing hero for my coffee roastery. I want it to feel like a 1970s Japanese record sleeve: warm paper tones, visible grain, one very large quiet headline and a lot of empty space around it. Follow that direction rather than a template.",
+      "expected_output": "A hero built from the user's stated direction inside the token system, with no page pattern loaded.",
+      "files": [],
+      "expectations": [
+        "`node <skill>/checks/run.mjs full` exits 0, or every non-passing check is reported SKIPPED with a reason (exit 2) and none FAILED",
+        "The transcript contains the design-pass block before any code is written: thirteen lines (7 foundations, 6 secondary) plus content, accessibility and UX lines",
+        "Screenshots were taken (run.mjs shots) in both themes at phone and desktop width, and the transcript shows them being reviewed before the work is called done",
+        "No token, type role, duration, easing, spacing step or shadow was added without asking; in a non-interactive run every proposed addition is listed in the final summary instead of silently added",
+        "No file under `patterns/` was loaded or read in the transcript, because the user gave a direction",
+        "The design-pass lines name the user's direction (warm, grainy, big quiet type) and the tokens or components that serve it, not a generic template",
+        "The result still passes `run.mjs full` (no hardcoded values introduced to achieve the look); any value the system lacks was asked about or listed, not invented"
+      ]
+    }
+  ]
+}

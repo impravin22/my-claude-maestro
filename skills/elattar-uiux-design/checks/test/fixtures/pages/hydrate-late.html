@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Late hydration</title><style>button,input{font:inherit;min-height:44px;min-width:44px}</style></head><body>
+<div id="__next"><main><h1>Settings</h1><div id="app"><p>Loading</p></div></main></div>
+<script>
+// What a Next page does: the server HTML is there at load, the forms and handlers only exist once React has hydrated.
+setTimeout(() => {
+  document.getElementById("app").innerHTML = '<form id="f"><label>Name <input name="name"></label> <button type="submit">Send</button><p id="err" role="alert"></p></form> <button id="b" type="button">Refresh</button>';
+  document.getElementById("f").onsubmit = async (e) => { e.preventDefault(); await fetch("/ux-api", { method: "POST", body: new FormData(e.target) }); };
+  document.getElementById("b").onclick = () => { document.getElementById("b").textContent = "Refreshing"; };
+  document.getElementById("__next")["__reactContainer$x"] = {};
+}, 1500);
+</script></body></html>

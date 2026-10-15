@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Bad overlay</title><style>button,input{font:inherit;min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Bad overlay</h1>
+<button id="a" aria-haspopup="dialog">Trap</button> <button id="b" aria-haspopup="dialog">Escape only</button> <button id="c" aria-haspopup="dialog">Close only</button> <button id="d" aria-haspopup="menu" aria-expanded="false">Menu</button>
+<div id="da" role="dialog" aria-label="Trap" hidden><p>No way out</p></div>
+<div id="db" role="dialog" aria-label="Esc" hidden><p>Escape works</p></div>
+<div id="dc" role="dialog" aria-label="Close" hidden><p>Button works</p><button id="cc">Close</button></div>
+<div id="dd" role="menu" hidden><button role="menuitem">One</button></div>
+</main><script>
+a.onclick = () => { da.hidden = false; da.tabIndex = -1; da.focus(); };
+b.onclick = () => { db.hidden = false; db.tabIndex = -1; db.focus(); };
+c.onclick = () => { dc.hidden = false; cc.focus(); };
+d.onclick = () => { dd.hidden = false; d.setAttribute('aria-expanded', 'true'); };
+cc.onclick = () => { dc.hidden = true; c.focus(); };
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!db.hidden) { db.hidden = true; b.focus(); } if (!dd.hidden) { dd.hidden = true; d.setAttribute('aria-expanded', 'false'); d.focus(); } } });
+</script></body></html>

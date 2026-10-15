@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Opens on pointerdown</title><style>button{font:inherit;min-height:44px;min-width:44px}[hidden]{display:none!important}</style></head><body><main><h1>Opens on pointerdown</h1>
+<button id="m" aria-haspopup="menu">Options</button>
+<div id="menu" role="menu" aria-label="Options" hidden><button role="menuitem" id="mi">Rename</button></div>
+</main><script>
+m.addEventListener('pointerdown', () => { menu.hidden = !menu.hidden; });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { menu.hidden = true; m.focus(); } });
+</script></body></html>

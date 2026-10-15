@@ -21,6 +21,7 @@ Read this **only when** a pack you need is missing, the user asks how to install
 | frontend-design | `claude plugin install frontend-design@claude-plugins-official` — **or** get it bundled inside `example-skills` (row below); either source works, no need for both | Step 5a/5b (design direction + mockup) |
 | Anthropic example-skills | `claude plugin marketplace add anthropics/skills && claude plugin install example-skills@anthropic-agent-skills` | Steps 7/8 + documents/brand domains |
 | UI UX Pro Max | `claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill && claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill` | Step 5d |
+| elattar-uiux-design | **Bundled with maestro**, nothing to install. ViewSonic's UI/UX skill, vendored from `ViewSonic-Transformation/FDP-design-system` (MIT, Ayoub Elattar), with commands `/maestro:uiux-*` and an opt-in after-edit hook (`MAESTRO_UIUX_HOOK=on` reads files only; `full` also loads the project's own `typescript`, so trusted repositories only). Its `run.mjs` checks need Node 22+, and Playwright in the project for the browser checks | Steps 5a, 5e, 7, 8 on the ViewSonic design system (`frontend-design-trigger.md`) |
 | Taste | `claude plugin marketplace add Leonxlnx/taste-skill && claude plugin install taste-skill@taste-skill` | Step 5a (direction candidates) |
 | Transitions | `git clone https://github.com/Jakubantalik/transitions.dev && cp -r transitions.dev/skills/transitions-dev ~/.claude/skills/` | Step 5a (motion) + Step 7 |
 | marketing-skills | `claude plugin marketplace add coreyhaines31/marketingskills && claude plugin install marketing-skills@marketingskills` | Marketing domain |
@@ -76,6 +77,7 @@ A missing pack **never blocks a task**. Perform the equivalent manually and note
 | claude-mem | Steps 1/3/4 skip memory lookup; proceed from the current request alone |
 | frontend-design | Step 5a/5b fall back to a manual direction write-up + hand-rolled HTML prototype. **Warn loudly** — the manual path is far more prone to template output. The anti-template ban, required-qualities check, and the 5c approval gate apply **without exception** |
 | UI UX Pro Max | Step 5d skipped; 5a/5b/5c/5e still run |
+| Node 22+ (for the bundled `elattar-uiux-design` checks) | No Node at all: the after-edit hook stays silent. Node below 22: the hook may still run, but the `run.mjs` checks refuse. Either way, on the ViewSonic system the skill's rules still apply by hand, and any claim a check would have proved is written UNVERIFIED with the check named. Playwright missing in the project: only the browser checks are skipped, and reported as skipped |
 | Taste / Transitions | Silent — additive voices, not gates |
 | example-skills | mcp-builder / webapp-testing / brand-guidelines / web-artifacts-builder unavailable; engineering flow unaffected. Brand gate falls back to whatever brand material the user provides |
 | finance / small-business / legal | Domain tasks still run the Deliverable flow with general reasoning; domain gates (figures trace to source, drafts-not-advice) enforced manually. **State explicitly that no domain pack is installed** |

@@ -1,0 +1,414 @@
+{
+  "literalAllowed": [
+    "components/agent/avatar/avatar.css",
+    "components/docs/docs-motion.css",
+    "components/ui/sheet.css"
+  ],
+  "componentCss": [
+    "components/docs/docs-motion.css"
+  ],
+  "sharedControls": [
+    {
+      "file": "components/ui/questionnaire.tsx",
+      "names": [
+        "checkboxControlClassName",
+        "CheckboxMark",
+        "radioControlClassName",
+        "RadioIndicator"
+      ],
+      "msg": "questionnaire choices must compose the shared Checkbox/Radio chassis and mark; do not redraw them locally"
+    }
+  ],
+  "retiredMotionExempt": [
+    "lib/motion-names.ts",
+    "components/agent/avatar/"
+  ],
+  "deadUtilityExempt": [
+    "lib/motion-names.ts"
+  ],
+  "allowVars": [
+    "--font-geist-mono",
+    "--gap",
+    "--width",
+    "--initial-height",
+    "--lift-amount",
+    "--toasts-before",
+    "--scale",
+    "--y",
+    "--swipe-amount-x",
+    "--swipe-amount-y",
+    "--anchor-width",
+    "--available-width",
+    "--available-height",
+    "--transform-origin",
+    "--shiki-dark",
+    "--shiki-dark-bg"
+  ],
+  "allowVarPrefixes": [
+    "--sonner-"
+  ],
+  "emphasisExclude": [
+    "/design-system/components/"
+  ],
+  "motionPhases": [
+    {
+      "component": "app/design-system/motion/page.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "anim-exit",
+      "changes": [
+        "anim-open",
+        "anim-close",
+        "anim-expand",
+        "anim-collapse",
+        "anim-change"
+      ]
+    },
+    {
+      "component": "components/agent/core/use-presence.ts",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "anim-exit"
+    },
+    {
+      "component": "components/agent/parts/generated-image.tsx",
+      "in": "anim-enter",
+      "idle": "anim-shimmer",
+      "out": "anim-exit"
+    },
+    {
+      "component": "components/agent/workspace/step-status.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-pulse",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/agent/workspace/workspace-settings.tsx",
+      "in": "N/A: present from the first frame",
+      "idle": "N/A: rests static",
+      "out": "N/A: leaves with its parent",
+      "changes": [
+        "anim-change"
+      ]
+    },
+    {
+      "component": "components/ai-elements/chain-of-thought.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: no exit class in this file"
+    },
+    {
+      "component": "components/ai-elements/shimmer.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-shimmer-text",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/ai-elements/terminal.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-caret",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/ai-elements/test-results.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-spin",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/docs/component-docs/active-indicator/page.tsx",
+      "in": "N/A: present from the first frame",
+      "idle": "N/A: rests static",
+      "out": "N/A: leaves with its parent",
+      "changes": [
+        "anim-change"
+      ]
+    },
+    {
+      "component": "components/docs/component-docs/agent-generated-image/page.tsx",
+      "in": "anim-enter",
+      "idle": "anim-shimmer",
+      "out": "anim-exit"
+    },
+    {
+      "component": "components/docs/component-docs/ai-agent/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse"
+    },
+    {
+      "component": "components/docs/component-docs/ai-chain-of-thought/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse",
+      "changes": [
+        "anim-enter"
+      ]
+    },
+    {
+      "component": "components/docs/component-docs/ai-model-selector/model-selector-specimen.tsx",
+      "in": "N/A: present from the first frame",
+      "idle": "N/A: rests static",
+      "out": "N/A: leaves with its parent",
+      "changes": [
+        "anim-enter"
+      ]
+    },
+    {
+      "component": "components/docs/component-docs/ai-plan/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse"
+    },
+    {
+      "component": "components/docs/component-docs/ai-queue/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse"
+    },
+    {
+      "component": "components/docs/component-docs/ai-reasoning/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse",
+      "changes": [
+        "anim-shimmer-text"
+      ],
+      "specimen": "/design-system/components/ai-reasoning",
+      "trigger": "[data-slot=collapsible-trigger]",
+      "dismiss": "[data-slot=collapsible-trigger]",
+      "target": "[data-slot=collapsible-content]"
+    },
+    {
+      "component": "components/docs/component-docs/ai-sandbox/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse"
+    },
+    {
+      "component": "components/docs/component-docs/ai-shimmer/page.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-shimmer-text",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/docs/component-docs/ai-sources/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse",
+      "specimen": "/design-system/components/ai-sources",
+      "trigger": "[data-slot=collapsible-trigger]",
+      "dismiss": "[data-slot=collapsible-trigger]",
+      "target": "[data-slot=collapsible-content]"
+    },
+    {
+      "component": "components/docs/component-docs/ai-task/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse"
+    },
+    {
+      "component": "components/docs/component-docs/ai-terminal/page.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-caret",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/docs/component-docs/ai-test-results/page.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-spin",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/docs/component-docs/avatar/avatar-showcase.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: replaced in place by the next keyed instance; no exit class in this file"
+    },
+    {
+      "component": "components/docs/component-docs/card/card-showcase.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: replaced in place by the next keyed instance; no exit class in this file"
+    },
+    {
+      "component": "components/docs/component-docs/collapsible/page.tsx",
+      "in": "anim-expand",
+      "idle": "N/A: rests static",
+      "out": "anim-collapse",
+      "specimen": "/design-system/components/collapsible",
+      "trigger": "[data-slot=collapsible] > button",
+      "dismiss": "[data-slot=collapsible] > button",
+      "target": "[data-slot=collapsible-content]"
+    },
+    {
+      "component": "components/docs/component-docs/content-change/page.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: ContentChange replaces the old content in place when its key changes",
+      "specimen": "/design-system/components/content-change",
+      "target": "[data-slot=content-change]",
+      "swap": {
+        "trigger": "[data-slot=preview-stage] button[data-slot=button]"
+      }
+    },
+    {
+      "component": "components/docs/component-docs/icon-swap/page.tsx",
+      "in": "N/A: documentation text names anim-change; the page itself plays no animation of its own",
+      "idle": "N/A: rests static",
+      "out": "N/A: nothing leaves on this page"
+    },
+    {
+      "component": "components/docs/component-docs/keyframes/page.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "anim-exit",
+      "changes": [
+        "anim-open",
+        "anim-close",
+        "anim-expand",
+        "anim-collapse",
+        "anim-change",
+        "anim-spin",
+        "anim-shimmer",
+        "anim-shimmer-text",
+        "anim-progress-indeterminate",
+        "anim-pulse",
+        "anim-caret"
+      ]
+    },
+    {
+      "component": "components/docs/component-docs/keyframes/replay-grid-specimen.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "anim-exit",
+      "changes": [
+        "anim-open",
+        "anim-close",
+        "anim-expand",
+        "anim-collapse",
+        "anim-change",
+        "anim-spin",
+        "anim-shimmer",
+        "anim-shimmer-text",
+        "anim-progress-indeterminate",
+        "anim-pulse",
+        "anim-caret"
+      ],
+      "specimen": "/design-system/components/keyframes",
+      "trigger": "button[aria-label=\"Replay enter\"]",
+      "target": "div.anim-enter.h-16"
+    },
+    {
+      "component": "components/docs/component-docs/marker/marker-showcase.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: replaced in place by the next keyed instance; no exit class in this file"
+    },
+    {
+      "component": "components/docs/component-docs/progress/page.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-progress-indeterminate",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/docs/component-docs/skeleton/page.tsx",
+      "in": "anim-enter",
+      "idle": "anim-shimmer",
+      "out": "N/A: the skeleton is replaced in place by the content, whose anim-enter is the crossfade"
+    },
+    {
+      "component": "components/docs/component-docs/skeleton/skeleton-showcase.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: the skeleton is replaced in place by the content, whose anim-enter is the crossfade"
+    },
+    {
+      "component": "components/docs/component-docs/spinner/page.tsx",
+      "in": "N/A: appears with its parent; no own arrival",
+      "idle": "anim-spin",
+      "out": "N/A: leaves with its parent; no own exit"
+    },
+    {
+      "component": "components/docs/component-docs/stat/page.tsx",
+      "in": "N/A: documentation text names anim-enter and the skeleton shimmer; the page itself plays no animation of its own",
+      "idle": "N/A: rests static",
+      "out": "N/A: nothing leaves on this page"
+    },
+    {
+      "component": "components/docs/component-docs/table/table-showcase.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: no exit class in this file"
+    },
+    {
+      "component": "components/docs/page/fourteen-motions.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "anim-exit",
+      "changes": [
+        "anim-open",
+        "anim-close",
+        "anim-expand",
+        "anim-collapse",
+        "anim-change",
+        "anim-spin",
+        "anim-shimmer",
+        "anim-shimmer-text",
+        "anim-progress-indeterminate",
+        "anim-pulse",
+        "anim-caret"
+      ]
+    },
+    {
+      "component": "components/docs/page/landing-hero.tsx",
+      "in": "anim-intro-rise",
+      "idle": "N/A: rests static",
+      "out": "N/A: the hero stays for the life of the page",
+      "specimen": "/",
+      "target": ".anim-intro-rise"
+    },
+    {
+      "component": "components/ds/charts/bar.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: no exit class in this file"
+    },
+    {
+      "component": "components/ds/charts/line.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: no exit class in this file"
+    },
+    {
+      "component": "components/ds/charts/state.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: replaced in place by the next keyed instance; no exit class in this file"
+    },
+    {
+      "component": "components/ds/danger-zone-demo.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: no exit class in this file"
+    },
+    {
+      "component": "components/ds/data-table-demo.tsx",
+      "in": "anim-enter",
+      "idle": "N/A: rests static",
+      "out": "N/A: no exit class in this file"
+    },
+    {
+      "component": "components/ds/toast-preview.tsx",
+      "in": "N/A: the toast owns its arrival; the loading glyph has none of its own",
+      "idle": "anim-spin",
+      "out": "N/A: the toast owns its exit; the loading glyph has none of its own"
+    },
+    {
+      "component": "lib/motion-names.ts",
+      "in": "N/A: data file; lists retired animation names as strings, nothing animates",
+      "idle": "N/A: rests static",
+      "out": "N/A: data file; nothing animates"
+    }
+  ]
+}
