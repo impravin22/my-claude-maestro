@@ -179,7 +179,7 @@ Reference files are read **on demand**, never on every task — that is what kee
 
 ## Bundled ViewSonic UI/UX skill
 
-Maestro ships a second skill, `elattar-uiux-design`: ViewSonic's UI/UX skill, with its design rules, page patterns, runnable checks and evals. It is vendored unchanged (apart from two documented edits) from `ViewSonic-Transformation/FDP-design-system`, where it lives as its own plugin; it is MIT licensed, copyright Ayoub Elattar, and its [LICENSE](skills/elattar-uiux-design/LICENSE) stays beside it. Provenance, the local edits and the sync recipe are in [docs/2026-10-15-viewsonic-uiux-bundle.md](docs/2026-10-15-viewsonic-uiux-bundle.md).
+Maestro ships a second skill, `elattar-uiux-design`: ViewSonic's UI/UX skill, with its design rules, page patterns, runnable checks and evals. It is vendored unchanged apart from four documented patches and two added files from `ViewSonic-Transformation/FDP-design-system`, where it lives as its own plugin; it is MIT licensed, copyright Ayoub Elattar, and its [LICENSE](skills/elattar-uiux-design/LICENSE) stays beside it. Provenance, the local edits and the sync recipe are in [docs/2026-10-15-viewsonic-uiux-bundle.md](docs/2026-10-15-viewsonic-uiux-bundle.md).
 
 Maestro uses it only on projects that are on the ViewSonic design system (a `viewsonic-ui.config.json` or `.viewsonic-ui/` folder, or the foundation's `--color-action-*` and `--color-value-*` tokens), or when you ask for that system. There, its thirteen-line design pass drives Step 5a, its rules join the 5e checklist, and its checks run at Steps 7 and 8; maestro's own gates still apply. Elsewhere maestro does not route to it, and its one-line description in the skill listing is the only always-on cost.
 
@@ -190,7 +190,7 @@ Maestro uses it only on projects that are on the ViewSonic design system (a `vie
 | `/maestro:uiux-check-full` | the fast checks plus browser checks on the changed routes; needs the app running | no |
 | `/maestro:uiux-review <route>` | screenshots a page in both themes and sizes and judges it against every rule | no, unless you ask |
 
-An after-edit hook (`hooks/uiux-on-edit.sh`) can flag a ui component used with a prop or variant value it does not define, such as `Button size="md"`, as each edit lands. It is **off by default**: the check loads the edited project's own `typescript` package, which is code from that repository, so turn it on only if you work in repositories you trust, by setting `MAESTRO_UIUX_HOOK=on` in your environment. Once on, it checks every shadcn project that defines `cva()` variants, not only ViewSonic ones; it stays silent without Node or on an internal error, and its findings reach the agent labelled as project data, stripped of control characters and capped at 20 lines. The commands do not pre-approve `node`, so each run goes through your normal permission prompt. The checks need Node 22 or newer, and Playwright in the project for the browser checks.
+An after-edit hook (`hooks/uiux-on-edit.sh`) can flag a ui component used with a prop or variant value it does not define, such as `Button size="md"`, as each edit lands. It is **off by default**, with two levels you set in your shell profile or the `env` block of your user `~/.claude/settings.json`: `MAESTRO_UIUX_HOOK=on` checks variant values against each component's `cva()` by reading files only, and runs no code from the project; `MAESTRO_UIUX_HOOK=full` also checks prop names, union values and TypeScript's own errors by loading the edited project's own `typescript` package, which is code from that repository, so use `full` only if every repository you open is one you trust. A project's own settings could set the variable too; trust only repositories whose `.claude/` folder you have read. Either level checks every shadcn project that defines `cva()` variants, not only ViewSonic ones; it stays silent without Node or on an internal error, and its findings reach the agent labelled as project data, cut to printable ASCII and capped at 20 lines. With the hook off, invalid props and variants are caught by the project's lint rule (`viewsonic/valid-variant`, wired by `/maestro:uiux-setup`) and its type check, not by `run.mjs`. The commands pre-approve no tools, so each run goes through your normal permission prompt; `/maestro:uiux-check-full` and `/maestro:uiux-review` load the project's own Playwright, so they run its code just as its own test suite would. The checks need Node 22 or newer, and Playwright in the project for the browser checks.
 
 ## Customisation
 
@@ -249,7 +249,7 @@ my-claude-maestro/
 ├── hooks/
 │   ├── hooks.json
 │   ├── check-update.sh
-│   └── uiux-on-edit.sh         # after-edit variant check for the bundled skill
+│   └── uiux-on-edit.sh         # opt-in after-edit variant check for the bundled skill
 ├── tests/
 │   ├── install-smoke.sh            # bash tests/install-smoke.sh — runs in CI
 │   ├── hook-smoke.sh               # update-notice and after-edit hook tests

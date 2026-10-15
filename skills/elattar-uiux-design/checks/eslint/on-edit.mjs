@@ -47,7 +47,11 @@ async function main() {
   const rel = posix(relative(root, file));
   if (rel.startsWith("..") || rel.startsWith(`${uiDir}/`)) return 0;
 
-  const ts = resolveTs(root);
+  // maestro patch (not upstream): resolving `typescript` loads it from the project, which is code
+  // from that repository. Run through maestro's hooks/uiux-on-edit.sh, MAESTRO_UIUX_HOOK=on keeps
+  // to the cva-only path and never loads it; only "full" does. Unset (run directly) is upstream's.
+  const projectCodeAllowed = process.env.MAESTRO_UIUX_HOOK !== "on";
+  const ts = projectCodeAllowed ? resolveTs(root) : null;
   const tables = loadTables(root, { types: Boolean(ts) });
   if (!tables.cva.size) return 0;
   const src = readFileSync(file, "utf8");
@@ -67,7 +71,7 @@ async function main() {
     process.stderr.write(found.map((f) => `${rel}:${f.line} ${f.message}`).join("\n") + "\nFix these now: use a prop or value the component defines (read its file in the ui folder).\n");
     return 2;
   }
-  if (!ts) {
+  if (!ts && projectCodeAllowed) {
     const marker = join(tmpdir(), "viewsonic-on-edit-no-ts");
     if (!existsSync(marker)) {
       try { writeFileSync(marker, "1"); } catch { /* none */ }
