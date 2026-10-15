@@ -1,6 +1,6 @@
 # UI/UX Design System Checklist
 
-Run this checklist against every frontend change. No exceptions.
+Run this checklist against every frontend change. No exceptions; the last group runs at Step 8, once the change is built.
 
 ---
 
@@ -64,7 +64,9 @@ Run this checklist against every frontend change. No exceptions.
 - [ ] **Progress preserved**: form data not lost on accidental navigation (warn or auto-save)
 - [ ] **Input safety**: `useIMEComposition` hook for chat textareas (CJK input handling)
 
-## Before Calling It Done
+## Before Calling It Done (Step 8, not 5e)
+
+5e runs before any code exists, so it skips this group; Step 8 runs it against the built change.
 
 - [ ] **A green build is the floor, not the proof**: the production build passes, and every changed route renders with no console error, uncaught exception or framework error overlay
 - [ ] **Both themes seen in a real browser**: screenshots in light and dark, or, when a screenshot cannot be taken, measured structural proof (box sizes, computed colours) named as measured rather than looked at

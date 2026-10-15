@@ -187,16 +187,17 @@ jobs:
       # version, no lockfile, no install scripts; nothing here ships to users.
       - name: Install TypeScript for the suite
         run: npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3
-      # Three suites need upstream's own source tree (its components, styles
-      # and React types) or a shadcn project as the working directory. They run
-      # in upstream's CI. Here they are skipped by exact name, never by a broad
-      # pattern, so a new upstream test still runs. The browser checks skip on
-      # their own without Playwright.
+      # Three patterns need upstream's own source tree (its components, styles
+      # and React types) or a shadcn project as the working directory; they
+      # run in upstream's CI. Each matches one exact name: one suite whose
+      # every test reads that tree, and two single tests. Never a broad
+      # pattern, so a new upstream test still runs here. The browser checks
+      # skip on their own without Playwright.
       - name: Run the bundled skill's tests
         run: |
           node --test \
             --test-skip-pattern="^patterns: skeleton code passes the static checks$" \
-            --test-skip-pattern="^on-edit hook \(with the project's TypeScript\)$" \
+            --test-skip-pattern="^an unknown prop name gets a nearest-name suggestion$" \
             --test-skip-pattern="^probe with only --fg is a usage error$" \
             "skills/elattar-uiux-design/checks/test/*.test.mjs"
 

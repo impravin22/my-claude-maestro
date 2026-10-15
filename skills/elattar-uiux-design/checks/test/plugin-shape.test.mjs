@@ -40,7 +40,8 @@ describe("plugin shape", () => {
     assert.ok(cmd.includes("${CLAUDE_PLUGIN_ROOT}"));
     const target = cmd.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"]+)/)[1];
     assert.ok(existsSync(join(pluginDir, target)), `${target} exists`);
-    assert.ok(readFileSync(join(pluginDir, target), "utf8").includes(CHECK), `${target} runs ${CHECK}`);
+    // The assignment line itself, not the header comment that names the same path.
+    assert.match(readFileSync(join(pluginDir, target), "utf8"), new RegExp(`^CHECK="\\$CLAUDE_PLUGIN_ROOT/${CHECK}"$`, "m"), `${target} runs ${CHECK}`);
     assert.ok(existsSync(join(pluginDir, CHECK)), `${CHECK} exists`);
   });
 

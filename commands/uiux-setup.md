@@ -1,6 +1,6 @@
 ---
 description: Set up elattar-uiux-design in this project: commit hook, CI and config
-allowed-tools: Bash(node:*), Read
+allowed-tools: Read
 ---
 Run `node "${CLAUDE_PLUGIN_ROOT}/skills/elattar-uiux-design/checks/run.mjs" install` (no `--yes`: this is a dry run that only prints the plan).
 Show the user exactly what it will write. Only after the user says yes, run it again with `--yes`.

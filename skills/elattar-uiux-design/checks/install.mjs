@@ -6,7 +6,7 @@
 // Without --yes it prints the plan and writes nothing. Re-running is safe: files are only
 // rewritten when their content differs, the config is never overwritten.
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve, posix, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -115,6 +115,32 @@ function listFiles(dir, base = "") {
     if (!base && n === "test") return [];
     return statSync(join(dir, n)).isDirectory() ? listFiles(join(dir, n), rel) : [rel];
   });
+}
+
+// maestro patch (not upstream): never write through a symbolic link. A repository can commit
+// any install target (`.viewsonic-ui/checks` above all) as a link to a folder outside the
+// project, and following it would overwrite files there and delete the rest. These return
+// the first link found, or null.
+function linkOnPath(base, rel) {
+  let p = base;
+  for (const part of rel.split("/")) {
+    if (!part) continue;
+    p = join(p, part);
+    let st;
+    try { st = lstatSync(p); } catch { return null; } // missing: nothing below it exists yet
+    if (st.isSymbolicLink()) return p;
+  }
+  return null;
+}
+function linkUnder(dir) {
+  let entries;
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return null; }
+  for (const e of entries) {
+    const p = join(dir, e.name);
+    if (e.isSymbolicLink()) return p;
+    if (e.isDirectory()) { const found = linkUnder(p); if (found) return found; }
+  }
+  return null;
 }
 
 /** Writes `content` unless the file already holds it. Returns "written" | "unchanged". */
@@ -244,6 +270,15 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   const { pm, lock } = detectPackageManager(root, top);
 
   const eslint = wireEslint(root);
+
+  // maestro patch: refuse before planning or writing anything (see linkOnPath).
+  const targets = [[root, VENDOR], [root, HOOK], [root, ".gitattributes"], [root, CONFIG], [top, WORKFLOW]];
+  if (eslint.file) targets.push([root, eslint.file]);
+  const link = targets.map(([base, target]) => linkOnPath(base, target)).find(Boolean) ?? linkUnder(join(root, VENDOR));
+  if (link) {
+    log(`Refusing to install: ${link} is a symbolic link, so writing there could change files outside this project. Replace it with a real folder or file, then run setup again.`);
+    return { lines: out, exitCode: 1 };
+  }
 
   if (!yes) {
     log(`Plan for ${root} (nothing is written until you re-run with --yes):`);

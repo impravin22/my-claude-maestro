@@ -9,7 +9,7 @@ git clone https://github.com/impravin22/my-claude-maestro.git
 cd my-claude-maestro
 ```
 
-There is no build step. The plugin payload is `skills/maestro/` + `hooks/` + the two manifests in `.claude-plugin/`. To try your changes locally, add the repo as a local marketplace:
+There is no build step. The plugin payload is `skills/maestro/`, the bundled `skills/elattar-uiux-design/`, `commands/`, `hooks/` and the two manifests in `.claude-plugin/`. To try your changes locally, add the repo as a local marketplace:
 
 ```
 /plugin marketplace add /path/to/my-claude-maestro
@@ -40,12 +40,12 @@ The bundled `skills/elattar-uiux-design/` skill has its own `node:test` suite (N
 npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3
 node --test \
   --test-skip-pattern="^patterns: skeleton code passes the static checks$" \
-  --test-skip-pattern="^on-edit hook \(with the project's TypeScript\)$" \
+  --test-skip-pattern="^an unknown prop name gets a nearest-name suggestion$" \
   --test-skip-pattern="^probe with only --fg is a usage error$" \
   "skills/elattar-uiux-design/checks/test/*.test.mjs"
 ```
 
-The three skipped suites need the upstream design-system repo's own source tree; see `docs/2026-10-15-viewsonic-uiux-bundle.md` before editing anything under `skills/elattar-uiux-design/`, which is vendored.
+The three skip patterns (one suite, two single tests) cover tests that need the upstream design-system repo's own source tree; see `docs/2026-10-15-viewsonic-uiux-bundle.md` before editing anything under `skills/elattar-uiux-design/`, which is vendored.
 
 Lint with:
 
