@@ -99,6 +99,8 @@ describe("plugin shape", () => {
       assert.match(fm[1], /^description:\s*\S+/m, `${f}: no description`);
       assert.ok(text.includes("${CLAUDE_PLUGIN_ROOT}/skills/elattar-uiux-design/checks/run.mjs"), `${f}: does not run run.mjs via CLAUDE_PLUGIN_ROOT`);
       if (f !== "uiux-setup.md") assert.match(text, /Do not change any file/, `${f}: must say it changes no file`);
+      // With no tools pre-approved, this line and the permission prompt are the only gates before `install --yes`.
+      else assert.match(text, /Only after the user says yes, run it again with `--yes`\./, `${f}: must wait for a yes before --yes`);
     }
   });
 });

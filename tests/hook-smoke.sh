@@ -315,13 +315,15 @@ fi
 
 # U10. Project-derived text is sanitised the same way in any locale: anything
 # outside printable ASCII (an ANSI escape, a carriage return and a right-to-left
-# override here) is removed, each line is capped at 300 characters, and only the
+# override here, and a printable accented letter, which only the C locale pin
+# removes on every platform) is removed, each line is capped at 300 characters, and only the
 # first 20 lines are kept, with a count of the rest.
 ESC="$(printf '\033')"
 CR="$(printf '\r')"
 RLO="$(printf '\342\200\256')"
 LONG="$(printf '%0400d' 0)"
-MANY="f.tsx:1 ${ESC}[31mred${ESC}[0m${CR} ${RLO}key
+EACUTE="$(printf '\303\251')"
+MANY="f.tsx:1 ${ESC}[31mred${ESC}[0m${CR} ${RLO}${EACUTE}key
 f.tsx:2 $LONG"
 for i in $(seq 3 25); do MANY="$MANY
 f.tsx:$i bad"; done
@@ -442,6 +444,32 @@ TSX_EOF
     PASS=$((PASS + 1))
   else
     echo "FAIL: real check did not flag the undefined variant (rc=$RC err=${ERR:0:200})"
+    FAIL=$((FAIL + 1))
+  fi
+
+  # U12b. The wrapper passes the chosen level to the check unchanged: with a
+  # planted typescript in the same project, "on" never loads it and still
+  # reports the finding, and "full" does load it (the positive control).
+  MARKER="$WORK_DIR/project-code-ran"
+  mkdir -p "$PROJ/node_modules/typescript"
+  printf '{"name":"typescript","version":"5.9.3","main":"index.js"}\n' > "$PROJ/node_modules/typescript/package.json"
+  printf 'require("fs").writeFileSync(%s, "1"); module.exports = {};\n' "\"$MARKER\"" > "$PROJ/node_modules/typescript/index.js"
+  rm -f "$MARKER"
+  run_uiux "$REPO_ROOT" "$PATH" on "$PAGE_INPUT"
+  if [ "$RC" -eq 2 ] && [ ! -e "$MARKER" ]; then
+    echo "PASS: level on never loads the project's typescript"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: level on loaded project code or lost the finding (rc=$RC)"
+    FAIL=$((FAIL + 1))
+  fi
+  rm -f "$MARKER"
+  run_uiux "$REPO_ROOT" "$PATH" full "$PAGE_INPUT"
+  if [ -e "$MARKER" ]; then
+    echo "PASS: level full loads the project's typescript (positive control)"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: level full did not reach the check (rc=$RC)"
     FAIL=$((FAIL + 1))
   fi
 else
