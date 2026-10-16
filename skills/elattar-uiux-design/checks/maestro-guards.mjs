@@ -40,6 +40,12 @@ function homeFolder() {
   try { const h = homedir(); return h && isAbsolute(h) ? resolve(h) : null; } catch { return null; }
 }
 
+/** Is `p` the home folder or one of its ancestors? */
+export function isHomeOrAbove(p) {
+  const home = homeFolder();
+  return Boolean(home) && within(resolve(p), home);
+}
+
 /**
  * The nearest folder at or above `dir` holding `.git`, or null. The search stops below the home folder, so a home
  * kept in git (dotfiles) never becomes a project's repository.
@@ -78,7 +84,8 @@ export function linkOutOfRepo(path) {
     try { st = lstatSync(p); } catch { continue; }
     if (!st.isSymbolicLink()) continue;
     const repo = repoAt(dirname(p));
-    if (repo && !isInside(repo, p)) return `${p} is a symbolic link inside the repository at ${repo} that leads out of it`;
+    // a home kept in git says nothing about where a link in it (a linked ~/projects) may lead
+    if (repo && !isHomeOrAbove(repo) && !isInside(repo, p)) return `${p} is a symbolic link inside the repository at ${repo} that leads out of it`;
   }
   return null;
 }
@@ -162,12 +169,12 @@ export function cacheDir() {
  * at is never written. Without `mode`, a regular file already there keeps its permissions, and a new one gets the
  * default (0666 less the umask).
  */
-export function replaceFile(path, data, mode) {
+export function replaceFile(path, data, mode, { replaceReadOnly = false } = {}) {
   let keep = null;
   try {
     const st = lstatSync(path);
-    // A read-only file stays read-only, as a plain write would have failed on it.
-    if (st.isFile() && !(st.mode & 0o200)) throw Object.assign(new Error(`${path} is read-only`), { code: "EACCES" });
+    // A read-only file stays read-only, as a plain write would have failed on it (unless it is ours to refresh).
+    if (st.isFile() && !(st.mode & 0o200) && !replaceReadOnly) throw Object.assign(new Error(`${path} is read-only`), { code: "EACCES" });
     if (st.isFile() && mode === undefined) keep = st.mode & 0o777;
   } catch (e) { if (e?.code === "EACCES") throw e; /* new file */ }
   const tmp = `${path}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
@@ -226,6 +233,11 @@ export function linkUnder(dir) {
   return null;
 }
 
+/** What is wrong with overwriting `path`, or null: a regular file there must be writable. */
+export function readOnly(path) {
+  try { const st = lstatSync(path); return st.isFile() && !(st.mode & 0o200) ? `${path} is read-only` : null; } catch { return null; }
+}
+
 /** What is wrong with reading `path` (following links), or null: it must be missing or a regular file. */
 export function notRegular(path) {
   try { return statSync(path).isFile() ? null : `${path} is not a regular file`; } catch (e) {
@@ -235,8 +247,11 @@ export function notRegular(path) {
 
 /* ─────────────── strings that reach a URL, a shell line or a workflow ─────────────── */
 
-// Control characters (C0, DEL, C1) and the Unicode line and paragraph separators: anything that can end a line.
-const BREAKS = /[\x00-\x1f\x7f-\x9f\u2028\u2029]/;
+// Control and format characters (C0, DEL, C1, bidi and zero-width marks, tag characters, the BOM), the Unicode line
+// and paragraph separators, variation selectors and the invisible Hangul fillers: anything that can end a line, or
+// hide or reorder text.
+const INVISIBLE = "\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\u034f\\u115f\\u1160\\u3164\\uffa0\\ufe00-\\ufe0f\\u{e0100}-\\u{e01ef}";
+const BREAKS = new RegExp(`[${INVISIBLE}]`, "u");
 
 /**
  * What is wrong with `value` as a base URL, or null. Only http and https, no credentials, no line breaks. The
@@ -246,7 +261,7 @@ const BREAKS = /[\x00-\x1f\x7f-\x9f\u2028\u2029]/;
  */
 export function baseUrlProblem(value) {
   if (typeof value !== "string" || value === "") return "must be a non-empty string";
-  if (BREAKS.test(value)) return "must not hold a line break or another control character";
+  if (BREAKS.test(value)) return "must not hold a line break, a control character or an invisible character";
   if (value.includes("${{")) return "must not hold a GitHub Actions expression (${{ ... }})";
   let url;
   try { url = new URL(value); } catch { return "must be a full URL such as http://localhost:3000"; }
@@ -259,7 +274,7 @@ export function baseUrlProblem(value) {
 export function routeProblem(value) {
   if (typeof value !== "string") return "must be a string";
   if (!value.startsWith("/") || value.startsWith("//")) return "must start with a single /, a path on the app (not a host)";
-  if (BREAKS.test(value) || /\s/.test(value) || value.includes("\\")) return "must not hold spaces, backslashes or control characters";
+  if (BREAKS.test(value) || /\s/.test(value) || value.includes("\\")) return "must not hold spaces, backslashes, control or invisible characters";
   return null;
 }
 
@@ -268,11 +283,29 @@ export const LOCAL_HOST = /^(?:localhost|127\.0\.0\.1|\[::1\]|::1|[^/]*\.localho
 export const isLocalBase = (base) => { try { return LOCAL_HOST.test(new URL(base).hostname); } catch { return false; } };
 
 /**
- * One line, however its quoted names were written: control characters, line separators, and the invisible bidi and
- * zero-width marks that can make a line read as something else, become a space. Other Unicode (a path like
- * app/café.tsx) is kept; maestro's hook wrapper narrows to ASCII on its own.
+ * One line, however its quoted names were written: control, format and invisible characters (see INVISIBLE), which
+ * can end a line or hide or reorder text, become a space. Other Unicode (a path like app/café.tsx) is kept;
+ * maestro's hook wrapper narrows to ASCII on its own.
  */
-export const oneLine = (s) => String(s).replace(/[\x00-\x1f\x7f-\x9f\u2028\u2029\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]+/g, " ");
+const INVISIBLE_RUNS = new RegExp(`[${INVISIBLE}]+`, "gu");
+export const oneLine = (s) => String(s).replace(INVISIBLE_RUNS, " ");
+
+/**
+ * `text` without its block comments, in one pass (the lazy `/\/\*[\s\S]*?\*\//g` was quadratic on an unterminated
+ * one). An unterminated comment is left as it is, as that pattern left it. `blank` keeps the comment's newlines and
+ * turns the rest into spaces, so line numbers still match.
+ */
+export function stripBlockComments(text, blank = false) {
+  let out = "";
+  let i = 0;
+  for (;;) {
+    const start = text.indexOf("/*", i);
+    const end = start < 0 ? -1 : text.indexOf("*/", start + 2);
+    if (end < 0) return out + text.slice(i);
+    out += text.slice(i, start) + (blank ? text.slice(start, end + 2).replace(/[^\n]/g, " ") : "");
+    i = end + 2;
+  }
+}
 
 /** `s` cut to `max` characters, marked when cut, so a hostile name cannot make one message huge. */
 export const shorten = (s, max) => { const t = String(s); return t.length > max ? `${t.slice(0, max)}...` : t; };

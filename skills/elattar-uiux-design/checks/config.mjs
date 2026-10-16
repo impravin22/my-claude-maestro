@@ -2,7 +2,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve, relative, isAbsolute } from "node:path";
-import { baseUrlProblem, boundaryOf, isInside, readSmallFile, routeProblem } from "./maestro-guards.mjs";
+import { baseUrlProblem, boundaryOf, isInside, notRegular, readSmallFile, routeProblem, stripBlockComments } from "./maestro-guards.mjs";
 
 const posix = (p) => p.split("\\").join("/");
 
@@ -46,7 +46,7 @@ function collectStyles(root, entry, boundary = root) {
     if (raw === null) return;
     seen.add(rel);
     out.push(rel);
-    const text = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+    const text = stripBlockComments(raw); // maestro patch: one pass (the lazy pattern was quadratic)
     for (const m of text.matchAll(/@import\s+(?:url\(\s*)?["']([^"']+)["']/g)) {
       const spec = m[1];
       if (!/^\.{0,2}\//.test(spec) && !spec.endsWith(".css")) continue;
@@ -120,6 +120,8 @@ function pathProblem(config, root) {
     if (typeof p !== "string") return `sources, styles, componentCss and uiDir hold paths (strings); got ${JSON.stringify(p)}`;
     if (!isInside(boundary, join(root, p))) return `${JSON.stringify(p)} leads outside the repository; sources, styles, componentCss and uiDir must stay inside it`;
   }
+  // a stylesheet the checks read must be a regular file (a FIFO would hang the read)
+  for (const p of [...(config.styles ?? []), ...(config.componentCss ?? [])]) { const bad = notRegular(join(root, p)); if (bad) return bad; }
   return null;
 }
 
@@ -155,6 +157,9 @@ function validateOverride(over, name, root = null) {
 export async function loadConfig(cwd = process.cwd(), options = {}) {
   const root = findRoot(cwd);
   const componentsPath = join(root, "components.json");
+  // maestro patch: the project's own files are read only from inside the repository, never through a link out.
+  const insideRepo = (p) => { if (!isInside(boundaryOf(root), p)) throw new Error(`viewsonic-ui: ${JSON.stringify(p)} leads outside the repository`); };
+  if (existsSync(componentsPath)) insideRepo(componentsPath);
   if (!existsSync(componentsPath)) {
     throw new Error("Not a shadcn project - run npx shadcn@latest init first");
   }
@@ -191,6 +196,7 @@ export async function loadConfig(cwd = process.cwd(), options = {}) {
     ? (isAbsolute(options.configPath) ? options.configPath : resolve(options.configPath))
     : join(root, "viewsonic-ui.config.json");
   if (existsSync(overridePath)) {
+    if (!options.configPath) insideRepo(overridePath); // a --config file is the user's own choice
     const over = readJson(overridePath);
     validateOverride(over, "viewsonic-ui.config.json", root);
     Object.assign(config, over);

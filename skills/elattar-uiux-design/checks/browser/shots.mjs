@@ -1,15 +1,12 @@
 // Screenshots for the agent's review: light/dark x phone/desktop. Not a check: it never fails a build.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { linkOnPath, linkUnder, replaceFile } from "../maestro-guards.mjs";
+import { linkOnPath, linkUnder, readSmallFile, replaceFile } from "../maestro-guards.mjs";
 import { routeSlug, setTheme, THEMES, unreachableFinding, VIEWPORTS, waitForReady, withPages } from "./lib.mjs";
 
 /** A page taller than this many viewports is sliced only this far: past it, the full-page file is the record. */
 export const MAX_SLICES = 8;
 
-/** Returns { files, slices, errors } or { skipped }. Beside each full-page PNG that is taller than one viewport, up to
- *  MAX_SLICES viewport-tall slices `<route-slug>-<theme>-<device>-<n>.png`: a tall page downscales too far to judge whole.
- *  Default output: <root>/.viewsonic-ui/shots/<route-slug>/<theme>-<viewport>.png */
 /**
  * maestro patch (not upstream): what is wrong with writing the screenshots, or null. The default folder is in the
  * repository, so neither it nor any route folder below it may be a committed link (or hold one), and a route whose
@@ -19,13 +16,16 @@ function shotsProblem(config, outRoot, routes, isDefault) {
   if (isDefault) { const p = linkOnPath(config.root, ".viewsonic-ui/shots", "dir"); if (p) return p; }
   for (const route of routes) {
     const slug = routeSlug(route);
-    if (slug === "." || slug === "..") return `the route ${JSON.stringify(route)} names no folder of its own`;
+    if (slug === "." || slug === ".." || slug === ".gitignore") return `the route ${JSON.stringify(route)} names no folder of its own`;
     const p = linkOnPath(outRoot, slug, "dir") ?? linkUnder(join(outRoot, slug));
     if (p) return p;
   }
   return null;
 }
 
+/** Returns { files, slices, errors } or { skipped }. Beside each full-page PNG that is taller than one viewport, up to
+ *  MAX_SLICES viewport-tall slices `<route-slug>-<theme>-<device>-<n>.png`: a tall page downscales too far to judge whole.
+ *  Default output: <root>/.viewsonic-ui/shots/<route-slug>/<theme>-<viewport>.png */
 export async function shots(config, { routes, base, out, allowRemote = false, onFile = () => {} } = {}) {
   const outRoot = out ? resolve(out) : join(config.root, ".viewsonic-ui", "shots");
   const problem = shotsProblem(config, outRoot, routes, !out);
@@ -35,8 +35,11 @@ export async function shots(config, { routes, base, out, allowRemote = false, on
     // accident (a team that commits baselines passes --out). Made only once the browser is up.
     if (!out) {
       mkdirSync(outRoot, { recursive: true });
-      try { writeFileSync(join(outRoot, ".gitignore"), "*\n", { flag: "wx" }); } catch (e) {
-        if (e?.code !== "EEXIST") return { skipped: `could not write ${join(outRoot, ".gitignore")} (${e?.code ?? "error"}), so git would not ignore the screenshots; pass --out <dir>` };
+      const ignore = join(outRoot, ".gitignore");
+      try { writeFileSync(ignore, "*\n", { flag: "wx" }); } catch (e) {
+        if (e?.code !== "EEXIST") return { skipped: `could not write ${ignore} (${e?.code ?? "error"}), so git would not ignore the screenshots; pass --out <dir>` };
+        // one the repository committed must still ignore everything (a `!*` would let signed-in screenshots be added)
+        if (readSmallFile(ignore)?.trim() !== "*") return { skipped: `${ignore} does not hold just "*", so git might not ignore the screenshots; remove it, or pass --out <dir>` };
       }
     }
     const files = [];
@@ -74,6 +77,11 @@ export async function shots(config, { routes, base, out, allowRemote = false, on
                 onFile(slice);
               }
             }
+          } catch (e) {
+            // maestro patch: a folder or file in the way is reported for its route, not thrown out of the run
+            errors.push(`${route} could not be captured (${e?.code ?? String(e?.message ?? e).split("\n")[0]})`);
+            broken = true;
+            break;
           } finally {
             await page.close();
           }

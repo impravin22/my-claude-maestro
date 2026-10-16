@@ -17,6 +17,7 @@
 // and at most MAX_FINDINGS of them; and the "told so once" marker lives in the user's private cache folder, created
 // exclusively, never in the shared OS temp folder.
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,7 +29,8 @@ const SCRIPT = /\.(?:tsx|jsx|ts|js)$/;
 const DEADLINE_MS = 20000; // below the 30 s hook timeout in maestro's hooks.json
 const MAX_FINDINGS = 50;
 const MAX_OUTPUT_BYTES = 256 * 1024;
-const CHILD = "MAESTRO_UIUX_ON_EDIT_CHILD";
+// Marks the supervised child on its command line, which a project cannot set (an environment variable it could).
+const SUPERVISED = "--maestro-supervised";
 const posix = (p) => p.split("\\").join("/");
 
 function projectRootOf(file) {
@@ -111,10 +113,13 @@ function regexFallback(src, tables) {
     }
   }
   const out = [];
+  let line = 1;
+  let lineAt = 0;
   for (const tag of src.matchAll(/<([A-Z]\w*)\b((?:[^<>{}]|\{[^{}]*\})*)>/g)) {
     const component = local.get(tag[1]);
     if (!component) continue;
-    const line = src.slice(0, tag.index).split("\n").length;
+    // maestro patch (not upstream): lines counted on from the previous tag, not from the top for every tag.
+    for (; lineAt < tag.index; lineAt++) if (src.charCodeAt(lineAt) === 10) line++;
     for (const a of tag[2].matchAll(/(\w+)=(?:"([^"]*)"|\{\s*"([^"]*)"\s*\})/g)) {
       const message = invalidVariantMessage(tables.cva, component, a[1], a[2] ?? a[3]);
       if (message) out.push({ line, message });
@@ -133,13 +138,25 @@ async function supervise() {
   try { input = await readStdin(); } catch { return 0; }
   const asked = Number(process.env.MAESTRO_UIUX_ON_EDIT_DEADLINE_MS);
   const timeout = asked > 0 ? Math.min(asked, DEADLINE_MS) : DEADLINE_MS;
-  const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], {
-    input, encoding: "utf8", timeout, maxBuffer: MAX_OUTPUT_BYTES, env: { ...process.env, [CHILD]: "1" },
+  const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), SUPERVISED], {
+    input, encoding: "utf8", timeout, maxBuffer: MAX_OUTPUT_BYTES,
   });
-  if (r.error || r.status === null) return 0; // killed at the deadline, output over the bound, or no node: silent
+  if (r.error?.code === "ETIMEDOUT") { timedOutNotice(input); return 0; }
+  if (r.error || r.status === null) return 0; // output over the bound, or no node: silent
   process.stdout.write(r.stdout);
   process.stderr.write(r.stderr);
   return r.status;
 }
 
-process.exitCode = process.env[CHILD] === "1" ? await main().catch(() => 0) : await supervise().catch(() => 0);
+/** Once per project, tell the agent that the check was stopped, so a check that never finishes is not mistaken for a pass. */
+function timedOutNotice(input) {
+  let cwd = "";
+  try { cwd = String(JSON.parse(input)?.cwd ?? ""); } catch { /* no project */ }
+  const dir = cacheDir();
+  if (!dir) return;
+  const marker = join(dir, `viewsonic-on-edit-timeout-${createHash("sha1").update(cwd).digest("hex").slice(0, 12)}`);
+  try { writeFileSync(marker, "1", { flag: "wx", mode: 0o600 }); } catch { return; } // already told, or cannot record it
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: `elattar-uiux-design: the after-edit check ran past ${DEADLINE_MS / 1000} s in this project and was stopped, so its edits are not being checked; run the project's lint (viewsonic/valid-variant) and type check instead.` } }));
+}
+
+process.exitCode = process.argv.includes(SUPERVISED) ? await main().catch(() => 0) : await supervise().catch(() => 0);

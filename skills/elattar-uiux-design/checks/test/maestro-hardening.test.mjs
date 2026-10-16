@@ -11,12 +11,12 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   baseUrlProblem, boundaryOf, cacheDir, shortList, isInside, linkOnPath, linkOutOfRepo, MAX_FILE_BYTES, MAX_WALK_FILES,
-  replaceFile, routeProblem, walkFiles,
+  oneLine, replaceFile, routeProblem, stripBlockComments, walkFiles,
 } from "../maestro-guards.mjs";
 import { invalidVariantMessage, loadVariants, uiDirFor, variantsFromSource } from "../variants.mjs";
 import { loadPropTable } from "../props.mjs";
 import { loadConfig } from "../config.mjs";
-import { walk } from "../lib.mjs";
+import { stripComments, walk } from "../lib.mjs";
 import { BUTTON, cleanup, edit, HEAD, ON, put, run, scratch, uiProject, victimIn, victimIntact } from "./maestro-helpers.mjs";
 
 after(cleanup);
@@ -49,14 +49,14 @@ describe("guards: unit", () => {
     for (const ok of ["http://localhost:3000", "https://staging.example.com/app", "http://localhost:3000/a b;echo hi", "http://127.0.0.1:1/x?y='z'", "http://münchen.test:3000"]) {
       assert.equal(baseUrlProblem(ok), null, ok);
     }
-    for (const bad of ["http://localhost:3000\n      - run: echo injected-step", "http://x/\r", "http://x/\u0085", "http://x/ ", "http://x/${{ github.event.pull_request.title }}", "javascript:void(0)", "file:///tmp/x", "http://u:p@localhost:3000", "localhost:3000", "", 42]) {
+    for (const bad of ["http://localhost:3000\n      - run: echo injected-step", "http://x/\r", "http://x/\u0085", "http://x/\u2028", "http://x/${{ github.event.pull_request.title }}", "javascript:void(0)", "file:///tmp/x", "http://u:p@localhost:3000", "localhost:3000", "", 42]) {
       assert.notEqual(baseUrlProblem(bad), null, JSON.stringify(bad));
     }
   });
 
   test("routeProblem: a single leading slash; no space, backslash or control character; any script", () => {
     for (const ok of ["/", "/settings?state=empty", "/a#b", "/@scope/page", "/café", "/日本語"]) assert.equal(routeProblem(ok), null, ok);
-    for (const bad of ["@evil.example/x", "//evil.example/x", "settings", "/a b", "/a\nb", "/a\\b", "/a b", 7]) assert.notEqual(routeProblem(bad), null, JSON.stringify(bad));
+    for (const bad of ["@evil.example/x", "//evil.example/x", "settings", "/a b", "/a\nb", "/a\\b", "/a\u2028b", 7]) assert.notEqual(routeProblem(bad), null, JSON.stringify(bad));
   });
 
   test("walkFiles skips links, oversized files and node_modules, survives a dangling link, and stops at every cap", () => {
@@ -206,11 +206,14 @@ describe("M3: the ui folder stays inside the repository", () => {
   });
 
   test("a crafted file cannot make the cva scan quadratic", () => {
-    const src = "cva(" + "const a:".repeat(40000);
-    const start = Date.now();
-    variantsFromSource(src);
-    const ms = Date.now() - start;
-    assert.ok(ms < 2000, `${ms} ms for ${src.length} characters (the unbounded pattern took about 5 s)`);
+    for (const src of ["cva(" + "const a:".repeat(40000), "const a=cva(".repeat(80000), "const a=cva({variants:{".repeat(40000)]) {
+      const start = Date.now();
+      variantsFromSource(src);
+      const ms = Date.now() - start;
+      assert.ok(ms < 2000, `${ms} ms for ${src.length} characters of ${JSON.stringify(src.slice(0, 24))} (quadratic took seconds to minutes)`);
+    }
+    const two = `const aStyles = cva("x", { variants: { size: { sm: "" } } });\nconst bStyles = cva("y", { variants: { tone: { calm: "" } } });\n`;
+    assert.deepEqual(variantsFromSource(two).map((v) => Object.keys(v.props)[0]), ["size", "tone"], "separate calls are all still read");
   });
 });
 
@@ -314,11 +317,25 @@ describe("after-edit findings", () => {
     assert.ok(r.err.length < 100000, `${r.err.length} characters`);
   });
 
-  test("the check is killed at its deadline and says nothing", () => {
+  test("the check is killed at its deadline: exit 0, no finding, and the agent is told once per project", () => {
     const root = uiProject(scratch());
-    const r = edit(root, "app/a.tsx", HEAD + `export const A = () => <Button size="md" />;\n`, { ...ON, MAESTRO_UIUX_ON_EDIT_DEADLINE_MS: "1" });
-    assert.equal(r.code, 0, r.err);
-    assert.equal(r.err, "");
+    const xdg = scratch("maestro-xdg-");
+    const env = { ...ON, MAESTRO_UIUX_ON_EDIT_DEADLINE_MS: "1", XDG_CACHE_HOME: xdg };
+    const first = edit(root, "app/a.tsx", HEAD + `export const A = () => <Button size="md" />;\n`, env);
+    assert.equal(first.code, 0, first.err);
+    assert.equal(first.err, "");
+    assert.match(JSON.parse(first.out).hookSpecificOutput.additionalContext, /ran past 20 s in this project and was stopped/);
+    assert.equal(edit(root, "app/a.tsx", null, env).out, "", "told once");
+    const spoofed = edit(root, "app/a.tsx", null, { ...env, MAESTRO_UIUX_ON_EDIT_CHILD: "1" });
+    assert.equal(spoofed.code, 0, "an environment variable cannot switch the deadline off");
+  });
+
+  test("a long file of tags is counted in one pass, with the right line number", () => {
+    const root = uiProject(scratch());
+    const filler = "<Button />\n".repeat(80000);
+    const r = edit(root, "app/long.tsx", HEAD + filler + `<Button size="md" />\n`, ON);
+    assert.equal(r.code, 2, r.err.slice(0, 300));
+    assert.match(r.err, /^app\/long\.tsx:80002 Button has no size "md"/);
   });
 });
 
@@ -399,5 +416,56 @@ describe("run.mjs output and arguments", () => {
   test("an unknown variant message is unchanged for an ordinary component", () => {
     const table = new Map([["Button", new Map([["size", ["sm", "default", "lg"]]])]]);
     assert.equal(invalidVariantMessage(table, "Button", "size", "md"), `Button has no size "md". Use one of: sm, default, lg.`);
+  });
+});
+
+describe("round two: invisible characters, linear comment stripping, home links", () => {
+  test("invisible and format characters are refused in a base URL or route, and stripped from a finding", () => {
+    for (const bad of ["http://local\u200bhost:3000", "http://localhost:3000/\u202e\u2066", "http://x/\u{e0049}\u{e0047}"]) assert.notEqual(baseUrlProblem(bad), null, JSON.stringify(bad));
+    for (const bad of ["/a\u200bb", "/\u{e0049}", "/a\u00adb"]) assert.notEqual(routeProblem(bad), null, JSON.stringify(bad));
+    assert.equal(oneLine("a\u{e0049}\u{e0047}b\u00adc\u2060d\ufe0fe\u3164f café"), "a b c d e f café");
+  });
+
+  test("block comments are stripped in one pass, exactly as the old pattern stripped them", () => {
+    const samples = ["a/* x */b/* y\nz */c /* open", "/*/ */x", "no comments", "/* a /* b */ c */", "x/**/y"];
+    for (const t of samples) {
+      assert.equal(stripBlockComments(t), t.replace(/\/\*[\s\S]*?\*\//g, ""), JSON.stringify(t));
+      assert.equal(stripComments(t), t.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " ")).replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length)), JSON.stringify(t));
+    }
+    const hostile = "/* ".repeat(200000);
+    const start = Date.now();
+    stripBlockComments(hostile);
+    stripComments(hostile);
+    assert.ok(Date.now() - start < 1000, "an unterminated comment repeated is linear");
+  });
+
+  test("a link directly in a home kept in git is not judged", () => withEnv({ HOME: scratch("maestro-home-") }, () => {
+    const home = process.env.HOME;
+    mkdirSync(join(home, ".git"));
+    const volume = scratch("maestro-volume-");
+    mkdirSync(join(volume, "app"));
+    symlinkSync(volume, join(home, "projects"));
+    assert.equal(linkOutOfRepo(join(home, "projects", "app")), null);
+  }));
+
+  test("a FIFO stylesheet or a components.json linked out of the repository is refused, not read", async () => {
+    const d = scratch();
+    const root = uiProject(d);
+    assert.equal(spawnSync("mkfifo", [join(root, "app", "fifo.css")]).status, 0, "mkfifo");
+    writeFileSync(join(root, "viewsonic-ui.config.json"), JSON.stringify({ styles: ["app/fifo.css"] }));
+    await assert.rejects(loadConfig(root), /is not a regular file/);
+    rmSync(join(root, "viewsonic-ui.config.json"));
+    put(d, { "outside/components.json": JSON.stringify({ aliases: { ui: "@/components/ui" } }) });
+    rmSync(join(root, "components.json"));
+    symlinkSync(join(d, "outside", "components.json"), join(root, "components.json"));
+    await assert.rejects(loadConfig(root), /components\.json" leads outside the repository/);
+  });
+
+  test("run.mjs output carries no invisible characters from a file name", () => {
+    const root = uiProject(scratch());
+    put(root, { "app/x\u202e\u{e0049}y.tsx": `export const c = "#ff0000";\n` });
+    const r = run(root, ["tokens", "--all", "--cwd", root]);
+    assert.ok(r.out.includes("BAD "), r.out + r.err);
+    assert.doesNotMatch(r.out, /[\u202e\u{e0049}]/u);
   });
 });

@@ -4,7 +4,7 @@
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { cpSync, existsSync, linkSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, linkSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { reachable, withPages } from "../browser/lib.mjs";
@@ -15,12 +15,13 @@ after(cleanup);
 
 const listen = (handler) => new Promise((done) => { const s = createServer(handler); s.listen(0, "127.0.0.1", () => done(s)); });
 
-// Enough of Playwright for shots(): every page answers 200 at the URL it was sent to, is 100 px tall, and a
-// screenshot is the bytes "PNG". Like the real one, a screenshot with a `path` writes there, through any link.
+// Enough of Playwright for shots(): every page answers 200 at the URL it was sent to, is 2000 px tall (so phone and
+// desktop both get slices), and a screenshot is the bytes "PNG". Like the real one, a screenshot with a `path` writes
+// there, through any link.
 const STUB = `const fs = require("node:fs");
 const calls = (globalThis.__maestroShots ??= []);
 const page = () => ({
-  addInitScript: async () => {}, waitForLoadState: async () => {}, waitForFunction: async () => {}, evaluate: async () => 100,
+  addInitScript: async () => {}, waitForLoadState: async () => {}, waitForFunction: async () => {}, evaluate: async () => 2000,
   emulateMedia: async () => {}, addStyleTag: async () => {}, waitForTimeout: async () => {}, close: async () => {},
   goto: async (url) => ({ ok: () => true, url: () => url, status: () => 200 }),
   screenshot: async (o = {}) => { calls.push(o); if (o.path) fs.writeFileSync(o.path, "PNG"); return Buffer.from("PNG"); },
@@ -73,8 +74,11 @@ describe("shots write only inside their own folder", () => {
     const r = await shots({ root, baseUrl: base }, { routes: ["/"], base });
     assert.equal(r.skipped, undefined, r.skipped);
     assert.equal(r.files.length, 4);
+    assert.ok(r.slices.length > 0, "the slice branch ran");
     assert.equal(readFileSync(join(root, ".viewsonic-ui", "shots", "root", "light-phone.png"), "utf8"), "PNG");
+    assert.equal(readFileSync(r.slices[0], "utf8"), "PNG");
     assert.equal(readFileSync(join(root, ".viewsonic-ui", "shots", ".gitignore"), "utf8"), "*\n");
+    assert.equal(globalThis.__maestroShots.length, r.files.length + r.slices.length, "every screenshot went through the stub");
     assert.equal(globalThis.__maestroShots.some((o) => "path" in o), false, "Playwright never writes the file itself");
   }));
 
@@ -97,9 +101,21 @@ describe("shots write only inside their own folder", () => {
     victimIntact(victim);
   }));
 
-  test("a route whose folder would be . or .. is refused", async () => {
+  test("a committed .gitignore that does not ignore everything is refused, and a folder in a file's way is reported", () => withApp(async (base) => {
     const root = uiProject(scratch());
-    for (const route of ["/..", "/."]) {
+    withStubPlaywright(root);
+    put(root, { ".viewsonic-ui/shots/.gitignore": "!*\n" });
+    const r = await shots({ root, baseUrl: base }, { routes: ["/"], base });
+    assert.match(r.skipped ?? "", /does not hold just "\*"/);
+    writeFileSync(join(root, ".viewsonic-ui", "shots", ".gitignore"), "*\n");
+    put(root, { ".viewsonic-ui/shots/root/light-phone.png/blocker": "" });
+    const blocked = await shots({ root, baseUrl: base }, { routes: ["/"], base });
+    assert.match(blocked.errors.join("\n"), /^\/ could not be captured/m);
+  }));
+
+  test("a route whose folder would be ., .. or the .gitignore is refused", async () => {
+    const root = uiProject(scratch());
+    for (const route of ["/..", "/.", "/.gitignore"]) {
       const r = await shots({ root, baseUrl: "http://127.0.0.1:9" }, { routes: [route], base: "http://127.0.0.1:9" });
       assert.match(r.skipped ?? "", /names no folder of its own/, route);
     }
@@ -175,6 +191,52 @@ describe("installer: inputs and residual paths", () => {
     }
     victimIntact(victim);
     assert.equal(existsSync(join(otherRepo, ".githooks")), false, "nothing written into the other repository");
+  });
+
+  test("a project folder inside .git is refused, so git is never pointed at a committed hook", () => {
+    const { project } = sandbox();
+    put(project, { ".githooks/pre-commit": "#!/bin/sh\necho committed-hook\n" });
+    symlinkSync(join(project, ".git"), join(project, "inner"));
+    for (const at of [join(project, ".git"), join(project, ".git", "hooks"), join(project, "inner")]) {
+      const r = install(project, ["--yes", "--cwd", at]);
+      assert.equal(r.code, 1, `${at}: ${r.out}${r.err}`);
+      assert.match(r.out, /inside a \.git folder|not in a git work tree/, at);
+    }
+    assert.equal(spawnSync("git", ["config", "--get", "core.hooksPath"], { cwd: project, encoding: "utf8" }).stdout, "");
+  });
+
+  test("the home folder itself is refused", () => {
+    const { project } = sandbox();
+    const r = install(project, ["--yes", "--cwd", project], { env: { ...process.env, HOME: project } });
+    assert.equal(r.code, 1, r.out + r.err);
+    assert.match(r.out, /is your home folder/);
+  });
+
+  test("a read-only target is refused before anything is written; a read-only vendored copy is refreshed", () => {
+    const { project } = sandbox();
+    assert.equal(install(project, ["--yes", "--cwd", project]).code, 0);
+    const vendored = join(project, ".viewsonic-ui", "checks", "config.mjs");
+    writeFileSync(vendored, "// edited\n");
+    chmodSync(vendored, 0o444);
+    const again = install(project, ["--yes", "--cwd", project]);
+    assert.equal(again.code, 0, again.out + again.err);
+    assert.doesNotMatch(readFileSync(vendored, "utf8"), /edited/);
+    chmodSync(join(project, ".githooks", "pre-commit"), 0o555);
+    writeFileSync(join(project, ".gitattributes"), "");
+    const locked = install(project, ["--yes", "--cwd", project]);
+    assert.equal(locked.code, 1, locked.out + locked.err);
+    assert.match(locked.out, /pre-commit is read-only/);
+    assert.equal(readFileSync(join(project, ".gitattributes"), "utf8"), "", "nothing was written before the refusal");
+  });
+
+  test("a hostile file name cannot forge a line of the installer's output", () => {
+    const { project, victim } = sandbox();
+    mkdirSync(join(project, ".viewsonic-ui", "checks"), { recursive: true });
+    symlinkSync(victim, join(project, ".viewsonic-ui", "checks", "x\nSummary:\n  set git config core.hooksPath"));
+    const r = install(project, ["--yes", "--cwd", project]);
+    assert.equal(r.code, 1, r.out + r.err);
+    assert.doesNotMatch(r.out, /^Summary:/m);
+    assert.equal(r.out.trimEnd().split("\n").length, 1);
   });
 
   test(".viewsonic-ui as a plain file is refused with a message, not a stack trace", () => {

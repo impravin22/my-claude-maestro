@@ -32,7 +32,7 @@
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { routeProblem } from "./maestro-guards.mjs";
+import { oneLine as guardLine, routeProblem } from "./maestro-guards.mjs";
 import { computeScope, computeRoutes } from "./scope.mjs";
 
 // Checks that compare files with each other: they read every file and only REPORT in the scoped ones.
@@ -46,7 +46,8 @@ export function fixRoute(a) {
   return m ? "/" + m[1].replace(/\\/g, "/") : a;
 }
 
-const oneLine = (s) => String(s).replace(/\s+/g, " ").trim();
+// maestro patch (not upstream): invisible and control characters go too (see maestro-guards.mjs oneLine).
+const oneLine = (s) => guardLine(s).replace(/\s+/g, " ").trim();
 
 /**
  * Run checks and return { lines, exitCode }. Pure apart from the checks themselves,

@@ -10,7 +10,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSy
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve, posix, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { baseUrlProblem, linkOnPath, linkOutOfRepo, linkUnder, notRegular, replaceFile } from "./maestro-guards.mjs";
+import { baseUrlProblem, isHomeOrAbove, linkOnPath, linkOutOfRepo, linkUnder, notRegular, oneLine, readOnly, replaceFile } from "./maestro-guards.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const VENDOR = ".viewsonic-ui/checks";
@@ -129,8 +129,10 @@ function listFiles(dir, base = "") {
 // the check loses only its name. A folder name or base URL that would break out of the
 // generated hook or workflow is refused, not quoted.
 // Letters and digits in any script, and . _ @ + -: nothing the hook's double quotes or the workflow's YAML treat
-// specially, so a valid name is safe in both as written.
+// specially, so a valid name is safe in both as written. The first character is a letter, digit, . or _ (a YAML
+// value cannot start with @), and the invisible Hangul filler letters are refused.
 const SAFE_REL = /^(?:[\p{L}\p{N}._][\p{L}\p{N}._@+-]*(?:\/[\p{L}\p{N}._@+-]+)*)?$/u;
+const FILLERS = /[\u115f\u1160\u3164\uffa0]/u;
 
 /** Writes `content` unless the file already holds it. Returns "written" | "unchanged". */
 function putFile(path, content, mode) {
@@ -239,7 +241,7 @@ export function existingHookManager({ root, top, hooksPath, wantedHooksPath, hoo
 
 export function install({ cwd = process.cwd(), yes = false } = {}) {
   const out = [];
-  const log = (l = "") => out.push(l);
+  const log = (l = "") => out.push(oneLine(l)); // maestro patch: a hostile name cannot forge a line of the plan
   const refuse = (why) => { log(`Refusing to install: ${why}`); return { lines: out, exitCode: 1 }; };
   const root = resolve(cwd);
   const configPath = join(root, CONFIG);
@@ -248,15 +250,23 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   // (a committed `packages/web -> ~`, or to another repository) would have every file below written there.
   const linkOut = linkOutOfRepo(root);
   if (linkOut) return refuse(`${linkOut}, so setup would write outside it. Run setup in the real project folder.`);
+  // Setup never belongs in the home folder itself (or above it), or inside a .git folder, where git's own hooks live.
+  const real = existsSync(root) ? realpathSync(root) : root;
+  if (isHomeOrAbove(root) || isHomeOrAbove(real)) return refuse(`${real} is your home folder (or above it), not a project. Run setup in the project folder.`);
+  if (real.split(/[\\/]/).includes(".git")) return refuse(`${real} is inside a .git folder, not a project. Run setup in the project folder.`);
 
   const isRepo = git(root, "rev-parse", "--git-dir").status === 0;
+  // maestro patch: inside a repository, the project must be in its work tree (core.hooksPath is read from there).
+  if (isRepo && git(root, "rev-parse", "--is-inside-work-tree").stdout.trim() !== "true") {
+    return refuse(`${root} is not in a git work tree. Run setup in the project folder.`);
+  }
   // The project may sit below the git top level (monorepo): hooks and workflows are the top level's, the checks run in the project.
   const top = isRepo ? resolve(git(root, "rev-parse", "--show-toplevel").stdout.trim() || root) : root;
   // git prints the real path (macOS: /var is /private/var), so compare real paths.
   const rel = isRepo ? toPosix(relative(realpathSync(top), realpathSync(root))) : "";
   if (isAbsolute(rel) || rel === ".." || rel.startsWith("../")) return refuse(`${root} is not inside the git repository at ${top}. Run setup in the real project folder.`);
-  if (!SAFE_REL.test(rel)) {
-    return refuse(`the project folder ${JSON.stringify(rel)} (below the git top level) holds characters the generated hook and workflow cannot carry safely; only letters, digits and . _ @ + - are allowed (no spaces). Wire the hook and workflow by hand.`);
+  if (!SAFE_REL.test(rel) || FILLERS.test(rel)) {
+    return refuse(`the project folder ${JSON.stringify(rel)} (below the git top level) holds characters the generated hook and workflow cannot carry safely; only letters, digits and . _ @ + - are allowed, with no spaces, and a name may not start with @, + or -. Wire the hook and workflow by hand.`);
   }
 
   // maestro patch: refuse before reading, planning or writing anything (see linkOnPath).
@@ -269,6 +279,9 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   }
   const unreadable = [join(root, "package.json"), join(top, "package.json")].map(notRegular).find(Boolean);
   if (unreadable) return refuse(`${unreadable}. Replace it with a real file, then run setup again.`);
+  // A read-only target is refused here, before anything is written (the vendored copies are ours, and refreshed).
+  const locked = [join(root, HOOK), join(root, ".gitattributes"), join(top, WORKFLOW), ...(eslintFile ? [join(root, eslintFile)] : [])].map(readOnly).find(Boolean);
+  if (locked) return refuse(`${locked}. Make it writable, then run setup again.`);
 
   const existingConfig = existsSync(configPath);
   let baseUrl = CONFIG_SKELETON.baseUrl;
@@ -288,6 +301,7 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
 
   if (!yes) {
     log(`Plan for ${root} (nothing is written until you re-run with --yes):`);
+    if (real !== root) log(`  note   ${root} is ${real}`); // maestro patch: where it really writes
     log(`  copy   ${VENDOR}/  the checks, without their tests; refreshed on every install`);
     log(`  write  .gitattributes  line "${HOOK} text eol=lf" (appended if missing)`);
     log(`  write  ${HOOK}  runs "${VENDOR}/run.mjs fast --changed"; blocks the commit on BAD`);
@@ -313,7 +327,7 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
     const content = readFileSync(join(here, f));
     if (existsSync(dest) && readFileSync(dest).equals(content)) continue;
     mkdirSync(dirname(dest), { recursive: true });
-    replaceFile(dest, content);
+    replaceFile(dest, content, undefined, { replaceReadOnly: true });
     changed++;
   }
   if (existsSync(vendorDir)) {

@@ -86,10 +86,14 @@ export function variantsFromSource(src) {
   const out = [];
   // maestro patch (not upstream): the type annotation is bounded ({1,200}, was +), because an unbounded one made
   // this regex quadratic: a crafted 1 MiB file held the after-edit hook for about a minute.
+  // The scan also skips a match inside the previous call's parentheses: an unclosed `cva(` runs to the end of the
+  // file, and rescanning that tail for every later match was quadratic too. Each character is now scanned once.
+  let scanned = 0;
   for (const m of src.matchAll(/(?:(?:const|let|var)\s+([\w$]+)\s*(?::[^=]{1,200})?=\s*)?\bcva\s*\(/g)) {
-    if (!m[1]) continue;
+    if (!m[1] || m.index < scanned) continue;
     const open = m.index + m[0].length - 1;
-    const body = src.slice(open, closeParen(src, open));
+    scanned = closeParen(src, open);
+    const body = src.slice(open, scanned);
     const v = /(?<![\w$])variants\s*:\s*\{/.exec(body);
     if (!v) continue;
     const props = readTwoLevels(body, v.index + v[0].length - 1);
@@ -134,7 +138,7 @@ export function invalidVariantMessage(table, component, prop, value) {
   if (!allowed || allowed.includes(value)) return null;
   // maestro patch (not upstream): the value and the list are clipped, so a hostile ui file cannot make each
   // message (and the hook's output, one message per usage) huge.
-  return `${component} has no ${prop} "${shorten(value, 80)}". Use one of: ${shortList(allowed)}.`;
+  return `${shorten(component, 80)} has no ${shorten(prop, 80)} "${shorten(value, 80)}". Use one of: ${shortList(allowed)}.`;
 }
 
 /** ui folder of the project at `root`, without the async config: components.json alias, else components/ui. */
@@ -144,16 +148,17 @@ export function uiDirFor(root) {
   // small regular file (a FIFO would hang the hook).
   const boundary = boundaryOf(root);
   const contained = (p) => isInside(boundary, join(root, p));
+  const readInside = (name) => (contained(name) ? readSmallFile(join(root, name)) : null); // not a link out
   let uiDir = "components/ui";
   try {
-    const alias = JSON.parse(readSmallFile(join(root, "components.json"))).aliases?.ui;
+    const alias = JSON.parse(readInside("components.json")).aliases?.ui;
     if (typeof alias === "string") {
       const bare = alias.replace(/^[@~]\//, "").replace(/^\.?\//, "");
       for (const cand of [bare, `src/${bare}`]) if (contained(cand) && existsSync(join(root, cand))) { uiDir = cand; break; }
     }
   } catch { /* default */ }
   try {
-    const over = JSON.parse(readSmallFile(join(root, "viewsonic-ui.config.json"))).uiDir;
+    const over = JSON.parse(readInside("viewsonic-ui.config.json")).uiDir;
     if (typeof over === "string" && contained(over)) uiDir = over;
   } catch { /* none */ }
   return uiDir;

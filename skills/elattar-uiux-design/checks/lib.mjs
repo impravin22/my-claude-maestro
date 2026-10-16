@@ -1,12 +1,13 @@
 // Shared helpers for the static checks. Node built-ins only.
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import { stripBlockComments } from "./maestro-guards.mjs";
 
 export const toPosix = (p) => p.split("\\").join("/");
 
-/** Every .ts/.tsx/.css file under `dir` (absolute), skipping node_modules and dot-dirs. */
 // maestro patch (not upstream): symbolic links and special files are skipped (a dangling link threw and stopped the
 // whole run, a loop threw ELOOP, a link could lead out of the repository, a FIFO would hang the read).
+/** Every .ts/.tsx/.css file under `dir` (absolute), skipping node_modules and dot-dirs. */
 export function walk(dir, exts = /\.(tsx?|css)$/, out = []) {
   let entries;
   try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return out; }
@@ -43,8 +44,8 @@ export const readRel = (config, rel) => readFileSync(join(config.root, rel), "ut
 
 /** Blank out comment bodies, keeping every newline so line numbers still match. */
 export function stripComments(text) {
-  return text
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+  // maestro patch (not upstream): block comments are blanked in one pass (the lazy pattern was quadratic).
+  return stripBlockComments(text, true)
     .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
 }
 
