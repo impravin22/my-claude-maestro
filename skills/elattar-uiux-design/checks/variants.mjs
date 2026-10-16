@@ -2,7 +2,7 @@
 // variant props and the values each allows. Used by the ESLint plugin (eslint/viewsonic-variants.mjs). Node built-ins only.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { boundaryOf, isInside, readSmallFile, walkFiles } from "./maestro-guards.mjs";
+import { boundaryOf, clip, clipList, isInside, readSmallFile, walkFiles } from "./maestro-guards.mjs";
 
 /** `buttonStyles`, `badgeVariants`, `navigationMenuTriggerStyle` -> `Button`, `Badge`, `NavigationMenuTrigger`. */
 export function componentNameFor(varName) {
@@ -84,7 +84,9 @@ function readTwoLevels(body, open) {
 /** Every cva() in a source file: [{ component, props: { prop: [values] } }]. Calls without a `variants` object are skipped. */
 export function variantsFromSource(src) {
   const out = [];
-  for (const m of src.matchAll(/(?:(?:const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=\s*)?\bcva\s*\(/g)) {
+  // maestro patch (not upstream): the type annotation is bounded ({1,200}, was +), because an unbounded one made
+  // this regex quadratic: a crafted 1 MiB file held the after-edit hook for about a minute.
+  for (const m of src.matchAll(/(?:(?:const|let|var)\s+([\w$]+)\s*(?::[^=]{1,200})?=\s*)?\bcva\s*\(/g)) {
     if (!m[1]) continue;
     const open = m.index + m[0].length - 1;
     const body = src.slice(open, closeParen(src, open));
@@ -104,6 +106,8 @@ const walkUi = (dir) => walkFiles(dir, /\.tsx?$/);
 /** Map component -> Map prop -> string[] for every cva in `<root>/<uiDir>`. Read from disk each call; callers cache. */
 export function loadVariants(root, uiDir = "components/ui") {
   const table = new Map();
+  // maestro patch: a ui folder outside the repository (the default included, as a committed link) is not read.
+  if (!isInside(boundaryOf(root), join(root, uiDir))) return table;
   for (const file of walkUi(join(root, uiDir))) {
     const src = readSmallFile(file);
     if (!src?.includes("cva(")) continue;
@@ -128,7 +132,9 @@ export function invalidVariantMessage(table, component, prop, value) {
   const props = table.get(component);
   const allowed = props?.get(prop);
   if (!allowed || allowed.includes(value)) return null;
-  return `${component} has no ${prop} "${value}". Use one of: ${allowed.join(", ")}.`;
+  // maestro patch (not upstream): the value and the list are clipped, so a hostile ui file cannot make each
+  // message (and the hook's output, one message per usage) huge.
+  return `${component} has no ${prop} "${clip(value, 80)}". Use one of: ${clipList(allowed)}.`;
 }
 
 /** ui folder of the project at `root`, without the async config: components.json alias, else components/ui. */

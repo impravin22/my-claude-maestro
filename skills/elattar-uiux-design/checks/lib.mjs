@@ -1,18 +1,20 @@
 // Shared helpers for the static checks. Node built-ins only.
-import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 
 export const toPosix = (p) => p.split("\\").join("/");
 
 /** Every .ts/.tsx/.css file under `dir` (absolute), skipping node_modules and dot-dirs. */
+// maestro patch (not upstream): symbolic links and special files are skipped (a dangling link threw and stopped the
+// whole run, a loop threw ELOOP, a link could lead out of the repository, a FIFO would hang the read).
 export function walk(dir, exts = /\.(tsx?|css)$/, out = []) {
-  let names;
-  try { names = readdirSync(dir).sort(); } catch { return out; }
-  for (const name of names) {
-    if (name === "node_modules" || name.startsWith(".")) continue;
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) walk(full, exts, out);
-    else if (exts.test(name)) out.push(full);
+  let entries;
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    if (e.name === "node_modules" || e.name.startsWith(".")) continue;
+    const full = join(dir, e.name);
+    if (e.isDirectory()) walk(full, exts, out);
+    else if (e.isFile() && exts.test(e.name)) out.push(full);
   }
   return out;
 }

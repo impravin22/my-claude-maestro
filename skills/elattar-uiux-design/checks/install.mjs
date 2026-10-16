@@ -10,7 +10,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSy
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve, posix, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { baseUrlProblem, boundaryOf, isInside, linkOnPath, linkUnder, notRegular, replaceFile } from "./maestro-guards.mjs";
+import { baseUrlProblem, linkOnPath, linkOutOfRepo, linkUnder, notRegular, replaceFile } from "./maestro-guards.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const VENDOR = ".viewsonic-ui/checks";
@@ -128,10 +128,12 @@ function listFiles(dir, base = "") {
 // through replaceFile: a new file renamed into place, so a link or hard link swapped in after
 // the check loses only its name. A folder name or base URL that would break out of the
 // generated hook or workflow is refused, not quoted.
-const SAFE_REL = /^(?:[A-Za-z0-9._][A-Za-z0-9._@+-]*(?:\/[A-Za-z0-9._@+-]+)*)?$/;
+// Letters and digits in any script, and . _ @ + -: nothing the hook's double quotes or the workflow's YAML treat
+// specially, so a valid name is safe in both as written.
+const SAFE_REL = /^(?:[\p{L}\p{N}._][\p{L}\p{N}._@+-]*(?:\/[\p{L}\p{N}._@+-]+)*)?$/u;
 
 /** Writes `content` unless the file already holds it. Returns "written" | "unchanged". */
-function putFile(path, content, mode = 0o644) {
+function putFile(path, content, mode) {
   if (readIf(path) === content) return "unchanged";
   mkdirSync(dirname(path), { recursive: true });
   replaceFile(path, content, mode);
@@ -243,11 +245,9 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   const configPath = join(root, CONFIG);
 
   // maestro patch: a project folder reached through a link out of the repository that holds it
-  // (a committed `packages/web -> ~`) would have every file below written there instead.
-  const logicalTop = boundaryOf(root);
-  if (!isInside(logicalTop, root)) {
-    return refuse(`${root} leads through a symbolic link to ${realpathSync(root)}, outside the repository at ${logicalTop}. Run setup in the real project folder.`);
-  }
+  // (a committed `packages/web -> ~`, or to another repository) would have every file below written there.
+  const linkOut = linkOutOfRepo(root);
+  if (linkOut) return refuse(`${linkOut}, so setup would write outside it. Run setup in the real project folder.`);
 
   const isRepo = git(root, "rev-parse", "--git-dir").status === 0;
   // The project may sit below the git top level (monorepo): hooks and workflows are the top level's, the checks run in the project.
@@ -256,7 +256,7 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   const rel = isRepo ? toPosix(relative(realpathSync(top), realpathSync(root))) : "";
   if (isAbsolute(rel) || rel === ".." || rel.startsWith("../")) return refuse(`${root} is not inside the git repository at ${top}. Run setup in the real project folder.`);
   if (!SAFE_REL.test(rel)) {
-    return refuse(`the project folder ${JSON.stringify(rel)} (below the git top level) holds characters the generated hook and workflow cannot carry safely; only letters, digits and . _ @ + - are allowed. Wire the hook and workflow by hand.`);
+    return refuse(`the project folder ${JSON.stringify(rel)} (below the git top level) holds characters the generated hook and workflow cannot carry safely; only letters, digits and . _ @ + - are allowed (no spaces). Wire the hook and workflow by hand.`);
   }
 
   // maestro patch: refuse before reading, planning or writing anything (see linkOnPath).
@@ -391,7 +391,7 @@ export function main(argv) {
   let yes = false;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--yes") yes = true;
-    else if (argv[i] === "--cwd") cwd = resolve(argv[++i] ?? ".");
+    else if (argv[i] === "--cwd") cwd = resolve(startFolder(), argv[++i] ?? "."); // maestro patch: relative to the shell's folder
     else { console.error(`unknown argument ${argv[i]}\nusage: install [--yes] [--cwd <dir>]`); return 64; }
   }
   const { lines, exitCode } = install({ cwd, yes });

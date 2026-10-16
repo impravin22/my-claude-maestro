@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { cacheDir, replaceFile, walkFiles } from "./maestro-guards.mjs";
+import { boundaryOf, cacheDir, clip, clipList, isInside, replaceFile, walkFiles } from "./maestro-guards.mjs";
 import { invalidVariantMessage, isUiImport, loadVariants, uiDirFor } from "./variants.mjs";
 
 /** The project's TypeScript compiler API, or null. */
@@ -24,8 +24,9 @@ const ALWAYS_OK = new Set(["key", "ref", "children", "className", "style"]);
 
 /* ───────────────────────── the type table ───────────────────────── */
 
-// maestro patch (not upstream): no links, capped (see maestro-guards.mjs walkFiles).
-const uiFiles = (dir) => walkFiles(dir, /\.tsx$/);
+// maestro patch (not upstream): no links, capped (see maestro-guards.mjs walkFiles), and nothing outside the
+// repository (the default ui folder included, as a committed link). Callers pass join(root, uiDir).
+const uiFiles = (dir, root) => (isInside(boundaryOf(root), dir) ? walkFiles(dir, /\.tsx$/) : []);
 
 function compilerOptions(ts, root) {
   const cfgPath = join(root, "tsconfig.json");
@@ -39,7 +40,7 @@ function compilerOptions(ts, root) {
 
 /** { Component: { open, names:[...], values:{prop:[...]}, required:[...] } } from the ui folder's exported components. */
 export function buildPropTable(ts, root, uiDir) {
-  const files = uiFiles(join(root, uiDir));
+  const files = uiFiles(join(root, uiDir), root);
   const table = {};
   if (!files.length) return table;
   const program = ts.createProgram(files, compilerOptions(ts, root));
@@ -75,7 +76,7 @@ export function buildPropTable(ts, root, uiDir) {
 function stampFor(ts, root, uiDir) {
   const h = createHash("sha1");
   h.update(`${ts.version}|${root}|${uiDir}`);
-  for (const f of [...uiFiles(join(root, uiDir)), join(root, "tsconfig.json"), join(root, "package.json")]) {
+  for (const f of [...uiFiles(join(root, uiDir), root), join(root, "tsconfig.json"), join(root, "package.json")]) {
     try { const s = statSync(f); h.update(`${f}:${s.mtimeMs}:${s.size}`); } catch { /* absent */ }
   }
   return h.digest("hex");
@@ -132,14 +133,14 @@ export function judgeUsage({ cva, types }, usage) {
   const entry = types?.[component];
   if (entry && !entry.open && !ALWAYS_OK.has(prop) && !/^(?:data|aria)-/.test(prop) && !entry.names.includes(prop)) {
     const guess = nearest(prop, entry.names);
-    out.push(`${component} has no prop "${prop}".${guess ? ` Did you mean "${guess}"?` : ""}`);
+    out.push(`${component} has no prop "${clip(prop, 80)}".${guess ? ` Did you mean "${clip(guess, 80)}"?` : ""}`); // maestro patch: clipped
     return out;
   }
   for (const v of values ?? []) {
     const viaCva = invalidVariantMessage(cva, component, prop, v);
     if (viaCva) { out.push(viaCva); continue; }
     const union = entry?.values[prop];
-    if (union && !cva.get(component)?.has(prop) && !union.includes(v)) out.push(`${component} has no ${prop} "${v}". Use one of: ${union.join(", ")}.`);
+    if (union && !cva.get(component)?.has(prop) && !union.includes(v)) out.push(`${component} has no ${prop} "${clip(v, 80)}". Use one of: ${clipList(union)}.`); // maestro patch: clipped
   }
   return out;
 }
@@ -210,7 +211,7 @@ export function diagnosticsFor(ts, root, abs, src, uiDir) {
   const out = [];
   for (const d of program.getSemanticDiagnostics(file)) {
     if (d.start == null || !spans.some((s) => d.start >= s.tagStart && d.start < s.tagEnd)) continue;
-    out.push({ line: sf.getLineAndCharacterOfPosition(d.start).line + 1, message: ts.flattenDiagnosticMessageText(d.messageText, " ").replace(/\s+/g, " ") });
+    out.push({ line: sf.getLineAndCharacterOfPosition(d.start).line + 1, message: clip(ts.flattenDiagnosticMessageText(d.messageText, " ").replace(/\s+/g, " "), 300) }); // maestro patch: clipped
   }
   return out;
 }

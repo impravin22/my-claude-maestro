@@ -1,8 +1,8 @@
 // Discovers the project the checks run against. Node built-ins only.
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve, relative, isAbsolute } from "node:path";
-import { baseUrlProblem, boundaryOf, isInside, routeProblem } from "./maestro-guards.mjs";
+import { baseUrlProblem, boundaryOf, isInside, readSmallFile, routeProblem } from "./maestro-guards.mjs";
 
 const posix = (p) => p.split("\\").join("/");
 
@@ -16,7 +16,12 @@ function findRoot(cwd) {
   }
 }
 
-const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
+// maestro patch (not upstream): only a small regular file is read, so a FIFO or a link to a device cannot hang the run.
+const readJson = (p) => {
+  const text = readSmallFile(p);
+  if (text === null) throw new Error(`${JSON.stringify(p)} is not a regular file of at most 1 MiB`);
+  return JSON.parse(text);
+};
 const isDir = (p) => existsSync(p) && statSync(p).isDirectory();
 
 /** "@/components/ui" -> "components/ui" (or "src/components/ui"), only if it exists inside `boundary` (maestro patch). */
@@ -37,10 +42,11 @@ function collectStyles(root, entry, boundary = root) {
     const abs = join(root, rel);
     // maestro patch (not upstream): an @import (or the entry) that leads outside the repository is not read.
     if (!isInside(boundary, abs)) return;
-    if (!existsSync(abs)) return;
+    const raw = readSmallFile(abs, 16 * 1024 * 1024); // maestro patch: a regular file only (a FIFO would hang)
+    if (raw === null) return;
     seen.add(rel);
     out.push(rel);
-    const text = readFileSync(abs, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const text = raw.replace(/\/\*[\s\S]*?\*\//g, "");
     for (const m of text.matchAll(/@import\s+(?:url\(\s*)?["']([^"']+)["']/g)) {
       const spec = m[1];
       if (!/^\.{0,2}\//.test(spec) && !spec.endsWith(".css")) continue;
@@ -53,12 +59,15 @@ function collectStyles(root, entry, boundary = root) {
   return out;
 }
 
+// maestro patch (not upstream): links are skipped (a dangling one threw, a loop threw ELOOP, and one could lead out
+// of the repository), and a folder that cannot be read is skipped.
 function pageFiles(dir, base = "") {
   const out = [];
-  for (const name of readdirSync(dir).sort()) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) out.push(...pageFiles(full, `${base}/${name}`));
-    else out.push({ seg: base, name });
+  let entries;
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    if (e.isDirectory()) out.push(...pageFiles(join(dir, e.name), `${base}/${e.name}`));
+    else if (e.isFile()) out.push({ seg: base, name: e.name });
   }
   return out;
 }
@@ -99,9 +108,26 @@ function detectPlaywright(root) {
 
 /** The override file's shape, checked up front so a wrong type fails here with the key's name, not deep inside a check. */
 const ARRAYS = ["routes", "allowWords", "allowSystemWords", "properNouns", "motionPhases", "contrastPairs", "emphasisExclude", "sources", "styles"];
+// maestro patch: keys a repository's config may not set. `root` would move every read and write out of the
+// repository; the others would reach the config object's prototype through Object.assign.
+const FORBIDDEN = ["root", "__proto__", "constructor", "prototype"];
+/** maestro patch: the config keys that hold paths, all of which must stay inside the repository. */
+const PATH_KEYS = ["sources", "styles", "componentCss"];
+function pathProblem(config, root) {
+  const boundary = boundaryOf(root);
+  const paths = [...PATH_KEYS.flatMap((k) => config[k] ?? []), ...("uiDir" in config ? [config.uiDir] : [])];
+  for (const p of paths) {
+    if (typeof p !== "string") return `sources, styles, componentCss and uiDir hold paths (strings); got ${JSON.stringify(p)}`;
+    if (!isInside(boundary, join(root, p))) return `${JSON.stringify(p)} leads outside the repository; sources, styles, componentCss and uiDir must stay inside it`;
+  }
+  return null;
+}
+
 function validateOverride(over, name, root = null) {
   const fail = (m) => { throw new Error(`${name}: ${m}`); };
   if (over === null || typeof over !== "object" || Array.isArray(over)) fail("must be a JSON object");
+  for (const k of FORBIDDEN) if (Object.prototype.hasOwnProperty.call(over, k)) fail(`${k} cannot be set here`);
+  if ("componentCss" in over && !Array.isArray(over.componentCss)) fail("componentCss must be an array");
   for (const k of ARRAYS) if (k in over && !Array.isArray(over[k])) fail(`${k} must be an array`);
   if ("baseUrl" in over && typeof over.baseUrl !== "string") fail("baseUrl must be a string");
   // maestro patch (not upstream): the file comes from the repository. Its base URL reaches the browser
@@ -109,16 +135,10 @@ function validateOverride(over, name, root = null) {
   if ("baseUrl" in over) { const p = baseUrlProblem(over.baseUrl); if (p) fail(`baseUrl ${p}`); }
   for (const r of over.routes ?? []) { const p = routeProblem(r); if (p) fail(`routes entry ${JSON.stringify(r)} ${p}`); }
   for (const row of over.motionPhases ?? []) {
-    if (row && typeof row === "object" && "specimen" in row) { const p = routeProblem(row.specimen); if (p) fail(`motionPhases specimen ${JSON.stringify(row.specimen)} ${p}`); }
+    // a row without a specimen (or an empty one) is not sampled, as upstream treats it
+    if (row && typeof row === "object" && row.specimen) { const p = routeProblem(row.specimen); if (p) fail(`motionPhases specimen ${JSON.stringify(row.specimen)} ${p}`); }
   }
-  if (root) {
-    const boundary = boundaryOf(root);
-    const paths = [...(over.sources ?? []), ...(over.styles ?? []), ...("uiDir" in over ? [over.uiDir] : [])];
-    for (const p of paths) {
-      if (typeof p !== "string") fail(`sources, styles and uiDir hold paths (strings); got ${JSON.stringify(p)}`);
-      if (!isInside(boundary, join(root, p))) fail(`${p} is outside the repository; sources, styles and uiDir must stay inside it`);
-    }
-  }
+  if (root) { const p = pathProblem(over, root); if (p) fail(p); }
   if ("contrastLevel" in over && !["AA", "AAA"].includes(String(over.contrastLevel).toUpperCase())) {
     fail(`contrastLevel must be "AA" or "AAA" (AA is the floor; there is no lower level)`);
   }
@@ -175,5 +195,9 @@ export async function loadConfig(cwd = process.cwd(), options = {}) {
     validateOverride(over, "viewsonic-ui.config.json", root);
     Object.assign(config, over);
   }
+  // maestro patch: the folders found by default (app, pages, components/ui) are held to the same rule, so a
+  // committed link out of the repository at one of them is refused too.
+  const problem = pathProblem(config, root);
+  if (problem) throw new Error(`viewsonic-ui: ${problem}`);
   return config;
 }

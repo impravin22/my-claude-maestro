@@ -179,7 +179,7 @@ Reference files are read **on demand**, never on every task — that is what kee
 
 ## Bundled ViewSonic UI/UX skill
 
-Maestro ships a second skill, `elattar-uiux-design`: ViewSonic's UI/UX skill, with its design rules, page patterns, runnable checks and evals. It is vendored unchanged apart from six documented patches and four added files from `ViewSonic-Transformation/FDP-design-system`, where it lives as its own plugin; it is MIT licensed, copyright Ayoub Elattar, and its [LICENSE](skills/elattar-uiux-design/LICENSE) stays beside it. Provenance, the local edits and the sync recipe are in [docs/2026-10-15-viewsonic-uiux-bundle.md](docs/2026-10-15-viewsonic-uiux-bundle.md).
+Maestro ships a second skill, `elattar-uiux-design`: ViewSonic's UI/UX skill, with its design rules, page patterns, runnable checks and evals. It is vendored unchanged apart from six documented patches and six added files from `ViewSonic-Transformation/FDP-design-system`, where it lives as its own plugin; it is MIT licensed, copyright Ayoub Elattar, and its [LICENSE](skills/elattar-uiux-design/LICENSE) stays beside it. Provenance, the local edits and the sync recipe are in [docs/2026-10-15-viewsonic-uiux-bundle.md](docs/2026-10-15-viewsonic-uiux-bundle.md).
 
 Maestro uses it only on projects that are on the ViewSonic design system (a `viewsonic-ui.config.json` or `.viewsonic-ui/` folder, or the foundation's `--color-action-*` and `--color-value-*` tokens), or when you ask for that system. There, its thirteen-line design pass drives Step 5a, its rules join the 5e checklist, and its checks run at Steps 7 and 8; maestro's own gates still apply. Elsewhere maestro does not route to it, and its one-line description in the skill listing is the only always-on cost.
 

@@ -121,7 +121,8 @@ export async function runChecks({ mode, config, base, registry, onLine = () => {
     }
     bad++;
     for (const f of result) {
-      emit(`BAD ${f.check ?? c.name}/${f.rule} ${f.file}:${f.line} - ${oneLine(f.why)} → ${oneLine(f.fix)}`);
+      // maestro patch (not upstream): the file name is one line too, so a name with a line break cannot forge a GOOD.
+      emit(`BAD ${f.check ?? c.name}/${f.rule} ${oneLine(f.file)}:${f.line} - ${oneLine(f.why)} → ${oneLine(f.fix)}`);
     }
   }
 
@@ -162,7 +163,11 @@ function parseArgs(argv) {
     else if (a === "--fg" || a === "--bg" || a === "--kind") (args.extra ??= {})[a.slice(2)] = argv[++i];
     else if (a.startsWith("--")) return { error: `unknown flag ${a}` };
     else if (!args.mode) args.mode = a;
-    else if (["shots", "contrast-rendered", "layout-shift", "rhythm", "emphasis", "keyboard", "ux-flow", "runtime-errors", "page-length", "anchor-nav", "nested-radius", "nav-reach", "overlap", "truncation", "title-scale"].includes(args.mode) && fixRoute(a).startsWith("/")) (args.routes ??= []).push(fixRoute(a));
+    else if (["shots", "contrast-rendered", "layout-shift", "rhythm", "emphasis", "keyboard", "ux-flow", "runtime-errors", "page-length", "anchor-nav", "nested-radius", "nav-reach", "overlap", "truncation", "title-scale"].includes(args.mode) && fixRoute(a).startsWith("/")) {
+      const problem = routeProblem(fixRoute(a)); // maestro patch: the same rule as --route
+      if (problem) return { error: `route ${JSON.stringify(fixRoute(a))} ${problem}` };
+      (args.routes ??= []).push(fixRoute(a));
+    }
     else return { error: `unexpected argument ${a}` };
   }
   return args;
