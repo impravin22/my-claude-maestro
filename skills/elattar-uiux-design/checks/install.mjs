@@ -6,10 +6,11 @@
 // Without --yes it prints the plan and writes nothing. Re-running is safe: files are only
 // rewritten when their content differs, the config is never overwritten.
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, relative, resolve, posix, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, posix, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { baseUrlProblem, boundaryOf, isInside, linkOnPath, linkUnder, notRegular, replaceFile } from "./maestro-guards.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const VENDOR = ".viewsonic-ui/checks";
@@ -74,6 +75,8 @@ on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   ui-checks:
     runs-on: ubuntu-latest${rel ? `
@@ -119,43 +122,19 @@ function listFiles(dir, base = "") {
 
 // maestro patch (not upstream): never write through a symbolic link. A repository can commit
 // any install target (`.viewsonic-ui/checks` above all) as a link to a folder outside the
-// project, and following it would overwrite files there and delete the rest. These return
-// what is wrong with the first such path, or null. Only "it does not exist" counts as safe:
-// any other error is reported, so a path the guard cannot inspect is never written blind.
-const MISSING = new Set(["ENOENT", "ENOTDIR"]);
-function linkOnPath(base, rel) {
-  let p = base;
-  for (const part of rel.split("/")) {
-    if (!part) continue;
-    p = join(p, part);
-    let st;
-    try { st = lstatSync(p); } catch (e) {
-      if (MISSING.has(e?.code)) return null; // missing: nothing below it exists yet
-      return `${p} cannot be inspected (${e?.code ?? "unknown error"})`;
-    }
-    if (st.isSymbolicLink()) return `${p} is a symbolic link`;
-  }
-  return null;
-}
-function linkUnder(dir) {
-  let entries;
-  try { entries = readdirSync(dir, { withFileTypes: true }); } catch (e) {
-    if (MISSING.has(e?.code)) return null;
-    return `${dir} cannot be inspected (${e?.code ?? "unknown error"})`;
-  }
-  for (const e of entries) {
-    const p = join(dir, e.name);
-    if (e.isSymbolicLink()) return `${p} is a symbolic link`;
-    if (e.isDirectory()) { const found = linkUnder(p); if (found) return found; }
-  }
-  return null;
-}
+// project, and following it would overwrite files there and delete the rest. linkOnPath and
+// linkUnder (maestro-guards.mjs) name the first such path, a path part that is not a folder, or
+// a target that is not a regular file (a FIFO would hang the read). Every write then goes
+// through replaceFile: a new file renamed into place, so a link or hard link swapped in after
+// the check loses only its name. A folder name or base URL that would break out of the
+// generated hook or workflow is refused, not quoted.
+const SAFE_REL = /^(?:[A-Za-z0-9._][A-Za-z0-9._@+-]*(?:\/[A-Za-z0-9._@+-]+)*)?$/;
 
 /** Writes `content` unless the file already holds it. Returns "written" | "unchanged". */
-function putFile(path, content) {
+function putFile(path, content, mode = 0o644) {
   if (readIf(path) === content) return "unchanged";
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, content);
+  replaceFile(path, content, mode);
   return "written";
 }
 
@@ -259,17 +238,45 @@ export function existingHookManager({ root, top, hooksPath, wantedHooksPath, hoo
 export function install({ cwd = process.cwd(), yes = false } = {}) {
   const out = [];
   const log = (l = "") => out.push(l);
+  const refuse = (why) => { log(`Refusing to install: ${why}`); return { lines: out, exitCode: 1 }; };
   const root = resolve(cwd);
   const configPath = join(root, CONFIG);
-  const existingConfig = existsSync(configPath);
-  let baseUrl = CONFIG_SKELETON.baseUrl;
-  if (existingConfig) { try { baseUrl = JSON.parse(readFileSync(configPath, "utf8")).baseUrl ?? baseUrl; } catch { /* keep default */ } }
+
+  // maestro patch: a project folder reached through a link out of the repository that holds it
+  // (a committed `packages/web -> ~`) would have every file below written there instead.
+  const logicalTop = boundaryOf(root);
+  if (!isInside(logicalTop, root)) {
+    return refuse(`${root} leads through a symbolic link to ${realpathSync(root)}, outside the repository at ${logicalTop}. Run setup in the real project folder.`);
+  }
 
   const isRepo = git(root, "rev-parse", "--git-dir").status === 0;
   // The project may sit below the git top level (monorepo): hooks and workflows are the top level's, the checks run in the project.
   const top = isRepo ? resolve(git(root, "rev-parse", "--show-toplevel").stdout.trim() || root) : root;
   // git prints the real path (macOS: /var is /private/var), so compare real paths.
   const rel = isRepo ? toPosix(relative(realpathSync(top), realpathSync(root))) : "";
+  if (isAbsolute(rel) || rel === ".." || rel.startsWith("../")) return refuse(`${root} is not inside the git repository at ${top}. Run setup in the real project folder.`);
+  if (!SAFE_REL.test(rel)) {
+    return refuse(`the project folder ${JSON.stringify(rel)} (below the git top level) holds characters the generated hook and workflow cannot carry safely; only letters, digits and . _ @ + - are allowed. Wire the hook and workflow by hand.`);
+  }
+
+  // maestro patch: refuse before reading, planning or writing anything (see linkOnPath).
+  const eslintFile = ESLINT_FILES.find((f) => existsSync(join(root, f)));
+  const targets = [[root, VENDOR, "dir"], [root, HOOK], [root, ".gitattributes"], [root, CONFIG], [top, WORKFLOW]];
+  if (eslintFile) targets.push([root, eslintFile]);
+  const problem = targets.map(([base, target, kind]) => linkOnPath(base, target, kind)).find(Boolean) ?? linkUnder(join(root, VENDOR));
+  if (problem) {
+    return refuse(`${problem}, so writing there could change files outside this project. Replace it with a real folder or file you can read, then run setup again.`);
+  }
+  const unreadable = [join(root, "package.json"), join(top, "package.json")].map(notRegular).find(Boolean);
+  if (unreadable) return refuse(`${unreadable}. Replace it with a real file, then run setup again.`);
+
+  const existingConfig = existsSync(configPath);
+  let baseUrl = CONFIG_SKELETON.baseUrl;
+  if (existingConfig) { try { baseUrl = JSON.parse(readFileSync(configPath, "utf8")).baseUrl ?? baseUrl; } catch { /* keep default */ } }
+  // maestro patch: the base URL is written into the CI workflow's shell step.
+  const urlProblem = baseUrlProblem(baseUrl);
+  if (urlProblem) return refuse(`baseUrl in ${CONFIG} ${urlProblem}. Fix it, then run setup again.`);
+
   const hookRel = posix.join(rel, HOOK); // the hook, as seen from the git top level
   const wantedHooksPath = posix.join(rel, ".githooks");
   const hooksPath = isRepo ? git(root, "config", "--get", "core.hooksPath").stdout.trim() : "";
@@ -278,15 +285,6 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   const { pm, lock } = detectPackageManager(root, top);
 
   const eslint = wireEslint(root);
-
-  // maestro patch: refuse before planning or writing anything (see linkOnPath).
-  const targets = [[root, VENDOR], [root, HOOK], [root, ".gitattributes"], [root, CONFIG], [top, WORKFLOW]];
-  if (eslint.file) targets.push([root, eslint.file]);
-  const problem = targets.map(([base, target]) => linkOnPath(base, target)).find(Boolean) ?? linkUnder(join(root, VENDOR));
-  if (problem) {
-    log(`Refusing to install: ${problem}, so writing there could change files outside this project. Replace it with a real folder or file you can read, then run setup again.`);
-    return { lines: out, exitCode: 1 };
-  }
 
   if (!yes) {
     log(`Plan for ${root} (nothing is written until you re-run with --yes):`);
@@ -298,7 +296,7 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
     else if (eslint.state === "unchanged") log(`  keep   ${eslint.file}  (viewsonic/valid-variant is already wired)`);
     else if (eslint.state === "unrecognised") log(`  skip   ${eslint.file}  (its shape is not recognised; instructions are printed instead)`);
     else log("  note   no eslint.config.* found; instructions for viewsonic/valid-variant are printed instead");
-    log(`  write  ${posix.join(rel, WORKFLOW)}  (${pm}${lock ? "" : ", no lockfile"}) push to main and pull requests: build, start, "${VENDOR}/run.mjs full --all --all-routes"`);
+    log(`  write  ${WORKFLOW}${rel ? " (at the git top level)" : ""}  (${pm}${lock ? "" : ", no lockfile"}) push to main and pull requests: build, start, "${VENDOR}/run.mjs full --all --all-routes"`);
     log(existingConfig ? `  keep   ${CONFIG}  (exists, never overwritten)` : `  write  ${CONFIG}  skeleton: ${JSON.stringify(CONFIG_SKELETON)}`);
     if (!hasPlaywright(root)) log(`  note   Playwright is not installed; you will need: ${PLAYWRIGHT_HINT}`);
     log("Re-run with --yes to apply.");
@@ -312,9 +310,10 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   let changed = 0;
   for (const f of files) {
     const dest = join(vendorDir, f);
-    if (existsSync(dest) && readFileSync(dest).equals(readFileSync(join(here, f)))) continue;
+    const content = readFileSync(join(here, f));
+    if (existsSync(dest) && readFileSync(dest).equals(content)) continue;
     mkdirSync(dirname(dest), { recursive: true });
-    cpSync(join(here, f), dest);
+    replaceFile(dest, content);
     changed++;
   }
   if (existsSync(vendorDir)) {
@@ -322,7 +321,7 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   }
   summary.push(`${changed ? "refreshed" : "unchanged"} ${VENDOR}/ (${files.length} files${changed ? `, ${changed} changed` : ""})`);
 
-  summary.push(`${putFile(join(root, HOOK), hookScript(rel))} ${HOOK}`);
+  summary.push(`${putFile(join(root, HOOK), hookScript(rel), 0o755)} ${HOOK}`);
   try { chmodSync(join(root, HOOK), 0o755); } catch { /* best effort */ }
   // Only if the hook is already tracked: record the executable bit. New files are never staged.
   if (isRepo && git(root, "ls-files", "--error-unmatch", HOOK).status === 0) git(root, "update-index", "--chmod=+x", HOOK);
@@ -330,9 +329,9 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   const attrs = join(root, ".gitattributes");
   const attrLine = `${HOOK} text eol=lf`;
   const attrText = readIf(attrs);
-  if (attrText === null) { writeFileSync(attrs, attrLine + "\n"); summary.push("written .gitattributes (hook keeps LF endings)"); }
+  if (attrText === null) { replaceFile(attrs, attrLine + "\n"); summary.push("written .gitattributes (hook keeps LF endings)"); }
   else if (!attrText.split(/\r?\n/).includes(attrLine)) {
-    writeFileSync(attrs, attrText + (attrText === "" || attrText.endsWith("\n") ? "" : "\n") + attrLine + "\n");
+    replaceFile(attrs, attrText + (attrText === "" || attrText.endsWith("\n") ? "" : "\n") + attrLine + "\n");
     summary.push("appended hook LF rule to .gitattributes");
   } else summary.push("unchanged .gitattributes");
 
@@ -354,7 +353,7 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   summary.push(`${putFile(wfPath, workflow(baseUrl, { pm, lock, rel }))} ${posix.join(rel, WORKFLOW) === WORKFLOW ? WORKFLOW : WORKFLOW + " (at the git top level)"}`);
 
   if (eslint.state === "update") {
-    writeFileSync(join(root, eslint.file), eslint.text);
+    replaceFile(join(root, eslint.file), eslint.text);
     summary.push(`updated ${eslint.file} (viewsonic/valid-variant)`);
   } else if (eslint.state === "unchanged") summary.push(`unchanged ${eslint.file}`);
   else {
@@ -367,7 +366,7 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
 
   if (existingConfig) summary.push(`kept ${CONFIG} (exists)`);
   else {
-    writeFileSync(configPath, JSON.stringify(CONFIG_SKELETON, null, 2) + "\n");
+    writeFileSync(configPath, JSON.stringify(CONFIG_SKELETON, null, 2) + "\n", { flag: "wx" }); // never overwritten, never through a link
     summary.push(`written ${CONFIG}`);
   }
 
@@ -380,8 +379,15 @@ export function install({ cwd = process.cwd(), yes = false } = {}) {
   return { lines: out, exitCode: 0 };
 }
 
+/** The folder setup was started in, as the shell names it ($PWD keeps a link's name; process.cwd() resolves it). */
+function startFolder() {
+  const pwd = process.env.PWD;
+  try { if (pwd && isAbsolute(pwd) && realpathSync(pwd) === realpathSync(process.cwd())) return pwd; } catch { /* use cwd */ }
+  return process.cwd();
+}
+
 export function main(argv) {
-  let cwd = process.cwd();
+  let cwd = startFolder(); // maestro patch: so a link on the way to the project folder is seen
   let yes = false;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--yes") yes = true;

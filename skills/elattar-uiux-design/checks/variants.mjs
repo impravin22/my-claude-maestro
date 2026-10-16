@@ -1,7 +1,8 @@
 // The design language's vocabulary, read from the project: every `cva(...)` in the ui folder gives a component, its
 // variant props and the values each allows. Used by the ESLint plugin (eslint/viewsonic-variants.mjs). Node built-ins only.
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { boundaryOf, isInside, readSmallFile, walkFiles } from "./maestro-guards.mjs";
 
 /** `buttonStyles`, `badgeVariants`, `navigationMenuTriggerStyle` -> `Button`, `Badge`, `NavigationMenuTrigger`. */
 export function componentNameFor(varName) {
@@ -96,24 +97,16 @@ export function variantsFromSource(src) {
   return out;
 }
 
-function walkUi(dir, out = []) {
-  let names;
-  try { names = readdirSync(dir).sort(); } catch { return out; }
-  for (const n of names) {
-    if (n === "node_modules" || n.startsWith(".")) continue;
-    const full = join(dir, n);
-    if (statSync(full).isDirectory()) walkUi(full, out);
-    else if (/\.tsx?$/.test(n)) out.push(full);
-  }
-  return out;
-}
+// maestro patch (not upstream): the walk skips links and is capped (see maestro-guards.mjs walkFiles),
+// because a repository's `uiDir` decides where it starts and the after-edit hook runs it on every edit.
+const walkUi = (dir) => walkFiles(dir, /\.tsx?$/);
 
 /** Map component -> Map prop -> string[] for every cva in `<root>/<uiDir>`. Read from disk each call; callers cache. */
 export function loadVariants(root, uiDir = "components/ui") {
   const table = new Map();
   for (const file of walkUi(join(root, uiDir))) {
-    const src = readFileSync(file, "utf8");
-    if (!src.includes("cva(")) continue;
+    const src = readSmallFile(file);
+    if (!src?.includes("cva(")) continue;
     for (const { component, props } of variantsFromSource(src)) {
       const entry = table.get(component) ?? new Map();
       for (const [prop, values] of Object.entries(props)) entry.set(prop, [...new Set([...(entry.get(prop) ?? []), ...values])]);
@@ -140,17 +133,22 @@ export function invalidVariantMessage(table, component, prop, value) {
 
 /** ui folder of the project at `root`, without the async config: components.json alias, else components/ui. */
 export function uiDirFor(root) {
+  // maestro patch (not upstream): both files come from the repository, so a value that leads outside
+  // it (`../outside`, an absolute path, a link out) is ignored, and neither file is read unless it is a
+  // small regular file (a FIFO would hang the hook).
+  const boundary = boundaryOf(root);
+  const contained = (p) => isInside(boundary, join(root, p));
   let uiDir = "components/ui";
   try {
-    const alias = JSON.parse(readFileSync(join(root, "components.json"), "utf8")).aliases?.ui;
+    const alias = JSON.parse(readSmallFile(join(root, "components.json"))).aliases?.ui;
     if (typeof alias === "string") {
       const bare = alias.replace(/^[@~]\//, "").replace(/^\.?\//, "");
-      for (const cand of [bare, `src/${bare}`]) if (existsSync(join(root, cand))) { uiDir = cand; break; }
+      for (const cand of [bare, `src/${bare}`]) if (contained(cand) && existsSync(join(root, cand))) { uiDir = cand; break; }
     }
   } catch { /* default */ }
   try {
-    const over = JSON.parse(readFileSync(join(root, "viewsonic-ui.config.json"), "utf8")).uiDir;
-    if (typeof over === "string") uiDir = over;
+    const over = JSON.parse(readSmallFile(join(root, "viewsonic-ui.config.json"))).uiDir;
+    if (typeof over === "string" && contained(over)) uiDir = over;
   } catch { /* none */ }
   return uiDir;
 }

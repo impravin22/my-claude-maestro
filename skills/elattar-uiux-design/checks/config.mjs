@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve, relative, isAbsolute } from "node:path";
+import { baseUrlProblem, boundaryOf, isInside, routeProblem } from "./maestro-guards.mjs";
 
 const posix = (p) => p.split("\\").join("/");
 
@@ -18,22 +19,24 @@ function findRoot(cwd) {
 const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
 const isDir = (p) => existsSync(p) && statSync(p).isDirectory();
 
-/** "@/components/ui" -> "components/ui" (or "src/components/ui"), only if it exists. */
-function aliasDir(root, alias) {
+/** "@/components/ui" -> "components/ui" (or "src/components/ui"), only if it exists inside `boundary` (maestro patch). */
+function aliasDir(root, alias, boundary = root) {
   if (typeof alias !== "string") return null;
   const bare = alias.replace(/^[@~]\//, "").replace(/^\.?\//, "");
-  for (const cand of [bare, `src/${bare}`]) if (isDir(join(root, cand))) return cand;
+  for (const cand of [bare, `src/${bare}`]) if (isInside(boundary, join(root, cand)) && isDir(join(root, cand))) return cand;
   return null;
 }
 
 /** The entry stylesheet plus every relative @import, depth-first in import order. */
-function collectStyles(root, entry) {
+function collectStyles(root, entry, boundary = root) {
   const out = [];
   const seen = new Set();
   const visit = (rel) => {
     rel = posix(rel);
     if (seen.has(rel)) return;
     const abs = join(root, rel);
+    // maestro patch (not upstream): an @import (or the entry) that leads outside the repository is not read.
+    if (!isInside(boundary, abs)) return;
     if (!existsSync(abs)) return;
     seen.add(rel);
     out.push(rel);
@@ -96,11 +99,26 @@ function detectPlaywright(root) {
 
 /** The override file's shape, checked up front so a wrong type fails here with the key's name, not deep inside a check. */
 const ARRAYS = ["routes", "allowWords", "allowSystemWords", "properNouns", "motionPhases", "contrastPairs", "emphasisExclude", "sources", "styles"];
-function validateOverride(over, name) {
+function validateOverride(over, name, root = null) {
   const fail = (m) => { throw new Error(`${name}: ${m}`); };
   if (over === null || typeof over !== "object" || Array.isArray(over)) fail("must be a JSON object");
   for (const k of ARRAYS) if (k in over && !Array.isArray(over[k])) fail(`${k} must be an array`);
   if ("baseUrl" in over && typeof over.baseUrl !== "string") fail("baseUrl must be a string");
+  // maestro patch (not upstream): the file comes from the repository. Its base URL reaches the browser
+  // and the generated CI workflow, its routes are appended to that base, and its folders are read.
+  if ("baseUrl" in over) { const p = baseUrlProblem(over.baseUrl); if (p) fail(`baseUrl ${p}`); }
+  for (const r of over.routes ?? []) { const p = routeProblem(r); if (p) fail(`routes entry ${JSON.stringify(r)} ${p}`); }
+  for (const row of over.motionPhases ?? []) {
+    if (row && typeof row === "object" && "specimen" in row) { const p = routeProblem(row.specimen); if (p) fail(`motionPhases specimen ${JSON.stringify(row.specimen)} ${p}`); }
+  }
+  if (root) {
+    const boundary = boundaryOf(root);
+    const paths = [...(over.sources ?? []), ...(over.styles ?? []), ...("uiDir" in over ? [over.uiDir] : [])];
+    for (const p of paths) {
+      if (typeof p !== "string") fail(`sources, styles and uiDir hold paths (strings); got ${JSON.stringify(p)}`);
+      if (!isInside(boundary, join(root, p))) fail(`${p} is outside the repository; sources, styles and uiDir must stay inside it`);
+    }
+  }
   if ("contrastLevel" in over && !["AA", "AAA"].includes(String(over.contrastLevel).toUpperCase())) {
     fail(`contrastLevel must be "AA" or "AAA" (AA is the floor; there is no lower level)`);
   }
@@ -123,11 +141,12 @@ export async function loadConfig(cwd = process.cwd(), options = {}) {
   const components = readJson(componentsPath);
   const aliases = components.aliases ?? {};
 
+  const boundary = boundaryOf(root);
   const entry = components.tailwind?.css;
-  const styles = entry ? collectStyles(root, entry) : [];
+  const styles = entry ? collectStyles(root, entry, boundary) : [];
 
   const app = ["app", "src/app"].find((d) => isDir(join(root, d))) ?? (isDir(join(root, "pages")) ? "pages" : null);
-  const dirs = [app, ...["components", "ui", "lib", "hooks"].map((k) => aliasDir(root, aliases[k]))].filter(Boolean);
+  const dirs = [app, ...["components", "ui", "lib", "hooks"].map((k) => aliasDir(root, aliases[k], boundary))].filter(Boolean);
   const unique = [...new Set(dirs)];
   // Drop directories nested inside another scanned directory (components/ui is inside components).
   const sources = unique.filter((d) => !unique.some((o) => o !== d && d.startsWith(o + "/")));
@@ -136,7 +155,7 @@ export async function loadConfig(cwd = process.cwd(), options = {}) {
     root,
     styles,
     sources,
-    uiDir: aliasDir(root, aliases.ui) ?? "components/ui",
+    uiDir: aliasDir(root, aliases.ui, boundary) ?? "components/ui",
     routes: appRoutes(root),
     baseUrl: "http://localhost:3000",
     allowWords: [],
@@ -153,7 +172,7 @@ export async function loadConfig(cwd = process.cwd(), options = {}) {
     : join(root, "viewsonic-ui.config.json");
   if (existsSync(overridePath)) {
     const over = readJson(overridePath);
-    validateOverride(over, "viewsonic-ui.config.json");
+    validateOverride(over, "viewsonic-ui.config.json", root);
     Object.assign(config, over);
   }
   return config;

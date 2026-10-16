@@ -6,12 +6,13 @@
 //   3. literal-union props (side: "top" | "bottom"): the value must be in the union.
 //   4. TypeScript's own diagnostics on ui-component JSX (missing required props, wrong types): hook only.
 // 2 to 4 need the project's `typescript`; without it only 1 runs. The type table is built once per change of the ui
-// folder and cached in the OS temp folder, so the per-edit cost is a parse of one file.
+// folder and cached in the user's own cache folder (maestro patch: not the shared OS temp folder), so the per-edit
+// cost is a parse of one file.
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { cacheDir, replaceFile, walkFiles } from "./maestro-guards.mjs";
 import { invalidVariantMessage, isUiImport, loadVariants, uiDirFor } from "./variants.mjs";
 
 /** The project's TypeScript compiler API, or null. */
@@ -23,17 +24,8 @@ const ALWAYS_OK = new Set(["key", "ref", "children", "className", "style"]);
 
 /* ───────────────────────── the type table ───────────────────────── */
 
-function uiFiles(dir, out = []) {
-  let names;
-  try { names = readdirSync(dir).sort(); } catch { return out; }
-  for (const n of names) {
-    if (n === "node_modules" || n.startsWith(".")) continue;
-    const full = join(dir, n);
-    if (statSync(full).isDirectory()) uiFiles(full, out);
-    else if (/\.tsx$/.test(n)) out.push(full);
-  }
-  return out;
-}
+// maestro patch (not upstream): no links, capped (see maestro-guards.mjs walkFiles).
+const uiFiles = (dir) => walkFiles(dir, /\.tsx$/);
 
 function compilerOptions(ts, root) {
   const cfgPath = join(root, "tsconfig.json");
@@ -93,13 +85,19 @@ function stampFor(ts, root, uiDir) {
 export function loadPropTable(root, uiDir = uiDirFor(root), ts = resolveTs(root)) {
   if (!ts) return null;
   const stamp = stampFor(ts, root, uiDir);
-  const cache = join(tmpdir(), `viewsonic-props-${createHash("sha1").update(root).digest("hex").slice(0, 12)}.json`);
-  try {
-    const hit = JSON.parse(readFileSync(cache, "utf8"));
-    if (hit.stamp === stamp) return hit.table;
-  } catch { /* cold */ }
+  // maestro patch (not upstream): a predictable name in a shared temp folder could be a link another
+  // local user planted, so the cache lives in a folder only this user can write, and is replaced by
+  // rename rather than written through whatever is at its name.
+  const dir = cacheDir();
+  const cache = dir && join(dir, `viewsonic-props-${createHash("sha1").update(root).digest("hex").slice(0, 12)}.json`);
+  if (cache) {
+    try {
+      const hit = JSON.parse(readFileSync(cache, "utf8"));
+      if (hit.stamp === stamp) return hit.table;
+    } catch { /* cold */ }
+  }
   const table = buildPropTable(ts, root, uiDir);
-  try { writeFileSync(cache, JSON.stringify({ stamp, table })); } catch { /* read-only tmp: just slower */ }
+  if (cache) { try { replaceFile(cache, JSON.stringify({ stamp, table }), 0o600); } catch { /* read-only cache: just slower */ } }
   return table;
 }
 

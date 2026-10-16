@@ -7,12 +7,16 @@
 //   exit 0  nothing to report (also: not a script file, a file in the ui folder, no ui project, any internal error)
 //   exit 2  violations, one per line on stderr: <file>:<line> <message>   (PostToolUse feedback goes to the agent)
 //
-// Same judge as the ESLint rule (../props.mjs). The type table is cached in the OS temp folder, so an edit costs a parse
-// of one file plus one TypeScript pass over that file's JSX. Without the project's `typescript` only the cva check runs,
-// and the agent is told so once, except at MAESTRO_UIUX_HOOK=on (maestro patch below).
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+// Same judge as the ESLint rule (../props.mjs). The type table is cached in the user's cache folder, so an edit costs a
+// parse of one file plus one TypeScript pass over that file's JSX. Without the project's `typescript` only the cva check
+// runs, and the agent is told so once, except at MAESTRO_UIUX_HOOK=on (maestro patch below).
+//
+// maestro patches (not upstream): an edited file over 1 MiB is skipped, every finding is printed as one line of
+// printable ASCII (a value or file name with a newline in it cannot forge a second line), and the "told so once"
+// marker lives in the user's private cache folder, created exclusively, never in the shared OS temp folder.
+import { existsSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { cacheDir, oneLine, readSmallFile } from "../maestro-guards.mjs";
 import { checkSource, diagnosticsFor, loadTables, resolveTs } from "../props.mjs";
 import { invalidVariantMessage, isUiImport, uiDirFor } from "../variants.mjs";
 
@@ -40,7 +44,7 @@ async function main() {
   const raw = input?.tool_input?.file_path ?? input?.tool_input?.path;
   if (typeof raw !== "string" || !SCRIPT.test(raw)) return 0;
   const file = isAbsolute(raw) ? raw : resolve(input.cwd ?? process.cwd(), raw);
-  if (!existsSync(file) || file.split(/[\/]/).includes("node_modules")) return 0;
+  if (!existsSync(file) || file.split(/[\\/]/).includes("node_modules")) return 0;
   const root = projectRootOf(file);
   if (!root) return 0;
   const uiDir = uiDirFor(root);
@@ -57,7 +61,8 @@ async function main() {
   const ts = projectCodeAllowed ? resolveTs(root) : null;
   const tables = loadTables(root, { types: Boolean(ts) });
   if (!tables.cva.size) return 0;
-  const src = readFileSync(file, "utf8");
+  const src = readSmallFile(file);
+  if (src === null) return 0;
   const found = ts ? checkSource(ts, rel, src, tables) : [];
   if (!ts) {
     // no TypeScript to parse with: the cva check still runs, through a small regex pass over literal attributes
@@ -71,13 +76,14 @@ async function main() {
   }
   if (found.length) {
     found.sort((a, b) => a.line - b.line);
-    process.stderr.write(found.map((f) => `${rel}:${f.line} ${f.message}`).join("\n") + "\nFix these now: use a prop or value the component defines (read its file in the ui folder).\n");
+    process.stderr.write(found.map((f) => oneLine(`${rel}:${f.line} ${f.message}`)).join("\n") + "\nFix these now: use a prop or value the component defines (read its file in the ui folder).\n");
     return 2;
   }
   if (!ts && projectCodeAllowed) {
-    const marker = join(tmpdir(), "viewsonic-on-edit-no-ts");
-    if (!existsSync(marker)) {
-      try { writeFileSync(marker, "1"); } catch { /* none */ }
+    const dir = cacheDir();
+    const marker = dir && join(dir, "viewsonic-on-edit-no-ts");
+    if (!marker || !existsSync(marker)) {
+      if (marker) { try { writeFileSync(marker, "1", { flag: "wx", mode: 0o600 }); } catch { /* none */ } }
       process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "elattar-uiux-design: this project has no `typescript`, so after-edit checks cover variant values only (not prop names, union values or required props)." } }));
     }
   }
