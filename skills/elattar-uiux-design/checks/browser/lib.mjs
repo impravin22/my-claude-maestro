@@ -2,6 +2,7 @@
 import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
+import { isLocalBase } from "../maestro-guards.mjs";
 
 export const PLAYWRIGHT_HINT = "npm i -D @playwright/test && npx playwright install chromium";
 export const VIEWPORTS = { phone: { width: 390, height: 844 }, desktop: { width: 1440, height: 900 } };
@@ -27,7 +28,8 @@ export function routesFor(config, options = {}) {
 
 export async function reachable(url) {
   try {
-    const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(5000) });
+    // maestro patch (not upstream): a redirect is an answer; following it would send a GET wherever it points.
+    const res = await fetch(url, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(5000) });
     await res.body?.cancel();
     return true;
   } catch {
@@ -93,9 +95,15 @@ export async function waitForReady(page, { hydrateMs = 10000, idleMs = 8000 } = 
  * { skipped: "<reason + fix>" } when Playwright, the browser or the app is not there.
  */
 export async function withPages(config, options, fn) {
+  const base = options.base ?? config.baseUrl;
+  // maestro patch (not upstream): the base usually comes from the repository's config, and the checks
+  // open it with the project's signed-in session, press keys and click. ux-flow already refused a base
+  // that is not local; every browser check does now, before anything is fetched or launched.
+  if (!isLocalBase(base) && !options.allowRemote) {
+    return { skipped: `${base} is not a local app (localhost, 127.0.0.1, [::1], *.localhost, *.test); the browser checks open it with this project's session and press keys and click on its pages, so they only run against a local app. Pass --allow-remote if you are sure` };
+  }
   const chromium = loadPlaywright(config);
   if (!chromium) return { skipped: `Playwright is not installed in this project; run: ${PLAYWRIGHT_HINT}` };
-  const base = options.base ?? config.baseUrl;
   if (!(await reachable(base))) {
     return { skipped: `nothing is answering at ${base}; start the app (e.g. npm run dev) or pass --base <url>` };
   }

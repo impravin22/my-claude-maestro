@@ -1,18 +1,21 @@
 // Shared helpers for the static checks. Node built-ins only.
-import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import { stripBlockComments } from "./maestro-guards.mjs";
 
 export const toPosix = (p) => p.split("\\").join("/");
 
+// maestro patch (not upstream): symbolic links and special files are skipped (a dangling link threw and stopped the
+// whole run, a loop threw ELOOP, a link could lead out of the repository, a FIFO would hang the read).
 /** Every .ts/.tsx/.css file under `dir` (absolute), skipping node_modules and dot-dirs. */
 export function walk(dir, exts = /\.(tsx?|css)$/, out = []) {
-  let names;
-  try { names = readdirSync(dir).sort(); } catch { return out; }
-  for (const name of names) {
-    if (name === "node_modules" || name.startsWith(".")) continue;
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) walk(full, exts, out);
-    else if (exts.test(name)) out.push(full);
+  let entries;
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    if (e.name === "node_modules" || e.name.startsWith(".")) continue;
+    const full = join(dir, e.name);
+    if (e.isDirectory()) walk(full, exts, out);
+    else if (e.isFile() && exts.test(e.name)) out.push(full);
   }
   return out;
 }
@@ -41,8 +44,8 @@ export const readRel = (config, rel) => readFileSync(join(config.root, rel), "ut
 
 /** Blank out comment bodies, keeping every newline so line numbers still match. */
 export function stripComments(text) {
-  return text
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+  // maestro patch (not upstream): block comments are blanked in one pass (the lazy pattern was quadratic).
+  return stripBlockComments(text, true)
     .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
 }
 

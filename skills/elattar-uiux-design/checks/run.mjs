@@ -18,6 +18,7 @@
 //   motion-static  every animated file has a motionPhases row and its phases hand off (static)
 //   motion [--component <part of a path>]  sample each motionPhases row that has a specimen on the running app
 //   ux-flow  ... [--allow-remote]  clicks and fills on the running app; refuses a base that is not local without --allow-remote
+//            (maestro patch: every browser check and shots refuse a base that is not local without --allow-remote)
 //   shots <route>... [--base <url>] [--out <dir>]  PNGs: light/dark x phone/desktop (not a check; exit 0)
 //   install   [--yes] [--cwd <dir>]  hook, CI workflow, config, vendored checks (plan only without --yes)
 //
@@ -31,6 +32,7 @@
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { oneLine as guardLine, routeProblem } from "./maestro-guards.mjs";
 import { computeScope, computeRoutes } from "./scope.mjs";
 
 // Checks that compare files with each other: they read every file and only REPORT in the scoped ones.
@@ -44,7 +46,8 @@ export function fixRoute(a) {
   return m ? "/" + m[1].replace(/\\/g, "/") : a;
 }
 
-const oneLine = (s) => String(s).replace(/\s+/g, " ").trim();
+// maestro patch (not upstream): invisible and control characters go too (see maestro-guards.mjs oneLine).
+const oneLine = (s) => guardLine(s).replace(/\s+/g, " ").trim();
 
 /**
  * Run checks and return { lines, exitCode }. Pure apart from the checks themselves,
@@ -119,7 +122,8 @@ export async function runChecks({ mode, config, base, registry, onLine = () => {
     }
     bad++;
     for (const f of result) {
-      emit(`BAD ${f.check ?? c.name}/${f.rule} ${f.file}:${f.line} - ${oneLine(f.why)} → ${oneLine(f.fix)}`);
+      // maestro patch (not upstream): the file name is one line too, so a name with a line break cannot forge a GOOD.
+      emit(`BAD ${f.check ?? c.name}/${f.rule} ${oneLine(f.file)}:${f.line} - ${oneLine(f.why)} → ${oneLine(f.fix)}`);
     }
   }
 
@@ -143,7 +147,13 @@ function parseArgs(argv) {
     else if (a === "--base") args.base = argv[++i];
     else if (a === "--config") args.configPath = argv[++i];
     else if (a === "--fix-hints") continue; // fixes are always printed
-    else if (a === "--route") (args.routes ??= []).push(fixRoute(argv[++i]));
+    else if (a === "--route") {
+      // maestro patch (not upstream): a route is appended to the base, so it must be a path on it.
+      const r = fixRoute(argv[++i] ?? "");
+      const problem = routeProblem(r);
+      if (problem) return { error: `--route ${JSON.stringify(r)} ${problem}` };
+      (args.routes ??= []).push(r);
+    }
     else if (a === "--changed") args.changed = true;
     else if (a === "--all") args.all = true;
     else if (a === "--all-routes") args.allRoutes = true;
@@ -154,7 +164,11 @@ function parseArgs(argv) {
     else if (a === "--fg" || a === "--bg" || a === "--kind") (args.extra ??= {})[a.slice(2)] = argv[++i];
     else if (a.startsWith("--")) return { error: `unknown flag ${a}` };
     else if (!args.mode) args.mode = a;
-    else if (["shots", "contrast-rendered", "layout-shift", "rhythm", "emphasis", "keyboard", "ux-flow", "runtime-errors", "page-length", "anchor-nav", "nested-radius", "nav-reach", "overlap", "truncation", "title-scale"].includes(args.mode) && fixRoute(a).startsWith("/")) (args.routes ??= []).push(fixRoute(a));
+    else if (["shots", "contrast-rendered", "layout-shift", "rhythm", "emphasis", "keyboard", "ux-flow", "runtime-errors", "page-length", "anchor-nav", "nested-radius", "nav-reach", "overlap", "truncation", "title-scale"].includes(args.mode) && fixRoute(a).startsWith("/")) {
+      const problem = routeProblem(fixRoute(a)); // maestro patch: the same rule as --route
+      if (problem) return { error: `route ${JSON.stringify(fixRoute(a))} ${problem}` };
+      (args.routes ??= []).push(fixRoute(a));
+    }
     else return { error: `unexpected argument ${a}` };
   }
   return args;
@@ -211,7 +225,7 @@ usage: run.mjs shots <route>... [--base <url>] [--out <dir>]`);
       process.exit(64);
     }
     const { shots } = await import("./browser/shots.mjs");
-    const r = await shots(config, { routes: args.routes, base: args.base ?? config.baseUrl, out: args.out, onFile: (f) => console.log(f) });
+    const r = await shots(config, { routes: args.routes, base: args.base ?? config.baseUrl, out: args.out, allowRemote: Boolean(args.allowRemote), onFile: (f) => console.log(f) });
     for (const e of r.errors ?? []) console.log(`BAD shots/route-unreachable ${e.split(" ")[0]}:0 - ${e} → fix the route; nothing was captured for it`);
     if (r.errors?.length) process.exitCode = 1;
     if (r.skipped) {

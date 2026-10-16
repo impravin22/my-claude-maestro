@@ -22,6 +22,7 @@
 // At most 15 buttons per route are clicked.
 import { routesFor, unreachableFinding, VIEWPORTS, waitForReady, withPages } from "./lib.mjs";
 import { install, openTrigger, pickTriggers } from "./keyboard.mjs";
+import { isLocalBase } from "../maestro-guards.mjs";
 
 export const CHECK = "ux-flow";
 export const RULE_IDS = ["no-feedback", "slow-response", "no-escape", "lost-input", "route-unreachable"];
@@ -195,9 +196,8 @@ const fieldValue = (f) => {
 };
 
 const API_LIKE = /\/(?:api|trpc|graphql|rpc|actions?|_actions|mutations?)(?:\/|$)|[?&](?:delete|remove|logout|signout|unsubscribe|revoke)=/i;
-export const LOCAL_HOST = /^(?:localhost|127\.0\.0\.1|\[::1\]|::1|[^/]*\.localhost|[^/]*\.test)$/i;
-/** True for an address that is this machine or a reserved development name. */
-export const isLocalBase = (base) => { try { return LOCAL_HOST.test(new URL(base).hostname); } catch { return false; } };
+// maestro patch (not upstream): moved to maestro-guards.mjs so every browser check shares the one test.
+export { LOCAL_HOST, isLocalBase } from "../maestro-guards.mjs";
 
 /**
  * The dev server's own channels, same origin only: Next (webpack, turbopack, /__nextjs*), Vite (`vite-hmr` protocol,

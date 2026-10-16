@@ -6,12 +6,13 @@
 //   3. literal-union props (side: "top" | "bottom"): the value must be in the union.
 //   4. TypeScript's own diagnostics on ui-component JSX (missing required props, wrong types): hook only.
 // 2 to 4 need the project's `typescript`; without it only 1 runs. The type table is built once per change of the ui
-// folder and cached in the OS temp folder, so the per-edit cost is a parse of one file.
+// folder and cached in the user's own cache folder (maestro patch: not the shared OS temp folder), so the per-edit
+// cost is a parse of one file.
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { boundaryOf, cacheDir, shorten, shortList, isInside, replaceFile, walkFiles } from "./maestro-guards.mjs";
 import { invalidVariantMessage, isUiImport, loadVariants, uiDirFor } from "./variants.mjs";
 
 /** The project's TypeScript compiler API, or null. */
@@ -23,17 +24,9 @@ const ALWAYS_OK = new Set(["key", "ref", "children", "className", "style"]);
 
 /* ───────────────────────── the type table ───────────────────────── */
 
-function uiFiles(dir, out = []) {
-  let names;
-  try { names = readdirSync(dir).sort(); } catch { return out; }
-  for (const n of names) {
-    if (n === "node_modules" || n.startsWith(".")) continue;
-    const full = join(dir, n);
-    if (statSync(full).isDirectory()) uiFiles(full, out);
-    else if (/\.tsx$/.test(n)) out.push(full);
-  }
-  return out;
-}
+// maestro patch (not upstream): no links, capped (see maestro-guards.mjs walkFiles), and nothing outside the
+// repository (the default ui folder included, as a committed link). Callers pass join(root, uiDir).
+const uiFiles = (dir, root) => (isInside(boundaryOf(root), dir) ? walkFiles(dir, /\.tsx$/) : []);
 
 function compilerOptions(ts, root) {
   const cfgPath = join(root, "tsconfig.json");
@@ -47,7 +40,7 @@ function compilerOptions(ts, root) {
 
 /** { Component: { open, names:[...], values:{prop:[...]}, required:[...] } } from the ui folder's exported components. */
 export function buildPropTable(ts, root, uiDir) {
-  const files = uiFiles(join(root, uiDir));
+  const files = uiFiles(join(root, uiDir), root);
   const table = {};
   if (!files.length) return table;
   const program = ts.createProgram(files, compilerOptions(ts, root));
@@ -83,7 +76,7 @@ export function buildPropTable(ts, root, uiDir) {
 function stampFor(ts, root, uiDir) {
   const h = createHash("sha1");
   h.update(`${ts.version}|${root}|${uiDir}`);
-  for (const f of [...uiFiles(join(root, uiDir)), join(root, "tsconfig.json"), join(root, "package.json")]) {
+  for (const f of [...uiFiles(join(root, uiDir), root), join(root, "tsconfig.json"), join(root, "package.json")]) {
     try { const s = statSync(f); h.update(`${f}:${s.mtimeMs}:${s.size}`); } catch { /* absent */ }
   }
   return h.digest("hex");
@@ -93,13 +86,19 @@ function stampFor(ts, root, uiDir) {
 export function loadPropTable(root, uiDir = uiDirFor(root), ts = resolveTs(root)) {
   if (!ts) return null;
   const stamp = stampFor(ts, root, uiDir);
-  const cache = join(tmpdir(), `viewsonic-props-${createHash("sha1").update(root).digest("hex").slice(0, 12)}.json`);
-  try {
-    const hit = JSON.parse(readFileSync(cache, "utf8"));
-    if (hit.stamp === stamp) return hit.table;
-  } catch { /* cold */ }
+  // maestro patch (not upstream): a predictable name in a shared temp folder could be a link another
+  // local user planted, so the cache lives in a folder only this user can write, and is replaced by
+  // rename rather than written through whatever is at its name.
+  const dir = cacheDir();
+  const cache = dir && join(dir, `viewsonic-props-${createHash("sha1").update(root).digest("hex").slice(0, 12)}.json`);
+  if (cache) {
+    try {
+      const hit = JSON.parse(readFileSync(cache, "utf8"));
+      if (hit.stamp === stamp) return hit.table;
+    } catch { /* cold */ }
+  }
   const table = buildPropTable(ts, root, uiDir);
-  try { writeFileSync(cache, JSON.stringify({ stamp, table })); } catch { /* read-only tmp: just slower */ }
+  if (cache) { try { replaceFile(cache, JSON.stringify({ stamp, table }), 0o600); } catch { /* read-only cache: just slower */ } }
   return table;
 }
 
@@ -134,14 +133,14 @@ export function judgeUsage({ cva, types }, usage) {
   const entry = types?.[component];
   if (entry && !entry.open && !ALWAYS_OK.has(prop) && !/^(?:data|aria)-/.test(prop) && !entry.names.includes(prop)) {
     const guess = nearest(prop, entry.names);
-    out.push(`${component} has no prop "${prop}".${guess ? ` Did you mean "${guess}"?` : ""}`);
+    out.push(`${component} has no prop "${shorten(prop, 80)}".${guess ? ` Did you mean "${shorten(guess, 80)}"?` : ""}`); // maestro patch: clipped
     return out;
   }
   for (const v of values ?? []) {
     const viaCva = invalidVariantMessage(cva, component, prop, v);
     if (viaCva) { out.push(viaCva); continue; }
     const union = entry?.values[prop];
-    if (union && !cva.get(component)?.has(prop) && !union.includes(v)) out.push(`${component} has no ${prop} "${v}". Use one of: ${union.join(", ")}.`);
+    if (union && !cva.get(component)?.has(prop) && !union.includes(v)) out.push(`${component} has no ${prop} "${shorten(v, 80)}". Use one of: ${shortList(union)}.`); // maestro patch: clipped
   }
   return out;
 }
@@ -212,7 +211,7 @@ export function diagnosticsFor(ts, root, abs, src, uiDir) {
   const out = [];
   for (const d of program.getSemanticDiagnostics(file)) {
     if (d.start == null || !spans.some((s) => d.start >= s.tagStart && d.start < s.tagEnd)) continue;
-    out.push({ line: sf.getLineAndCharacterOfPosition(d.start).line + 1, message: ts.flattenDiagnosticMessageText(d.messageText, " ").replace(/\s+/g, " ") });
+    out.push({ line: sf.getLineAndCharacterOfPosition(d.start).line + 1, message: shorten(ts.flattenDiagnosticMessageText(d.messageText, " ").replace(/\s+/g, " "), 300) }); // maestro patch: clipped
   }
   return out;
 }

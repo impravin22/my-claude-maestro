@@ -196,8 +196,11 @@ jobs:
       #
       # A green run must also have run the suite (a moved folder or a bad sync
       # would otherwise pass with zero tests), and the only skips allowed are
-      # the browser checks, which need Playwright.
+      # the browser checks, which need Playwright. The checks' cache goes to a
+      # temp folder, never the runner's home.
       - name: Run the bundled skill's tests
+        env:
+          XDG_CACHE_HOME: ${{ runner.temp }}/maestro-xdg
         run: |
           set -o pipefail
           node --test --test-reporter=tap \

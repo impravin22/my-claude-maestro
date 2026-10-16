@@ -1,7 +1,8 @@
 // The design language's vocabulary, read from the project: every `cva(...)` in the ui folder gives a component, its
 // variant props and the values each allows. Used by the ESLint plugin (eslint/viewsonic-variants.mjs). Node built-ins only.
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { boundaryOf, shorten, shortList, isInside, readSmallFile, walkFiles } from "./maestro-guards.mjs";
 
 /** `buttonStyles`, `badgeVariants`, `navigationMenuTriggerStyle` -> `Button`, `Badge`, `NavigationMenuTrigger`. */
 export function componentNameFor(varName) {
@@ -83,10 +84,16 @@ function readTwoLevels(body, open) {
 /** Every cva() in a source file: [{ component, props: { prop: [values] } }]. Calls without a `variants` object are skipped. */
 export function variantsFromSource(src) {
   const out = [];
-  for (const m of src.matchAll(/(?:(?:const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=\s*)?\bcva\s*\(/g)) {
-    if (!m[1]) continue;
+  // maestro patch (not upstream): the type annotation is bounded ({1,200}, was +), because an unbounded one made
+  // this regex quadratic: a crafted 1 MiB file held the after-edit hook for about a minute.
+  // The scan also skips a match inside the previous call's parentheses: an unclosed `cva(` runs to the end of the
+  // file, and rescanning that tail for every later match was quadratic too. Each character is now scanned once.
+  let scanned = 0;
+  for (const m of src.matchAll(/(?:(?:const|let|var)\s+([\w$]+)\s*(?::[^=]{1,200})?=\s*)?\bcva\s*\(/g)) {
+    if (!m[1] || m.index < scanned) continue;
     const open = m.index + m[0].length - 1;
-    const body = src.slice(open, closeParen(src, open));
+    scanned = closeParen(src, open);
+    const body = src.slice(open, scanned);
     const v = /(?<![\w$])variants\s*:\s*\{/.exec(body);
     if (!v) continue;
     const props = readTwoLevels(body, v.index + v[0].length - 1);
@@ -96,24 +103,18 @@ export function variantsFromSource(src) {
   return out;
 }
 
-function walkUi(dir, out = []) {
-  let names;
-  try { names = readdirSync(dir).sort(); } catch { return out; }
-  for (const n of names) {
-    if (n === "node_modules" || n.startsWith(".")) continue;
-    const full = join(dir, n);
-    if (statSync(full).isDirectory()) walkUi(full, out);
-    else if (/\.tsx?$/.test(n)) out.push(full);
-  }
-  return out;
-}
+// maestro patch (not upstream): the walk skips links and is capped (see maestro-guards.mjs walkFiles),
+// because a repository's `uiDir` decides where it starts and the after-edit hook runs it on every edit.
+const walkUi = (dir) => walkFiles(dir, /\.tsx?$/);
 
 /** Map component -> Map prop -> string[] for every cva in `<root>/<uiDir>`. Read from disk each call; callers cache. */
 export function loadVariants(root, uiDir = "components/ui") {
   const table = new Map();
+  // maestro patch: a ui folder outside the repository (the default included, as a committed link) is not read.
+  if (!isInside(boundaryOf(root), join(root, uiDir))) return table;
   for (const file of walkUi(join(root, uiDir))) {
-    const src = readFileSync(file, "utf8");
-    if (!src.includes("cva(")) continue;
+    const src = readSmallFile(file);
+    if (!src?.includes("cva(")) continue;
     for (const { component, props } of variantsFromSource(src)) {
       const entry = table.get(component) ?? new Map();
       for (const [prop, values] of Object.entries(props)) entry.set(prop, [...new Set([...(entry.get(prop) ?? []), ...values])]);
@@ -135,22 +136,30 @@ export function invalidVariantMessage(table, component, prop, value) {
   const props = table.get(component);
   const allowed = props?.get(prop);
   if (!allowed || allowed.includes(value)) return null;
-  return `${component} has no ${prop} "${value}". Use one of: ${allowed.join(", ")}.`;
+  // maestro patch (not upstream): the value and the list are clipped, so a hostile ui file cannot make each
+  // message (and the hook's output, one message per usage) huge.
+  return `${shorten(component, 80)} has no ${shorten(prop, 80)} "${shorten(value, 80)}". Use one of: ${shortList(allowed)}.`;
 }
 
 /** ui folder of the project at `root`, without the async config: components.json alias, else components/ui. */
 export function uiDirFor(root) {
+  // maestro patch (not upstream): both files come from the repository, so a value that leads outside
+  // it (`../outside`, an absolute path, a link out) is ignored, and neither file is read unless it is a
+  // small regular file (a FIFO would hang the hook).
+  const boundary = boundaryOf(root);
+  const contained = (p) => isInside(boundary, join(root, p));
+  const readInside = (name) => (contained(name) ? readSmallFile(join(root, name)) : null); // not a link out
   let uiDir = "components/ui";
   try {
-    const alias = JSON.parse(readFileSync(join(root, "components.json"), "utf8")).aliases?.ui;
+    const alias = JSON.parse(readInside("components.json")).aliases?.ui;
     if (typeof alias === "string") {
       const bare = alias.replace(/^[@~]\//, "").replace(/^\.?\//, "");
-      for (const cand of [bare, `src/${bare}`]) if (existsSync(join(root, cand))) { uiDir = cand; break; }
+      for (const cand of [bare, `src/${bare}`]) if (contained(cand) && existsSync(join(root, cand))) { uiDir = cand; break; }
     }
   } catch { /* default */ }
   try {
-    const over = JSON.parse(readFileSync(join(root, "viewsonic-ui.config.json"), "utf8")).uiDir;
-    if (typeof over === "string") uiDir = over;
+    const over = JSON.parse(readInside("viewsonic-ui.config.json")).uiDir;
+    if (typeof over === "string" && contained(over)) uiDir = over;
   } catch { /* none */ }
   return uiDir;
 }

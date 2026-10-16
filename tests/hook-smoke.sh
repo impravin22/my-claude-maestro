@@ -403,7 +403,9 @@ else
 fi
 
 # U11 and U12 run the real bundled check through real node. Skipped, not
-# passed, when node is absent.
+# passed, when node is absent. The check's cache and notice marker go to a
+# scratch folder, never the real ~/.cache.
+export XDG_CACHE_HOME="$WORK_DIR/uiux-cache"
 if command -v node >/dev/null 2>&1; then
   # U11. The real module loads and parses, run directly (the wrapper would turn
   # a crash into a silent 0): a markdown edit exits 0 with nothing on stderr.

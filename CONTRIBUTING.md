@@ -38,7 +38,7 @@ The bundled `skills/elattar-uiux-design/` skill has its own `node:test` suite (N
 
 ```bash
 npm install --prefix . --no-save --no-package-lock --ignore-scripts typescript@5.9.3 eslint@9.39.5
-env -u MAESTRO_UIUX_HOOK node --test \
+env -u MAESTRO_UIUX_HOOK XDG_CACHE_HOME="$(mktemp -d)" node --test \
   --test-skip-pattern="^patterns: skeleton code passes the static checks$" \
   --test-skip-pattern="^an unknown prop name gets a nearest-name suggestion$" \
   --test-skip-pattern="^probe with only --fg is a usage error$" \
