@@ -275,9 +275,9 @@ export const isLocalBase = (base) => { try { return LOCAL_HOST.test(new URL(base
 export const oneLine = (s) => String(s).replace(/[\x00-\x1f\x7f-\x9f\u2028\u2029\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]+/g, " ");
 
 /** `s` cut to `max` characters, marked when cut, so a hostile name cannot make one message huge. */
-export const clip = (s, max) => { const t = String(s); return t.length > max ? `${t.slice(0, max)}...` : t; };
+export const shorten = (s, max) => { const t = String(s); return t.length > max ? `${t.slice(0, max)}...` : t; };
 /** A list for a message: at most `items` entries, each clipped, with a count of the rest. */
-export function clipList(list, items = 20, max = 40) {
-  const shown = list.slice(0, items).map((x) => clip(x, max));
+export function shortList(list, items = 20, max = 40) {
+  const shown = list.slice(0, items).map((x) => shorten(x, max));
   return list.length > items ? `${shown.join(", ")} and ${list.length - items} more` : shown.join(", ");
 }

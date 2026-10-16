@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { boundaryOf, cacheDir, clip, clipList, isInside, replaceFile, walkFiles } from "./maestro-guards.mjs";
+import { boundaryOf, cacheDir, shorten, shortList, isInside, replaceFile, walkFiles } from "./maestro-guards.mjs";
 import { invalidVariantMessage, isUiImport, loadVariants, uiDirFor } from "./variants.mjs";
 
 /** The project's TypeScript compiler API, or null. */
@@ -133,14 +133,14 @@ export function judgeUsage({ cva, types }, usage) {
   const entry = types?.[component];
   if (entry && !entry.open && !ALWAYS_OK.has(prop) && !/^(?:data|aria)-/.test(prop) && !entry.names.includes(prop)) {
     const guess = nearest(prop, entry.names);
-    out.push(`${component} has no prop "${clip(prop, 80)}".${guess ? ` Did you mean "${clip(guess, 80)}"?` : ""}`); // maestro patch: clipped
+    out.push(`${component} has no prop "${shorten(prop, 80)}".${guess ? ` Did you mean "${shorten(guess, 80)}"?` : ""}`); // maestro patch: clipped
     return out;
   }
   for (const v of values ?? []) {
     const viaCva = invalidVariantMessage(cva, component, prop, v);
     if (viaCva) { out.push(viaCva); continue; }
     const union = entry?.values[prop];
-    if (union && !cva.get(component)?.has(prop) && !union.includes(v)) out.push(`${component} has no ${prop} "${clip(v, 80)}". Use one of: ${clipList(union)}.`); // maestro patch: clipped
+    if (union && !cva.get(component)?.has(prop) && !union.includes(v)) out.push(`${component} has no ${prop} "${shorten(v, 80)}". Use one of: ${shortList(union)}.`); // maestro patch: clipped
   }
   return out;
 }
@@ -211,7 +211,7 @@ export function diagnosticsFor(ts, root, abs, src, uiDir) {
   const out = [];
   for (const d of program.getSemanticDiagnostics(file)) {
     if (d.start == null || !spans.some((s) => d.start >= s.tagStart && d.start < s.tagEnd)) continue;
-    out.push({ line: sf.getLineAndCharacterOfPosition(d.start).line + 1, message: clip(ts.flattenDiagnosticMessageText(d.messageText, " ").replace(/\s+/g, " "), 300) }); // maestro patch: clipped
+    out.push({ line: sf.getLineAndCharacterOfPosition(d.start).line + 1, message: shorten(ts.flattenDiagnosticMessageText(d.messageText, " ").replace(/\s+/g, " "), 300) }); // maestro patch: clipped
   }
   return out;
 }

@@ -2,7 +2,7 @@
 // variant props and the values each allows. Used by the ESLint plugin (eslint/viewsonic-variants.mjs). Node built-ins only.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { boundaryOf, clip, clipList, isInside, readSmallFile, walkFiles } from "./maestro-guards.mjs";
+import { boundaryOf, shorten, shortList, isInside, readSmallFile, walkFiles } from "./maestro-guards.mjs";
 
 /** `buttonStyles`, `badgeVariants`, `navigationMenuTriggerStyle` -> `Button`, `Badge`, `NavigationMenuTrigger`. */
 export function componentNameFor(varName) {
@@ -134,7 +134,7 @@ export function invalidVariantMessage(table, component, prop, value) {
   if (!allowed || allowed.includes(value)) return null;
   // maestro patch (not upstream): the value and the list are clipped, so a hostile ui file cannot make each
   // message (and the hook's output, one message per usage) huge.
-  return `${component} has no ${prop} "${clip(value, 80)}". Use one of: ${clipList(allowed)}.`;
+  return `${component} has no ${prop} "${shorten(value, 80)}". Use one of: ${shortList(allowed)}.`;
 }
 
 /** ui folder of the project at `root`, without the async config: components.json alias, else components/ui. */

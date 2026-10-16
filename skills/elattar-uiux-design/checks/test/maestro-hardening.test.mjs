@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
-  baseUrlProblem, boundaryOf, cacheDir, clipList, isInside, linkOnPath, linkOutOfRepo, MAX_FILE_BYTES, MAX_WALK_FILES,
+  baseUrlProblem, boundaryOf, cacheDir, shortList, isInside, linkOnPath, linkOutOfRepo, MAX_FILE_BYTES, MAX_WALK_FILES,
   replaceFile, routeProblem, walkFiles,
 } from "../maestro-guards.mjs";
 import { invalidVariantMessage, loadVariants, uiDirFor, variantsFromSource } from "../variants.mjs";
@@ -111,9 +111,9 @@ describe("guards: unit", () => {
     assert.deepEqual(readdirSync(d).filter((n) => n.endsWith(".tmp")), [], "no temporary file is left behind, on success or failure");
   });
 
-  test("clipList keeps a message short however long the list or its names", () => {
-    assert.equal(clipList(["sm", "lg"]), "sm, lg");
-    const long = clipList(Array.from({ length: 100 }, (_, i) => `v${i}`.padEnd(500, "x")));
+  test("shortList keeps a message short however long the list or its names", () => {
+    assert.equal(shortList(["sm", "lg"]), "sm, lg");
+    const long = shortList(Array.from({ length: 100 }, (_, i) => `v${i}`.padEnd(500, "x")));
     assert.ok(long.length < 1200, `${long.length} characters`);
     assert.match(long, /and 80 more$/);
   });
